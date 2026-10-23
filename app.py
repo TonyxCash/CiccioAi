@@ -479,7 +479,26 @@ with tab_create:
         with c2:
             price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=39.99, step=1.0)
             cost = st.number_input("Costo per te (€) — facoltativo", min_value=0.0, max_value=100000.0, value=0.0, step=1.0)
-            material = st.text_input("Materiale", placeholder="Es. 97% cotone, 3% elastan")
+            material_options = [
+                "Cotone", "Poliestere", "Elastan", "Lana", "Lino", "Seta",
+                "Viscosa", "Acrilico", "Nylon / Poliammide", "Denim", "Pelle",
+                "Pelle sintetica", "Camoscio", "Cashmere", "Modal", "Lyocell",
+                "Canapa", "Bambù", "Raso", "Velluto", "Tulle", "Piumino / Piuma",
+                "Materiale riciclato", "Altro"
+            ]
+            selected_materials = st.multiselect(
+                "Materiale (puoi scegliere più opzioni)",
+                material_options,
+                help="Seleziona tutti i materiali indicati sull'etichetta del capo."
+            )
+            custom_material = st.text_input(
+                "Composizione o dettagli aggiuntivi (facoltativo)",
+                placeholder="Es. 97% cotone, 3% elastan"
+            )
+            material_parts = list(selected_materials)
+            if clean(custom_material):
+                material_parts.append(clean(custom_material))
+            material = ", ".join(dict.fromkeys(material_parts))
             tone = st.selectbox("Tono dell'annuncio", ["Naturale", "Essenziale", "Elegante"])
             keywords = st.text_input("Parole chiave", placeholder="Es. sartoriale, slim fit")
         details = st.text_area("Dettagli da valorizzare", placeholder="Vestibilità, misure, modello, particolari o eventuali difetti da segnalare…", height=110)
