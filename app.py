@@ -16,51 +16,54 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
-:root { color-scheme: light; --ink:#183b3a; --muted:#68817d; --mint:#b9f2df; --mint-strong:#4bc7a4; --deep:#123f3c; --paper:#f5faf8; --line:#dcebe5; }
+:root { color-scheme:dark; --ink:#e7f5f4; --muted:#8ca9b2; --mint:#9df8e8; --mint-strong:#25dfce; --deep:#071a25; --paper:#06131d; --line:#183746; }
 html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
-.stApp { background:var(--paper); color:var(--ink); }
-[data-testid="stHeader"] { background:rgba(245,250,248,.92); }
-.block-container { max-width:1320px; padding:1.6rem 2.2rem 3rem; }
-[data-testid="stSidebar"] { background:#eaf7f1; border-right:1px solid var(--line); }
-[data-testid="stSidebar"] > div { padding-top:1.4rem; }
-.brand-mark { width:42px;height:42px;border-radius:14px;background:var(--deep);color:#b9f2df;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:800; }
-.brand-name { font-family:'Manrope',sans-serif;font-size:1.45rem;font-weight:800;letter-spacing:-.7px;color:var(--deep); }
-.brand-sub { color:var(--muted);font-size:.82rem;margin-top:-4px; }
-.hero { position:relative;overflow:hidden;padding:2rem 2.1rem;border-radius:28px;background:linear-gradient(120deg,#123f3c 0%,#1b6258 62%,#4bc7a4 125%);color:white;margin:0 0 1.5rem;box-shadow:0 14px 36px rgba(18,63,60,.12); }
-.hero:after { content:"";position:absolute;width:230px;height:230px;border:1px solid rgba(255,255,255,.17);border-radius:50%;right:-45px;top:-95px;box-shadow:0 0 0 28px rgba(255,255,255,.04),0 0 0 58px rgba(255,255,255,.035); }
-.hero-kicker { text-transform:uppercase;letter-spacing:2px;font-size:.72rem;font-weight:700;color:#b9f2df;margin-bottom:.65rem; }
+.stApp { background:radial-gradient(ellipse at 12% 0%,#103b48 0%,#071a25 43%,#06131d 100%); color:var(--ink); }
+[data-testid="stHeader"] { background:rgba(6,19,29,.88); }
+.block-container { max-width:1240px; padding:1.4rem 1.5rem 3rem; }
+[data-testid="stSidebar"] { background:#071a25; border-right:1px solid #183746; }
+[data-testid="stSidebar"] > div { padding-top:1.3rem; }
+.brand-mark { width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#23dfce,#087c91);color:#05212a;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;box-shadow:0 0 25px #20dcca22; }
+.brand-name { font-family:'Manrope',sans-serif;font-size:1.45rem;font-weight:800;letter-spacing:-.7px;color:#f4ffff; }
+.brand-sub { color:#8ca9b2;font-size:.82rem;margin-top:-4px; }
+.hero { position:relative;overflow:hidden;padding:2rem 2.1rem;border:1px solid #1b5663;border-radius:26px;background:linear-gradient(115deg,#06232f 0%,#075466 60%,#087e84 115%);color:white;margin:0 0 1.4rem;box-shadow:0 18px 55px #0005; }
+.hero:after { content:"";position:absolute;width:230px;height:230px;border:1px solid #8cf8e822;border-radius:50%;right:-45px;top:-95px;box-shadow:0 0 0 28px #8cf8e80a,0 0 0 58px #8cf8e808; }
+.hero-kicker { text-transform:uppercase;letter-spacing:2px;font-size:.72rem;font-weight:700;color:#6af5e2;margin-bottom:.65rem; }
 .hero h1 { font-family:'Manrope',sans-serif;font-size:clamp(1.9rem,4vw,2.8rem);font-weight:800;letter-spacing:-1.5px;line-height:1.12;margin:0 0 .65rem;color:#fff; }
-.hero p { max-width:650px;color:#d7f3e9;font-size:1.02rem;line-height:1.6;margin:0; }
-.section-title { font-family:'Manrope',sans-serif;font-weight:800;letter-spacing:-.6px;color:var(--deep);font-size:1.45rem;margin:.25rem 0 .25rem; }
-.section-subtitle { color:var(--muted);margin-bottom:1.2rem;font-size:.94rem; }
-.eyebrow { color:#438b79;text-transform:uppercase;letter-spacing:1.5px;font-size:.7rem;font-weight:800; }
-div[data-testid="stMetric"] { background:white;border:1px solid var(--line);padding:17px 18px;border-radius:20px;box-shadow:0 4px 16px rgba(22,75,62,.035); }
-div[data-testid="stMetric"] label { color:var(--muted)!important;font-weight:600; }
-div[data-testid="stMetric"] [data-testid="stMetricValue"] { color:var(--deep);font-family:'Manrope',sans-serif;font-weight:800; }
-.stTabs [data-baseweb="tab-list"] { gap:8px;background:#eaf4ef;padding:6px;border-radius:15px; }
-.stTabs [data-baseweb="tab"] { border-radius:11px;padding:10px 16px;height:auto;font-weight:700;color:#54746b; }
-.stTabs [aria-selected="true"] { background:white!important;color:var(--deep)!important;box-shadow:0 2px 8px rgba(18,63,60,.07); }
-.stTabs [data-baseweb="tab-highlight"] { background:var(--mint-strong);height:3px; }
-div.stButton > button, div.stDownloadButton > button, div[data-testid="stFormSubmitButton"] button { border-radius:13px;min-height:2.9rem;font-weight:700;border:1px solid var(--line);transition:all .15s ease; }
-div.stButton > button[kind="primary"], div[data-testid="stFormSubmitButton"] button[kind="primary"] { background:var(--deep);border-color:var(--deep);color:white; }
-div.stButton > button:hover, div.stDownloadButton > button:hover { border-color:var(--mint-strong);color:var(--deep); }
-div[data-testid="stForm"] { background:white;border:1px solid var(--line);border-radius:22px;padding:1.3rem;box-shadow:0 6px 22px rgba(22,75,62,.035); }
-div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stTextArea"] textarea { border-radius:12px!important;background:#fcfefd; }
-div[data-baseweb="select"] > div { border-radius:12px; }
-.stTextInput label, .stNumberInput label, .stTextArea label, .stSelectbox label { color:#315c53;font-weight:600; }
-.result-card { background:white;border:1px solid var(--line);border-radius:22px;padding:1.25rem;margin:.6rem 0; }
-.pill { display:inline-block;padding:5px 10px;border-radius:999px;background:#e1f8ed;color:#236d59;font-size:.75rem;font-weight:700; }
-.info-card { background:white;border:1px solid var(--line);border-radius:20px;padding:1.1rem 1.2rem;height:100%; }
-.info-icon { width:38px;height:38px;border-radius:12px;background:#ddf7eb;display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:.8rem; }
-.small-muted { color:var(--muted);font-size:.84rem;line-height:1.5; }
-hr { border-color:var(--line)!important; }
-[data-testid="stDataFrame"] { border:1px solid var(--line);border-radius:15px;overflow:hidden; }
+.hero p { max-width:650px;color:#d0f7f4;font-size:1.02rem;line-height:1.6;margin:0; }
+.section-title { font-family:'Manrope',sans-serif;font-weight:800;letter-spacing:-.6px;color:#efffff;font-size:1.45rem;margin:.25rem 0 .25rem; }
+.section-subtitle { color:#9bb7bf;margin-bottom:1.2rem;font-size:.94rem; }
+.eyebrow { color:#47e8d6;text-transform:uppercase;letter-spacing:1.5px;font-size:.7rem;font-weight:800; }
+div[data-testid="stMetric"] { background:linear-gradient(145deg,#0d2633,#091d29);border:1px solid #1b3c4b;padding:17px 18px;border-radius:19px;box-shadow:0 7px 22px #0002; }
+div[data-testid="stMetric"] label { color:#9bb7bf!important;font-weight:600; }
+div[data-testid="stMetric"] [data-testid="stMetricValue"] { color:#eaffff;font-family:'Manrope',sans-serif;font-weight:800; }
+.stTabs [data-baseweb="tab-list"] { gap:7px;background:#091e2a;padding:6px;border:1px solid #183746;border-radius:15px; }
+.stTabs [data-baseweb="tab"] { border-radius:11px;padding:10px 16px;height:auto;font-weight:700;color:#9bb7bf; }
+.stTabs [aria-selected="true"] { background:#123746!important;color:#7ef8e9!important;box-shadow:0 2px 8px #0003; }
+.stTabs [data-baseweb="tab-highlight"] { background:#25dfce;height:3px; }
+div.stButton > button, div.stDownloadButton > button, div[data-testid="stFormSubmitButton"] button { border-radius:13px;min-height:2.9rem;font-weight:700;border:1px solid #214555;background:#0b2633;color:#e7ffff;transition:all .15s ease; }
+div.stButton > button[kind="primary"], div[data-testid="stFormSubmitButton"] button[kind="primary"] { background:linear-gradient(100deg,#24dfce,#51f0d7);border-color:#25dfce;color:#05212a; }
+div.stButton > button:hover, div.stDownloadButton > button:hover { border-color:#25dfce;color:#72f7e8; }
+div[data-testid="stForm"] { background:linear-gradient(145deg,#0b202d,#091b27);border:1px solid #1b3d4c;border-radius:21px;padding:1.2rem;box-shadow:0 10px 35px #0002; }
+div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stTextArea"] textarea { border-radius:12px!important;background:#061722!important;color:#e7ffff!important;border:1px solid #214455!important; }
+div[data-baseweb="select"] > div { border-radius:12px;background:#061722;border-color:#214455; }
+.stTextInput label, .stNumberInput label, .stTextArea label, .stSelectbox label { color:#c2d9de;font-weight:600; }
+.result-card { background:linear-gradient(145deg,#0d2633,#091d29);border:1px solid #1b3c4b;border-radius:21px;padding:1.25rem;margin:.6rem 0; }
+.pill { display:inline-block;padding:5px 10px;border-radius:999px;background:#0d3f45;color:#6cf5e1;font-size:.75rem;font-weight:700;border:1px solid #1d6a6d; }
+.info-card { background:linear-gradient(145deg,#0d2633,#091d29);border:1px solid #1b3c4b;border-radius:19px;padding:1.1rem 1.2rem;height:100%; }
+.info-icon { width:38px;height:38px;border-radius:12px;background:#0b3b46;color:#59f1df;display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:.8rem; }
+.small-muted { color:#91adb6;font-size:.84rem;line-height:1.5; }
+hr { border-color:#183746!important; }
+[data-testid="stDataFrame"] { border:1px solid #1b3c4b;border-radius:15px;overflow:hidden; }
 .stAlert { border-radius:14px; }
+p, label, li { color:inherit; }
+[data-testid="stMarkdownContainer"] a { color:#5cf3e0; }
+[data-baseweb="input"] { background:#061722; }
 @media(max-width:760px) {
- .block-container {padding:1rem .8rem 2rem;}
- .hero {padding:1.35rem;border-radius:22px;}
- .hero h1 {font-size:1.95rem;}
- .stTabs [data-baseweb="tab"] {padding:9px 10px;font-size:.82rem;}
+ .block-container {padding:.9rem .65rem 2rem;}
+ .hero {padding:1.25rem;border-radius:21px;}
+ .hero h1 {font-size:1.85rem;}
+ .stTabs [data-baseweb="tab"] {padding:9px 9px;font-size:.82rem;}
  div[data-testid="stForm"] {padding:.8rem;}
 }
 </style>
@@ -103,50 +106,71 @@ if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
         st.session_state.db_loaded_for = ""
 
 if not st.session_state.auth_user_id:
-    st.markdown('<div class="section-title">Accedi a ListingAI</div><div class="section-subtitle">Crea un account gratuito per salvare i tuoi annunci nel tuo archivio personale.</div>', unsafe_allow_html=True)
-    login_tab, register_tab = st.tabs(["Accedi", "Crea account"])
-    with login_tab:
-        with st.form("login_form"):
-            login_email = st.text_input("Email", key="login_email")
-            login_password = st.text_input("Password", type="password", key="login_password")
-            login_submit = st.form_submit_button("Accedi", type="primary", use_container_width=True)
-        if login_submit:
-            try:
-                result = supabase.auth.sign_in_with_password({"email": login_email.strip(), "password": login_password})
-                st.session_state.auth_access_token = result.session.access_token
-                st.session_state.auth_refresh_token = result.session.refresh_token
-                st.session_state.auth_user_id = result.user.id
-                st.session_state.auth_email = result.user.email or login_email.strip()
-                st.session_state.db_loaded_for = ""
-                st.rerun()
-            except Exception as e:
-                st.error("Accesso non riuscito. Controlla email e password. Se hai appena creato l'account, verifica l'email se richiesto da Supabase.")
-    with register_tab:
-        with st.form("register_form"):
-            register_email = st.text_input("La tua email", key="register_email")
-            register_password = st.text_input("Crea una password (almeno 6 caratteri)", type="password", key="register_password")
-            register_password_confirm = st.text_input("Ripeti la password", type="password", key="register_password_confirm")
-            register_submit = st.form_submit_button("Crea account", type="primary", use_container_width=True)
-        if register_submit:
-            if register_password != register_password_confirm:
-                st.error("Le due password non coincidono.")
-            elif len(register_password) < 6:
-                st.error("Scegli una password di almeno 6 caratteri.")
-            else:
+    st.markdown("""
+    <div style="max-width:980px;margin:.3rem auto 1.2rem;text-align:center">
+      <div style="font-size:2.5rem;color:#39e8d6;line-height:1.2">⌁</div>
+      <div style="font-family:Manrope,sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-1px;color:#f4ffff">Listing<span style="color:#35e7d5">AI</span></div>
+      <div style="font-size:1.04rem;color:#b7d1d8;margin:.35rem 0 1.1rem">Il tuo studio intelligente per vendere abbigliamento online.</div>
+      <div style="display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-bottom:1.3rem">
+        <span class="pill">✦ Annunci curati</span><span class="pill">▦ Catalogo personale</span><span class="pill">↗ Da iPhone e computer</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+    left, right = st.columns([1.05, 1], gap="large")
+    with left:
+        st.markdown("""
+        <div class="hero" style="min-height:340px;display:flex;flex-direction:column;justify-content:center">
+          <div class="hero-kicker">IL TUO SELLER STUDIO</div>
+          <h1>Crea annunci migliori.<br>Vendi con più ordine.</h1>
+          <p>Organizza i tuoi capi, prepara descrizioni chiare e conserva gli annunci nel tuo archivio personale.</p>
+          <div style="margin-top:1.5rem;line-height:2;color:#c8f6f0">✓ Testi pronti da rivedere<br>✓ Catalogo personale salvato online<br>✓ Un unico spazio semplice da usare</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with right:
+        st.markdown('<div class="section-title">Bentornato</div><div class="section-subtitle">Accedi o crea il tuo account gratuito.</div>', unsafe_allow_html=True)
+        auth_mode = st.radio("Scegli un’opzione", ["Accedi", "Crea account"], horizontal=True, label_visibility="collapsed", key="auth_mode")
+        if auth_mode == "Accedi":
+            with st.form("login_form"):
+                login_email = st.text_input("Email", key="login_email")
+                login_password = st.text_input("Password", type="password", key="login_password")
+                login_submit = st.form_submit_button("Accedi", type="primary", use_container_width=True)
+            if login_submit:
                 try:
-                    result = supabase.auth.sign_up({"email": register_email.strip(), "password": register_password})
-                    if result.session:
-                        st.session_state.auth_access_token = result.session.access_token
-                        st.session_state.auth_refresh_token = result.session.refresh_token
-                        st.session_state.auth_user_id = result.user.id
-                        st.session_state.auth_email = result.user.email or register_email.strip()
-                        st.session_state.db_loaded_for = ""
-                        st.rerun()
-                    else:
-                        st.success("Account creato. Controlla la tua email per confermare la registrazione, poi accedi.")
-                except Exception as e:
-                    st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata. Dettaglio: " + str(e))
-    st.caption("Usa una password nuova per ListingAI. Non riutilizzare password importanti.")
+                    result = supabase.auth.sign_in_with_password({"email": login_email.strip(), "password": login_password})
+                    st.session_state.auth_access_token = result.session.access_token
+                    st.session_state.auth_refresh_token = result.session.refresh_token
+                    st.session_state.auth_user_id = result.user.id
+                    st.session_state.auth_email = result.user.email or login_email.strip()
+                    st.session_state.db_loaded_for = ""
+                    st.rerun()
+                except Exception:
+                    st.error("Accesso non riuscito. Controlla email e password e verifica l'email se la registrazione lo richiede.")
+        else:
+            with st.form("register_form"):
+                register_email = st.text_input("La tua email", key="register_email")
+                register_password = st.text_input("Crea una password (almeno 6 caratteri)", type="password", key="register_password")
+                register_password_confirm = st.text_input("Ripeti la password", type="password", key="register_password_confirm")
+                register_submit = st.form_submit_button("Crea account", type="primary", use_container_width=True)
+            if register_submit:
+                if register_password != register_password_confirm:
+                    st.error("Le due password non coincidono.")
+                elif len(register_password) < 6:
+                    st.error("Scegli una password di almeno 6 caratteri.")
+                else:
+                    try:
+                        result = supabase.auth.sign_up({"email": register_email.strip(), "password": register_password})
+                        if result.session:
+                            st.session_state.auth_access_token = result.session.access_token
+                            st.session_state.auth_refresh_token = result.session.refresh_token
+                            st.session_state.auth_user_id = result.user.id
+                            st.session_state.auth_email = result.user.email or register_email.strip()
+                            st.session_state.db_loaded_for = ""
+                            st.rerun()
+                        else:
+                            st.success("Account creato. Controlla la tua email per confermare la registrazione, poi seleziona Accedi.")
+                    except Exception:
+                        st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata.")
+        st.caption("Usa una password dedicata a ListingAI. Non riutilizzare password importanti.")
     st.stop()
 
 
