@@ -104,7 +104,7 @@ try:
     browser_fragment = get_fragment()
     if browser_fragment:
         fragment_params = dict(parse_qsl(str(browser_fragment).lstrip("#")))
-        if fragment_params.get("type") == "recovery":
+        if fragment_params.get("type") == "recovery" and not st.session_state.recovery_verified:
             fragment_access_token = fragment_params.get("access_token", "")
             fragment_refresh_token = fragment_params.get("refresh_token", "")
             if fragment_access_token and fragment_refresh_token:
