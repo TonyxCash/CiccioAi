@@ -467,42 +467,96 @@ if is_admin:
 
 with tab_create:
     st.markdown('<div class="section-title">Crea il tuo prossimo annuncio</div><div class="section-subtitle">Inserisci le informazioni essenziali: ListingAI prepara una prima bozza che puoi rifinire.</div>', unsafe_allow_html=True)
-    with st.form("listing_form", clear_on_submit=False):
         st.markdown('<div class="eyebrow">01 / Dettagli del capo</div>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            category = st.selectbox("Categoria *", CATEGORIES)
-            brand = st.text_input("Marca", placeholder="Es. Levi's, Zara, Jhavè")
-            size = st.text_input("Taglia", placeholder="Es. 48, M, XL")
-            color = st.text_input("Colore", placeholder="Es. blu scuro")
-            condition = st.selectbox("Condizioni", CONDITIONS)
-        with c2:
-            price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=39.99, step=1.0)
-            cost = st.number_input("Costo per te (€) — facoltativo", min_value=0.0, max_value=100000.0, value=0.0, step=1.0)
-            material_options = [
-                "Cotone", "Poliestere", "Elastan", "Lana", "Lino", "Seta",
-                "Viscosa", "Acrilico", "Nylon / Poliammide", "Denim", "Pelle",
-                "Pelle sintetica", "Camoscio", "Cashmere", "Modal", "Lyocell",
-                "Canapa", "Bambù", "Raso", "Velluto", "Tulle", "Piumino / Piuma",
-                "Materiale riciclato", "Altro"
-            ]
-            selected_materials = st.multiselect(
-                "Materiale (puoi scegliere più opzioni)",
-                material_options,
-                help="Seleziona tutti i materiali indicati sull'etichetta del capo."
-            )
-            custom_material = st.text_input(
-                "Composizione o dettagli aggiuntivi (facoltativo)",
-                placeholder="Es. 97% cotone, 3% elastan"
-            )
-            material_parts = list(selected_materials)
-            if clean(custom_material):
-                material_parts.append(clean(custom_material))
-            material = ", ".join(dict.fromkeys(material_parts))
-            tone = st.selectbox("Tono dell'annuncio", ["Naturale", "Essenziale", "Elegante"])
-            keywords = st.text_input("Parole chiave", placeholder="Es. sartoriale, slim fit")
-        details = st.text_area("Dettagli da valorizzare", placeholder="Vestibilità, misure, modello, particolari o eventuali difetti da segnalare…", height=110)
-        submitted = st.form_submit_button("✦ Genera la bozza", type="primary", use_container_width=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        category = st.selectbox("Categoria *", CATEGORIES)
+        brand = st.text_input("Marca", placeholder="Es. Levi's, Zara, Jhavè")
+        size = st.text_input("Taglia", placeholder="Es. 48, M, XL")
+        color_options = [
+        "Nero", "Bianco", "Blu", "Blu navy", "Azzurro", "Grigio", "Grigio antracite",
+        "Beige", "Panna", "Marrone", "Verde", "Verde oliva", "Rosso", "Bordeaux",
+        "Rosa", "Fucsia", "Viola", "Giallo", "Arancione", "Jeans / denim", "Multicolore", "Fantasia", "Altro"
+    ]
+    selected_colors = st.multiselect(
+        "Colore (puoi scegliere più opzioni)",
+        color_options,
+        help="Seleziona uno o più colori realmente presenti sul capo."
+    )
+    custom_color = st.text_input("Colore personalizzato (facoltativo)", placeholder="Es. blu notte, tortora")
+    color_parts = list(selected_colors)
+    if clean(custom_color):
+        color_parts.append(clean(custom_color))
+    color = ", ".join(dict.fromkeys(color_parts))
+        condition = st.selectbox("Condizioni", CONDITIONS)
+    with c2:
+        price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=39.99, step=1.0)
+        cost = st.number_input("Costo per te (€) — facoltativo", min_value=0.0, max_value=100000.0, value=0.0, step=1.0)
+        material_options = [
+            "Cotone", "Poliestere", "Elastan", "Lana", "Lino", "Seta",
+            "Viscosa", "Acrilico", "Nylon / Poliammide", "Denim", "Pelle",
+            "Pelle sintetica", "Camoscio", "Cashmere", "Modal", "Lyocell",
+            "Canapa", "Bambù", "Raso", "Velluto", "Tulle", "Piumino / Piuma",
+            "Materiale riciclato", "Altro"
+        ]
+        selected_materials = st.multiselect(
+            "Materiale (puoi scegliere più opzioni)",
+            material_options,
+            help="Seleziona tutti i materiali indicati sull'etichetta del capo."
+        )
+        custom_material = st.text_input(
+            "Composizione o dettagli aggiuntivi (facoltativo)",
+            placeholder="Es. 97% cotone, 3% elastan"
+        )
+        material_parts = list(selected_materials)
+        if clean(custom_material):
+            material_parts.append(clean(custom_material))
+        material = ", ".join(dict.fromkeys(material_parts))
+        tone = st.selectbox("Tono dell'annuncio", ["Naturale", "Essenziale", "Elegante"])
+        keyword_map = {
+        "Jeans": ["denim", "cinque tasche", "casual", "streetwear", "jeans uomo", "jeans donna", "slim fit", "regular fit", "straight"],
+        "Pantaloni": ["sartoriale", "elegante", "casual chic", "ufficio", "chino", "pantaloni uomo", "pantaloni donna", "slim fit", "regular fit"],
+        "T-shirt": ["basic", "casual", "cotone", "streetwear", "t-shirt uomo", "t-shirt donna", "oversize", "girocollo"],
+        "Camicia": ["elegante", "formale", "ufficio", "sartoriale", "casual chic", "camicia uomo", "camicia donna", "slim fit"],
+        "Felpa": ["casual", "sportivo", "streetwear", "comoda", "oversize", "con cappuccio", "senza cappuccio"],
+        "Giacca": ["elegante", "casual", "outerwear", "ufficio", "blazer", "capospalla"],
+        "Cappotto": ["elegante", "invernale", "capospalla", "classico", "caldo"],
+        "Scarpe": ["sneakers", "elegante", "casual", "streetwear", "comfort", "calzature"],
+        "Abito": ["elegante", "cerimonia", "formale", "ufficio", "sartoriale", "look raffinato"],
+        "Borsa": ["accessorio", "quotidiano", "elegante", "casual", "capiente"],
+        "Accessori": ["accessorio moda", "look", "elegante", "casual", "unisex"],
+        "Altro": ["abbigliamento", "moda", "casual", "elegante", "outfit"]
+    }
+    color_keyword_map = {
+        "Nero": ["nero", "total black"], "Bianco": ["bianco", "total white"],
+        "Blu": ["blu", "blu classico"], "Blu navy": ["blu navy", "blu scuro", "navy"],
+        "Azzurro": ["azzurro", "blu chiaro"], "Grigio": ["grigio"], "Grigio antracite": ["antracite", "grigio scuro"],
+        "Beige": ["beige", "neutro"], "Panna": ["panna", "avorio"], "Marrone": ["marrone", "terra"],
+        "Verde": ["verde"], "Verde oliva": ["verde oliva", "militare"], "Rosso": ["rosso"],
+        "Bordeaux": ["bordeaux", "rosso scuro"], "Rosa": ["rosa"], "Fucsia": ["fucsia"],
+        "Viola": ["viola"], "Giallo": ["giallo"], "Arancione": ["arancione"],
+        "Jeans / denim": ["denim", "effetto jeans"], "Multicolore": ["multicolore"],
+        "Fantasia": ["fantasia", "pattern"]
+    }
+    suggested_keywords = list(keyword_map.get(category, keyword_map["Altro"]))
+    for selected_color in selected_colors:
+        suggested_keywords.extend(color_keyword_map.get(selected_color, [selected_color.lower()]))
+    if material:
+        suggested_keywords.extend([part.strip().lower() for part in material.split(",") if part.strip()])
+    suggested_keywords = list(dict.fromkeys(suggested_keywords))
+    selected_keywords = st.multiselect(
+        "Parole chiave suggerite (selezione multipla)",
+        suggested_keywords,
+        help="I suggerimenti cambiano in base alla categoria, ai colori e ai materiali selezionati."
+    )
+    custom_keywords = st.text_input("Altre parole chiave (facoltativo)", placeholder="Es. made in Italy, slim fit")
+    keyword_parts = list(selected_keywords)
+    if clean(custom_keywords):
+        keyword_parts.extend([part.strip() for part in custom_keywords.split(",") if part.strip()])
+    keywords = ", ".join(dict.fromkeys(keyword_parts))
+    details = st.text_area("Dettagli da valorizzare", placeholder="Vestibilità, misure, modello, particolari o eventuali difetti da segnalare…", height=110)
+
+    submitted = st.button("✦ Genera la bozza", type="primary", use_container_width=True)
     if submitted:
         item = {"category":category, "brand":clean(brand), "size":clean(size), "color":clean(color), "condition":condition, "price":float(price), "cost":float(cost), "material":clean(material), "details":clean(details), "tone":tone, "keywords":clean(keywords), "created":datetime.now().strftime("%Y-%m-%d %H:%M")}
         title, description, hashtags = make_listing(item, tone, keywords)
