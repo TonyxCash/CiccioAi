@@ -560,22 +560,74 @@ with tab_catalog:
         m1, m2 = st.columns(2)
         m1.metric("Annunci salvati", len(items))
         m2.metric("Valore richiesto totale", money(sum(float(x.get("price", 0)) for x in items)))
-        rows = [{"Titolo":x.get("title",""), "Categoria":x.get("category",""), "Taglia":x.get("size",""), "Colore":x.get("color",""), "Prezzo":float(x.get("price",0)), "Condizioni":x.get("condition","")} for x in items]
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        csv_buffer = io.StringIO()
-        writer = csv.DictWriter(csv_buffer, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-        st.download_button("↓ Esporta catalogo CSV", csv_buffer.getvalue().encode("utf-8-sig"), "catalogo_listingai.csv", "text/csv", use_container_width=True)
-        options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}":x.get("id") for x in items}
-        selected_label = st.selectbox("Seleziona un annuncio da eliminare", list(options.keys()))
-        if st.button("Elimina annuncio selezionato"):
-            try:
-                supabase.table("listings").delete().eq("id", options[selected_label]).eq("user_id", st.session_state.auth_user_id).execute()
-                st.session_state.db_loaded_for = ""
-                st.rerun()
-            except Exception as e:
-                st.error("Eliminazione non riuscita. Dettaglio: " + str(e))
+
+        # Ricerca e filtri del catalogo
+        filter_col1, filter_col2 = st.columns([2, 1])
+        with filter_col1:
+            catalog_query = st.text_input("🔎 Cerca nel catalogo", placeholder="Titolo, marca, colore o taglia…", key="catalog_query")
+        with filter_col2:
+            available_categories = ["Tutte le categorie"] + sorted({str(x.get("category") or "Altro") for x in items})
+            catalog_category = st.selectbox("Categoria", available_categories, key="catalog_category")
+        filtered_items = [
+            x for x in items
+            if (not catalog_query.strip() or catalog_query.strip().lower() in " ".join(str(x.get(k, "")) for k in ("title", "brand", "category", "color", "size", "description")).lower())
+            and (catalog_category == "Tutte le categorie" or str(x.get("category") or "Altro") == catalog_category)
+        ]
+        st.caption(f"Visualizzati {len(filtered_items)} di {len(items)} annunci.")
+        rows = [{"Titolo":x.get("title",""), "Categoria":x.get("category",""), "Taglia":x.get("size",""), "Colore":x.get("color",""), "Prezzo":float(x.get("price",0)), "Condizioni":x.get("condition","")} for x in filtered_items]
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            csv_buffer = io.StringIO()
+            writer = csv.DictWriter(csv_buffer, fieldnames=list(rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(rows)
+            st.download_button("↓ Esporta risultati CSV", csv_buffer.getvalue().encode("utf-8-sig"), "catalogo_listingai.csv", "text/csv", use_container_width=True)
+        else:
+            st.info("Nessun annuncio corrisponde alla ricerca. Prova a cambiare parole o categoria.")
+
+        st.markdown("---")
+        st.markdown('<div class="section-title">Modifica un annuncio</div><div class="section-subtitle">Aggiorna titolo, descrizione, hashtag e prezzo senza ricreare il prodotto.</div>', unsafe_allow_html=True)
+        editable_items = [x for x in filtered_items if x.get("id")]
+        if editable_items:
+            edit_options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}": x for x in editable_items}
+            edit_label = st.selectbox("Annuncio da modificare", list(edit_options.keys()), key="catalog_edit_choice")
+            chosen = edit_options[edit_label]
+            with st.form("edit_catalog_listing_form"):
+                edited_title = st.text_input("Titolo", value=chosen.get("title", ""), max_chars=100)
+                edited_description = st.text_area("Descrizione", value=chosen.get("description", ""), height=180)
+                edited_hashtags = st.text_input("Hashtag", value=chosen.get("hashtags", ""))
+                edited_price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=float(chosen.get("price") or 0), step=1.0)
+                save_edit = st.form_submit_button("Salva modifiche", type="primary", use_container_width=True)
+            if save_edit:
+                if not edited_title.strip():
+                    st.error("Il titolo non può essere vuoto.")
+                else:
+                    try:
+                        supabase.table("listings").update({
+                            "title": edited_title.strip(),
+                            "description": edited_description.strip(),
+                            "hashtags": edited_hashtags.strip(),
+                            "price": float(edited_price),
+                        }).eq("id", chosen["id"]).eq("user_id", st.session_state.auth_user_id).execute()
+                        st.session_state.db_loaded_for = ""
+                        st.success("Annuncio aggiornato correttamente.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Modifica non riuscita. Dettaglio: " + str(e))
+        else:
+            st.caption("Nessun annuncio salvato disponibile per la modifica con questi filtri.")
+
+        st.markdown("---")
+        options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}":x.get("id") for x in filtered_items if x.get("id")}
+        if options:
+            selected_label = st.selectbox("Seleziona un annuncio da eliminare", list(options.keys()), key="catalog_delete_choice")
+            if st.button("Elimina annuncio selezionato"):
+                try:
+                    supabase.table("listings").delete().eq("id", options[selected_label]).eq("user_id", st.session_state.auth_user_id).execute()
+                    st.session_state.db_loaded_for = ""
+                    st.rerun()
+                except Exception as e:
+                    st.error("Eliminazione non riuscita. Dettaglio: " + str(e))
 
 with tab_help:
     st.markdown('<div class="section-title">ListingAI, in breve</div><div class="section-subtitle">Le funzioni disponibili oggi e cosa svilupperemo dopo.</div>', unsafe_allow_html=True)
