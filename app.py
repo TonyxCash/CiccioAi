@@ -195,8 +195,10 @@ if st.session_state.recovery_verified:
                 st.session_state.db_loaded_for = ""
                 st.success("Password aggiornata. Ora puoi accedere con la nuova password.")
                 st.rerun()
-            except Exception:
-                st.error("Non è stato possibile aggiornare la password. Richiedi un nuovo link e riprova.")
+            except Exception as error:
+                st.error("Non è stato possibile aggiornare la password.")
+                with st.expander("Dettagli tecnici dell’errore — mandami uno screenshot di questo riquadro"):
+                    st.code(str(error))
     st.stop()
 
 if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
