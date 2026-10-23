@@ -128,7 +128,7 @@ if not st.session_state.auth_user_id:
         """, unsafe_allow_html=True)
     with right:
         st.markdown('<div class="section-title">Bentornato</div><div class="section-subtitle">Accedi o crea il tuo account gratuito.</div>', unsafe_allow_html=True)
-        auth_mode = st.radio("Scegli un’opzione", ["Accedi", "Crea account"], horizontal=True, label_visibility="collapsed", key="auth_mode")
+        auth_mode = st.radio("Scegli un’opzione", ["Accedi", "Crea account", "Password dimenticata?"], horizontal=True, label_visibility="collapsed", key="auth_mode")
         if auth_mode == "Accedi":
             with st.form("login_form"):
                 login_email = st.text_input("Email", key="login_email")
@@ -171,6 +171,20 @@ if not st.session_state.auth_user_id:
                     except Exception:
                         st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata.")
         st.caption("Usa una password dedicata a ListingAI. Non riutilizzare password importanti.")
+        if auth_mode == "Password dimenticata?":
+            st.markdown("Inserisci l'email del tuo account: riceverai un link per impostare una nuova password.")
+            with st.form("password_reset_form"):
+                reset_email = st.text_input("Email dell'account", key="reset_email")
+                reset_submit = st.form_submit_button("Invia link di recupero", type="primary", use_container_width=True)
+            if reset_submit:
+                if not reset_email.strip() or "@" not in reset_email:
+                    st.error("Inserisci un indirizzo email valido.")
+                else:
+                    try:
+                        supabase.auth.reset_password_for_email(reset_email.strip())
+                        st.success("Se l'indirizzo è registrato e il servizio email è configurato, riceverai un messaggio con le istruzioni. Controlla anche Spam/Indesiderata.")
+                    except Exception:
+                        st.error("Non è stato possibile inviare il link. Controlla la configurazione email di Supabase e riprova.")
     st.stop()
 
 
