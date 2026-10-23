@@ -717,6 +717,49 @@ with tab_catalog:
             st.info("Nessun annuncio corrisponde alla ricerca. Prova a cambiare parole o categoria.")
 
         st.markdown("---")
+        st.markdown("---")
+        st.markdown('<div class="section-title">Duplica o elimina un annuncio</div><div class="section-subtitle">Riutilizza i dettagli di un capo simile oppure rimuovi un articolo che non ti serve più.</div>', unsafe_allow_html=True)
+        managed_items = [x for x in filtered_items if x.get("id")]
+        if managed_items:
+            manage_options = {
+                f"{x.get('title') or 'Articolo senza titolo'} · {money(x.get('price',0))} · ID {str(x.get('id'))[-6:]}": x
+                for x in managed_items
+            }
+            manage_label = st.selectbox("Scegli l'articolo", list(manage_options.keys()), key="catalog_manage_choice")
+            managed = manage_options[manage_label]
+            duplicate_col, delete_col = st.columns(2)
+            with duplicate_col:
+                st.markdown("**Crea una copia**")
+                st.caption("Crea un nuovo annuncio in bozza con i dettagli dell'articolo selezionato.")
+                if st.button("Duplica annuncio", use_container_width=True, key="catalog_duplicate_button"):
+                    try:
+                        copy_fields = ("title", "description", "hashtags", "category", "brand", "size", "color", "condition", "material", "details", "platform", "price")
+                        duplicate_data = {field: managed.get(field) for field in copy_fields}
+                        duplicate_data["title"] = (str(managed.get("title") or "Articolo") + " (copia)")[:100]
+                        duplicate_data["status"] = "Da pubblicare"
+                        duplicate_data["user_id"] = st.session_state.auth_user_id
+                        supabase.table("listings").insert(duplicate_data).execute()
+                        st.session_state.db_loaded_for = ""
+                        st.success("Copia creata. Puoi modificarla nella sezione qui sopra.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Duplicazione non riuscita. Dettaglio: " + str(e))
+            with delete_col:
+                st.markdown("**Elimina definitivamente**")
+                st.caption("L'eliminazione non può essere annullata.")
+                confirm_delete = st.checkbox("Confermo di voler eliminare questo annuncio", key="catalog_confirm_delete")
+                if st.button("Elimina annuncio", type="secondary", use_container_width=True, disabled=not confirm_delete, key="catalog_delete_button"):
+                    try:
+                        supabase.table("listings").delete().eq("id", managed["id"]).eq("user_id", st.session_state.auth_user_id).execute()
+                        st.session_state.db_loaded_for = ""
+                        st.session_state.pop("catalog_confirm_delete", None)
+                        st.success("Annuncio eliminato.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Eliminazione non riuscita. Dettaglio: " + str(e))
+        else:
+            st.caption("Nessun annuncio disponibile per queste operazioni con i filtri attuali.")
+
         st.markdown('<div class="section-title">Modifica un annuncio</div><div class="section-subtitle">Aggiorna titolo, descrizione, hashtag e prezzo senza ricreare il prodotto.</div>', unsafe_allow_html=True)
         editable_items = [x for x in filtered_items if x.get("id")]
         if editable_items:
@@ -776,48 +819,7 @@ with tab_catalog:
         else:
             st.caption("Nessun annuncio salvato disponibile per la modifica con questi filtri.")
 
-        st.markdown("---")
-        st.markdown('<div class="section-title">Duplica o elimina un annuncio</div><div class="section-subtitle">Riutilizza i dettagli di un capo simile oppure rimuovi un articolo che non ti serve più.</div>', unsafe_allow_html=True)
-        managed_items = [x for x in filtered_items if x.get("id")]
-        if managed_items:
-            manage_options = {
-                f"{x.get('title') or 'Articolo senza titolo'} · {money(x.get('price',0))} · ID {str(x.get('id'))[-6:]}": x
-                for x in managed_items
-            }
-            manage_label = st.selectbox("Scegli l'articolo", list(manage_options.keys()), key="catalog_manage_choice")
-            managed = manage_options[manage_label]
-            duplicate_col, delete_col = st.columns(2)
-            with duplicate_col:
-                st.markdown("**Crea una copia**")
-                st.caption("Crea un nuovo annuncio in bozza con i dettagli dell'articolo selezionato.")
-                if st.button("Duplica annuncio", use_container_width=True, key="catalog_duplicate_button"):
-                    try:
-                        copy_fields = ("title", "description", "hashtags", "category", "brand", "size", "color", "condition", "material", "details", "platform", "price")
-                        duplicate_data = {field: managed.get(field) for field in copy_fields}
-                        duplicate_data["title"] = (str(managed.get("title") or "Articolo") + " (copia)")[:100]
-                        duplicate_data["status"] = "Da pubblicare"
-                        duplicate_data["user_id"] = st.session_state.auth_user_id
-                        supabase.table("listings").insert(duplicate_data).execute()
-                        st.session_state.db_loaded_for = ""
-                        st.success("Copia creata. Puoi modificarla nella sezione qui sopra.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error("Duplicazione non riuscita. Dettaglio: " + str(e))
-            with delete_col:
-                st.markdown("**Elimina definitivamente**")
-                st.caption("L'eliminazione non può essere annullata.")
-                confirm_delete = st.checkbox("Confermo di voler eliminare questo annuncio", key="catalog_confirm_delete")
-                if st.button("Elimina annuncio", type="secondary", use_container_width=True, disabled=not confirm_delete, key="catalog_delete_button"):
-                    try:
-                        supabase.table("listings").delete().eq("id", managed["id"]).eq("user_id", st.session_state.auth_user_id).execute()
-                        st.session_state.db_loaded_for = ""
-                        st.session_state.pop("catalog_confirm_delete", None)
-                        st.success("Annuncio eliminato.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error("Eliminazione non riuscita. Dettaglio: " + str(e))
-        else:
-            st.caption("Nessun annuncio disponibile per queste operazioni con i filtri attuali.")
+
 
 with tab_help:
     st.markdown('<div class="section-title">ListingAI, in breve</div><div class="section-subtitle">Le funzioni disponibili oggi e cosa svilupperemo dopo.</div>', unsafe_allow_html=True)
