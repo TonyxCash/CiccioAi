@@ -723,15 +723,27 @@ with tab_catalog:
             edit_options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}": x for x in editable_items}
             edit_label = st.selectbox("Annuncio da modificare", list(edit_options.keys()), key="catalog_edit_choice")
             chosen = edit_options[edit_label]
+            st.markdown('<div class="info-card" style="margin-bottom:12px"><b>Modifica tutti i dettagli</b><p class="small-muted">Aggiorna i dati del capo e salva: il record esistente viene aggiornato, senza crearne uno nuovo.</p></div>', unsafe_allow_html=True)
             with st.form("edit_catalog_listing_form"):
-                edited_title = st.text_input("Titolo", value=chosen.get("title", ""), max_chars=100)
-                edited_description = st.text_area("Descrizione", value=chosen.get("description", ""), height=180)
+                edited_title = st.text_input("Titolo annuncio", value=chosen.get("title", ""), max_chars=100)
+                edited_description = st.text_area("Descrizione", value=chosen.get("description", ""), height=170)
                 edited_hashtags = st.text_input("Hashtag", value=chosen.get("hashtags", ""))
-                edited_price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=float(chosen.get("price") or 0), step=1.0)
-                status_options = ["Da pubblicare", "Pubblicato", "Venduto"]
-                current_status = chosen.get("status", "Da pubblicare")
-                edited_status = st.selectbox("Stato dell'annuncio", status_options, index=status_options.index(current_status) if current_status in status_options else 0)
-                save_edit = st.form_submit_button("Salva modifiche", type="primary", use_container_width=True)
+                ec1, ec2 = st.columns(2)
+                with ec1:
+                    edited_category = st.selectbox("Categoria", CATEGORIES, index=CATEGORIES.index(chosen.get("category")) if chosen.get("category") in CATEGORIES else 0)
+                    edited_brand = st.text_input("Marca", value=str(chosen.get("brand") or ""))
+                    edited_size = st.text_input("Taglia", value=str(chosen.get("size") or ""))
+                    edited_color = st.text_input("Colore", value=str(chosen.get("color") or ""))
+                    edited_condition = st.selectbox("Condizioni", CONDITIONS, index=CONDITIONS.index(chosen.get("condition")) if chosen.get("condition") in CONDITIONS else 0)
+                with ec2:
+                    edited_material = st.text_input("Materiale / composizione", value=str(chosen.get("material") or ""))
+                    edited_platform = st.selectbox("Piattaforma", ["Generico", "Vinted", "eBay", "Subito", "Facebook Marketplace"], index=["Generico", "Vinted", "eBay", "Subito", "Facebook Marketplace"].index(chosen.get("platform")) if chosen.get("platform") in ["Generico", "Vinted", "eBay", "Subito", "Facebook Marketplace"] else 0)
+                    edited_price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=float(chosen.get("price") or 0), step=1.0)
+                    status_options = ["Da pubblicare", "Pubblicato", "Venduto"]
+                    current_status = chosen.get("status", "Da pubblicare")
+                    edited_status = st.selectbox("Stato annuncio", status_options, index=status_options.index(current_status) if current_status in status_options else 0)
+                edited_details = st.text_area("Dettagli aggiuntivi", value=str(chosen.get("details") or ""), height=100, help="Vestibilità, misure, particolari o difetti da segnalare.")
+                save_edit = st.form_submit_button("Salva tutte le modifiche", type="primary", use_container_width=True)
             if save_edit:
                 if not edited_title.strip():
                     st.error("Il titolo non può essere vuoto.")
@@ -741,6 +753,14 @@ with tab_catalog:
                             "title": edited_title.strip(),
                             "description": edited_description.strip(),
                             "hashtags": edited_hashtags.strip(),
+                            "category": edited_category,
+                            "brand": edited_brand.strip(),
+                            "size": edited_size.strip(),
+                            "color": edited_color.strip(),
+                            "condition": edited_condition,
+                            "material": edited_material.strip(),
+                            "details": edited_details.strip(),
+                            "platform": edited_platform,
                             "price": float(edited_price),
                             "status": edited_status,
                         }).eq("id", chosen["id"]).eq("user_id", st.session_state.auth_user_id).execute()
