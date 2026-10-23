@@ -417,7 +417,10 @@ def make_listing(item, tone, keywords):
     material = clean(item.get("material"))
     details = clean(item.get("details"))
     price = float(item.get("price") or 0)
-    title_parts = [brand if brand != "Senza marca indicata" else "", category, color if color != "Non indicato" else "", f"taglia {size}" if size != "Non indicata" else ""]
+    fit = clean(item.get("fit"))
+    style = clean(item.get("style"))
+    platform = clean(item.get("platform")) or "Generico"
+    title_parts = [brand if brand != "Senza marca indicata" else "", category, color if color != "Non indicato" else "", fit if fit else "", f"taglia {size}" if size != "Non indicata" else ""]
     title = " ".join(x for x in title_parts if x).strip() or "Articolo di abbigliamento"
     title = title[:100]
     if tone == "Essenziale":
@@ -429,9 +432,20 @@ def make_listing(item, tone, keywords):
     lines = [intro, f"• Taglia: {size}", f"• Colore: {color}", f"• Condizioni: {condition}"]
     if material:
         lines.append(f"• Materiale: {material}")
+    if fit:
+        lines.append(f"• Vestibilità: {fit}")
+    if style:
+        lines.append(f"• Stile: {style}")
     if details:
         lines.append(f"• Dettagli: {details}")
-    lines += ["", "Guarda le foto per tutti i dettagli e scrivimi se vuoi altre informazioni."]
+    if platform == "Vinted":
+        lines += ["", "Se hai domande su taglia o vestibilità, scrivimi pure."]
+    elif platform == "eBay":
+        lines += ["", "Controlla attentamente descrizione, taglia e condizioni prima dell'acquisto."]
+    elif platform == "Subito":
+        lines += ["", "Per ulteriori informazioni o dettagli, contattami tramite la piattaforma."]
+    else:
+        lines += ["", "Guarda le foto per tutti i dettagli e scrivimi se vuoi altre informazioni."]
     if price > 0:
         lines += ["", f"Prezzo richiesto: €{price:.2f}".replace(".", ",")]
     tags = [category, brand, color, "abbigliamento", "secondamano", "outfit"]
@@ -489,6 +503,30 @@ with tab_create:
             color_parts.append(clean(custom_color))
         color = ", ".join(dict.fromkeys(color_parts))
         condition = st.selectbox("Condizioni", CONDITIONS)
+        fit_options_by_category = {
+            "Jeans": ["Slim Fit", "Skinny", "Regular Fit", "Straight", "Relaxed", "Wide Leg", "Tapered"],
+            "Pantaloni": ["Slim Fit", "Regular Fit", "Straight", "Relaxed", "Wide Leg", "Tapered", "Sartoriale"],
+            "T-shirt": ["Regular Fit", "Slim Fit", "Oversize", "Relaxed", "Boxy"],
+            "Camicia": ["Slim Fit", "Regular Fit", "Relaxed", "Oversize"],
+            "Felpa": ["Regular Fit", "Oversize", "Relaxed", "Slim Fit"],
+            "Giacca": ["Slim Fit", "Regular Fit", "Relaxed", "Oversize"],
+            "Cappotto": ["Regular Fit", "Slim Fit", "Oversize", "Relaxed"],
+            "Abito": ["Slim Fit", "Regular Fit", "Sartoriale"],
+        }
+        fit_options = fit_options_by_category.get(category, ["Regular Fit", "Slim Fit", "Relaxed", "Oversize"])
+        selected_fits = st.multiselect("Vestibilità (selezione multipla)", fit_options)
+        custom_fit = st.text_input("Vestibilità personalizzata (facoltativo)", placeholder="Es. cropped, tapered")
+        fit_parts = list(selected_fits)
+        if clean(custom_fit):
+            fit_parts.append(clean(custom_fit))
+        fit = ", ".join(dict.fromkeys(fit_parts))
+        style_options = ["Sartoriale", "Elegante", "Casual", "Casual chic", "Sportivo", "Streetwear", "Minimal", "Vintage", "Classico", "Cerimonia", "Business"]
+        selected_styles = st.multiselect("Stile (selezione multipla)", style_options)
+        custom_style = st.text_input("Altro stile (facoltativo)", placeholder="Es. old money, smart casual")
+        style_parts = list(selected_styles)
+        if clean(custom_style):
+            style_parts.append(clean(custom_style))
+        style = ", ".join(dict.fromkeys(style_parts))
     with c2:
         price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=39.99, step=1.0)
         cost = st.number_input("Costo per te (€) — facoltativo", min_value=0.0, max_value=100000.0, value=0.0, step=1.0)
@@ -513,6 +551,7 @@ with tab_create:
             material_parts.append(clean(custom_material))
         material = ", ".join(dict.fromkeys(material_parts))
         tone = st.selectbox("Tono dell'annuncio", ["Naturale", "Essenziale", "Elegante"])
+        platform = st.selectbox("Piattaforma di destinazione", ["Generico", "Vinted", "eBay", "Subito", "Facebook Marketplace"])
     keyword_map = {
         "Jeans": ["denim", "cinque tasche", "casual", "streetwear", "jeans uomo", "jeans donna", "slim fit", "regular fit", "straight"],
         "Pantaloni": ["sartoriale", "elegante", "casual chic", "ufficio", "chino", "pantaloni uomo", "pantaloni donna", "slim fit", "regular fit"],
@@ -543,6 +582,10 @@ with tab_create:
         suggested_keywords.extend(color_keyword_map.get(selected_color, [selected_color.lower()]))
     if material:
         suggested_keywords.extend([part.strip().lower() for part in material.split(",") if part.strip()])
+    if fit:
+        suggested_keywords.extend([part.strip().lower() for part in fit.split(",") if part.strip()])
+    if style:
+        suggested_keywords.extend([part.strip().lower() for part in style.split(",") if part.strip()])
     suggested_keywords = list(dict.fromkeys(suggested_keywords))
     selected_keywords = st.multiselect(
         "Parole chiave suggerite (selezione multipla)",
@@ -557,7 +600,7 @@ with tab_create:
     details = st.text_area("Dettagli da valorizzare", placeholder="Vestibilità, misure, modello, particolari o eventuali difetti da segnalare…", height=110)
     submitted = st.button("✦ Genera la bozza", type="primary", use_container_width=True)
     if submitted:
-        item = {"category":category, "brand":clean(brand), "size":clean(size), "color":clean(color), "condition":condition, "price":float(price), "cost":float(cost), "material":clean(material), "details":clean(details), "tone":tone, "keywords":clean(keywords), "created":datetime.now().strftime("%Y-%m-%d %H:%M")}
+        item = {"category":category, "brand":clean(brand), "size":clean(size), "color":clean(color), "condition":condition, "price":float(price), "cost":float(cost), "material":clean(material), "fit":clean(fit), "style":clean(style), "platform":platform, "details":clean(details), "tone":tone, "keywords":clean(keywords), "created":datetime.now().strftime("%Y-%m-%d %H:%M")}
         title, description, hashtags = make_listing(item, tone, keywords)
         st.session_state.generated = {"item":item, "title":title, "description":description, "hashtags":hashtags}
         st.session_state.pop("edit_title", None)
