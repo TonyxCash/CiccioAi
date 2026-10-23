@@ -97,8 +97,7 @@ if "recovery_verified" not in st.session_state:
     st.session_state.recovery_verified = False
 
 try:
-    recovery_token_hash = st.query_params.get("token_hash", "")
-    recovery_type = st.query_params.get("type", "")
+    recovery_token_hash = st.query_params.get("token_hash", "") or st.query_params.get("token", ""))
 except Exception:
     recovery_token_hash = ""
     recovery_type = ""
