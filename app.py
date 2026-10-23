@@ -463,12 +463,21 @@ def make_listing(item, tone, keywords):
 def money(value):
     return f"€{float(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-total_items = len(st.session_state["items"])
-total_value = sum(float(x.get("price", 0)) for x in st.session_state["items"])
-k1, k2, k3 = st.columns(3)
+catalog_items = st.session_state["items"]
+total_items = len(catalog_items)
+total_value = sum(float(x.get("price", 0) or 0) for x in catalog_items)
+to_publish = sum(1 for x in catalog_items if (x.get("status") or "Da pubblicare") == "Da pubblicare")
+published = sum(1 for x in catalog_items if (x.get("status") or "Da pubblicare") == "Pubblicato")
+sold = sum(1 for x in catalog_items if (x.get("status") or "Da pubblicare") == "Venduto")
+sold_value = sum(float(x.get("price", 0) or 0) for x in catalog_items if (x.get("status") or "Da pubblicare") == "Venduto")
+k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Capi nel catalogo", total_items)
-k2.metric("Valore richiesto", money(total_value))
-k3.metric("Studio", "Pronto", help="Puoi iniziare senza configurare chiavi API.")
+k2.metric("Da pubblicare", to_publish)
+k3.metric("Pubblicati", published)
+k4.metric("Venduti", sold)
+k5.metric("Valore richiesto", money(total_value), help="Somma dei prezzi inseriti nel catalogo, non è un incasso effettivo.")
+if sold:
+    st.caption(f"Valore dei capi segnati come venduti: {money(sold_value)}. È calcolato usando il prezzo salvato nell'annuncio, non un prezzo di vendita confermato.")
 
 admin_email = str(st.secrets.get("ADMIN_EMAIL", "")).strip().lower()
 is_admin = bool(admin_email) and st.session_state.auth_email.strip().lower() == admin_email
