@@ -29,6 +29,15 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;-webkit-font-smoothing
 [data-testid="stMarkdownContainer"] a{color:#6246e8!important}
 h1,h2,h3,h4{color:#191827!important;font-family:'Manrope',sans-serif!important;letter-spacing:-.7px}
 label,[data-testid="stWidgetLabel"],[data-testid="stWidgetLabel"] p{color:#38374d!important}
+
+.login-brand{max-width:980px;margin:.3rem auto 1.4rem;text-align:center;padding:1.25rem 1rem 1.1rem;background:linear-gradient(135deg,#fff 0%,#f3f0ff 58%,#fff0f5 100%);border:1px solid #e7e2fb;border-radius:24px;box-shadow:0 12px 34px #32206b0b}
+.login-brand-symbol{font-size:1.6rem;line-height:1.2;color:#6848f5!important;margin-bottom:.35rem}
+.login-brand-name{font-family:'Manrope',sans-serif;font-size:clamp(2rem,6vw,2.65rem);font-weight:800;letter-spacing:-1.3px;line-height:1.15;color:#191827!important}
+.login-brand-name span{color:#6848f5!important}
+.login-brand-subtitle{font-size:1rem;color:#55566d!important;line-height:1.5;margin:.55rem 0 1rem}
+.login-brand-pills{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.login-brand-pills span{display:inline-flex;padding:7px 11px;border-radius:999px;background:#fff;color:#51436f!important;border:1px solid #e6e0f8;font-size:.78rem;font-weight:700}
+@media(max-width:760px){.login-brand{padding:1.1rem .7rem;border-radius:19px;margin:.1rem auto 1rem}.login-brand-subtitle{font-size:.92rem}.login-brand-pills span{font-size:.72rem;padding:6px 9px}}
 .brand-mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#ff648c,#8058f5 65%,#5275ff);color:#fff!important;display:inline-flex;align-items:center;justify-content:center;font-size:23px;font-weight:800;box-shadow:0 7px 20px #7357ff25}
 .brand-name{font-family:'Manrope',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:-.7px;color:#191827!important}
 .brand-sub,.small-muted{color:#62647a!important;font-size:.85rem;line-height:1.55}
@@ -216,12 +225,12 @@ if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
 
 if not st.session_state.auth_user_id:
     st.markdown("""
-    <div style="max-width:980px;margin:.3rem auto 1.2rem;text-align:center">
-      <div style="font-size:2.5rem;color:#39e8d6;line-height:1.2">⌁</div>
-      <div style="font-family:Manrope,sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-1px;color:#f4ffff">Listing<span style="color:#35e7d5">AI</span></div>
-      <div style="font-size:1.04rem;color:#b7d1d8;margin:.35rem 0 1.1rem">Il tuo studio intelligente per vendere abbigliamento online.</div>
-      <div style="display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-bottom:1.3rem">
-        <span class="pill">✦ Annunci curati</span><span class="pill">▦ Catalogo personale</span><span class="pill">↗ Da iPhone e computer</span>
+    <div class="login-brand">
+      <div class="login-brand-symbol">✳</div>
+      <div class="login-brand-name">Listing<span>AI</span></div>
+      <div class="login-brand-subtitle">Il tuo studio intelligente per vendere abbigliamento online.</div>
+      <div class="login-brand-pills">
+        <span>✦ Annunci curati</span><span>▦ Catalogo personale</span><span>↗ Da iPhone e computer</span>
       </div>
     </div>
     """, unsafe_allow_html=True)
