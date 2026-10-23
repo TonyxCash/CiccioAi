@@ -186,6 +186,13 @@ if st.session_state.recovery_verified:
             st.error("Le due password non coincidono.")
         else:
             try:
+                # Streamlit riesegue lo script a ogni invio del modulo:
+                # ripristina la sessione Supabase salvata prima di aggiornare la password.
+                saved_access_token = st.session_state.get("auth_access_token", "")
+                saved_refresh_token = st.session_state.get("auth_refresh_token", "")
+                if not saved_access_token or not saved_refresh_token:
+                    raise RuntimeError("La sessione di recupero non è più disponibile. Riapri un link di recupero recente.")
+                supabase.auth.set_session(saved_access_token, saved_refresh_token)
                 supabase.auth.update_user({"password": new_password})
                 st.session_state.recovery_verified = False
                 st.session_state.auth_access_token = ""
