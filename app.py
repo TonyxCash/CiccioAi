@@ -120,6 +120,31 @@ try:
 except Exception:
     pass
 
+# Supabase può usare il flusso PKCE e tornare all'app con ?code=...
+# Scambiamo il codice con una sessione prima di mostrare la schermata di login.
+try:
+    auth_code = st.query_params.get("code", "")
+except Exception:
+    auth_code = ""
+
+if auth_code and not st.session_state.recovery_verified:
+    try:
+        code_result = supabase.auth.exchange_code_for_session(auth_code)
+        if code_result.session and code_result.user:
+            st.session_state.auth_access_token = code_result.session.access_token
+            st.session_state.auth_refresh_token = code_result.session.refresh_token
+            st.session_state.auth_user_id = code_result.user.id
+            st.session_state.auth_email = code_result.user.email or ""
+            st.session_state.recovery_verified = True
+            st.query_params.clear()
+            st.rerun()
+        else:
+            st.error("Il link non ha restituito una sessione valida. Richiedi una nuova email di recupero.")
+            st.stop()
+    except Exception:
+        st.error("Non riesco a completare il link di recupero. Potrebbe essere scaduto o già utilizzato. Richiedi una nuova email e aprila subito.")
+        st.stop()
+
 try:
     recovery_token_hash = st.query_params.get("token_hash", "") or st.query_params.get("token", "")
     recovery_type = st.query_params.get("type", "")
