@@ -128,38 +128,60 @@ if not st.session_state.auth_user_id:
         """, unsafe_allow_html=True)
     with right:
         st.markdown('<div class="section-title">Bentornato</div><div class="section-subtitle">Accedi o crea il tuo account gratuito.</div>', unsafe_allow_html=True)
-        auth_mode = st.radio("Scegli un’opzione", ["Accedi", "Crea account", "Password dimenticata?"], horizontal=True, label_visibility="collapsed", key="auth_mode")
+        auth_mode = st.radio(
+            "Scegli un’opzione",
+            ["Accedi", "Crea account", "Password dimenticata?"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="auth_mode",
+        )
+
         if auth_mode == "Accedi":
             with st.form("login_form"):
                 login_email = st.text_input("Email", key="login_email")
                 login_password = st.text_input("Password", type="password", key="login_password")
                 login_submit = st.form_submit_button("Accedi", type="primary", use_container_width=True)
             if login_submit:
-                try:
-                    result = supabase.auth.sign_in_with_password({"email": login_email.strip(), "password": login_password})
-                    st.session_state.auth_access_token = result.session.access_token
-                    st.session_state.auth_refresh_token = result.session.refresh_token
-                    st.session_state.auth_user_id = result.user.id
-                    st.session_state.auth_email = result.user.email or login_email.strip()
-                    st.session_state.db_loaded_for = ""
-                    st.rerun()
-                except Exception:
-                    st.error("Accesso non riuscito. Controlla email e password e verifica l'email se la registrazione lo richiede.")
-        else:
+                if not login_email.strip() or not login_password:
+                    st.error("Inserisci email e password.")
+                else:
+                    try:
+                        result = supabase.auth.sign_in_with_password(
+                            {"email": login_email.strip(), "password": login_password}
+                        )
+                        if not result.session or not result.user:
+                            st.error("Accesso non completato. Verifica email e password e riprova.")
+                        else:
+                            st.session_state.auth_access_token = result.session.access_token
+                            st.session_state.auth_refresh_token = result.session.refresh_token
+                            st.session_state.auth_user_id = result.user.id
+                            st.session_state.auth_email = result.user.email or login_email.strip()
+                            st.session_state.db_loaded_for = ""
+                            st.rerun()
+                    except Exception as error:
+                        st.error("Accesso non riuscito. Controlla email, password e conferma dell'email.")
+                        with st.expander("Dettagli tecnici dell'errore"):
+                            st.code(str(error))
+
+        elif auth_mode == "Crea account":
             with st.form("register_form"):
                 register_email = st.text_input("La tua email", key="register_email")
                 register_password = st.text_input("Crea una password (almeno 6 caratteri)", type="password", key="register_password")
                 register_password_confirm = st.text_input("Ripeti la password", type="password", key="register_password_confirm")
                 register_submit = st.form_submit_button("Crea account", type="primary", use_container_width=True)
             if register_submit:
-                if register_password != register_password_confirm:
+                if not register_email.strip() or "@" not in register_email:
+                    st.error("Inserisci un indirizzo email valido.")
+                elif register_password != register_password_confirm:
                     st.error("Le due password non coincidono.")
                 elif len(register_password) < 6:
                     st.error("Scegli una password di almeno 6 caratteri.")
                 else:
                     try:
-                        result = supabase.auth.sign_up({"email": register_email.strip(), "password": register_password})
-                        if result.session:
+                        result = supabase.auth.sign_up(
+                            {"email": register_email.strip(), "password": register_password}
+                        )
+                        if result.session and result.user:
                             st.session_state.auth_access_token = result.session.access_token
                             st.session_state.auth_refresh_token = result.session.refresh_token
                             st.session_state.auth_user_id = result.user.id
@@ -167,24 +189,38 @@ if not st.session_state.auth_user_id:
                             st.session_state.db_loaded_for = ""
                             st.rerun()
                         else:
-                            st.success("Account creato. Controlla la tua email per confermare la registrazione, poi seleziona Accedi.")
-                    except Exception:
-                        st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata.")
-        st.caption("Usa una password dedicata a ListingAI. Non riutilizzare password importanti.")
-        if auth_mode == "Password dimenticata?":
-            st.markdown("Inserisci l'email del tuo account: riceverai un link per impostare una nuova password.")
+                            st.success("Account creato. Controlla la posta per confermare l'email, poi torna qui e accedi.")
+                    except Exception as error:
+                        st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata o il servizio email potrebbe essere limitato.")
+                        with st.expander("Dettagli tecnici dell'errore"):
+                            st.code(str(error))
+
+        else:
+            st.markdown(
+                "Inserisci l'email associata al tuo account. Se il servizio email è configurato, "
+                "Supabase invierà le istruzioni per reimpostare la password."
+            )
             with st.form("password_reset_form"):
                 reset_email = st.text_input("Email dell'account", key="reset_email")
-                reset_submit = st.form_submit_button("Invia link di recupero", type="primary", use_container_width=True)
+                reset_submit = st.form_submit_button(
+                    "Invia link di recupero", type="primary", use_container_width=True
+                )
             if reset_submit:
                 if not reset_email.strip() or "@" not in reset_email:
                     st.error("Inserisci un indirizzo email valido.")
                 else:
                     try:
                         supabase.auth.reset_password_for_email(reset_email.strip())
-                        st.success("Se l'indirizzo è registrato e il servizio email è configurato, riceverai un messaggio con le istruzioni. Controlla anche Spam/Indesiderata.")
-                    except Exception:
-                        st.error("Non è stato possibile inviare il link. Controlla la configurazione email di Supabase e riprova.")
+                        st.success(
+                            "Richiesta inviata. Se l'email è registrata e il servizio email è configurato, "
+                            "riceverai un messaggio. Controlla anche Spam/Indesiderata."
+                        )
+                    except Exception as error:
+                        st.error("Supabase non è riuscito a inviare il link di recupero.")
+                        with st.expander("Dettagli tecnici dell'errore"):
+                            st.code(str(error))
+
+        st.caption("Usa una password dedicata a ListingAI. Non riutilizzare password importanti.")
     st.stop()
 
 
