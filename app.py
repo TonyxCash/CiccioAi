@@ -182,6 +182,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<span class="pill">✦ Archivio personale</span>', unsafe_allow_html=True)
     st.caption(st.session_state.auth_email)
+    admin_email = str(st.secrets.get("ADMIN_EMAIL", "")).strip().lower()
+    is_admin = bool(admin_email) and st.session_state.auth_email.strip().lower() == admin_email
+    if is_admin:
+        st.markdown('<span class="pill">✦ AMMINISTRATORE</span>', unsafe_allow_html=True)
     if st.button("Esci dall’account", use_container_width=True):
         try:
             supabase.auth.sign_out()
@@ -285,7 +289,15 @@ k1.metric("Capi nel catalogo", total_items)
 k2.metric("Valore richiesto", money(total_value))
 k3.metric("Studio", "Pronto", help="Puoi iniziare senza configurare chiavi API.")
 
-tab_create, tab_catalog, tab_help = st.tabs(["✳ Crea annuncio", "▦ Catalogo", "ⓘ Guida rapida"])
+admin_email = str(st.secrets.get("ADMIN_EMAIL", "")).strip().lower()
+is_admin = bool(admin_email) and st.session_state.auth_email.strip().lower() == admin_email
+tab_names = ["✳ Crea annuncio", "▦ Catalogo", "ⓘ Guida rapida"]
+if is_admin:
+    tab_names.append("⚙ Admin")
+tab_list = st.tabs(tab_names)
+tab_create, tab_catalog, tab_help = tab_list[0], tab_list[1], tab_list[2]
+if is_admin:
+    tab_admin = tab_list[3]
 
 with tab_create:
     st.markdown('<div class="section-title">Crea il tuo prossimo annuncio</div><div class="section-subtitle">Inserisci le informazioni essenziali: ListingAI prepara una prima bozza che puoi rifinire.</div>', unsafe_allow_html=True)
@@ -409,6 +421,17 @@ with tab_help:
         st.markdown('<div class="info-card"><div class="info-icon">↗</div><b>Pubblicazione manuale</b><p class="small-muted">ListingAI non accede agli account marketplace e non pubblica annunci in automatico. Copia la bozza e controllala prima di usarla.</p></div>', unsafe_allow_html=True)
         st.markdown('<div class="info-card" style="margin-top:14px"><div class="info-icon">⌁</div><b>Prossime evoluzioni</b><p class="small-muted">Database persistente, account personali, gestione immagini, strumenti di prezzo e piani a pagamento sono sviluppi successivi, da testare prima del lancio commerciale.</p></div>', unsafe_allow_html=True)
     st.warning("Le descrizioni sono bozze automatiche basate sui dati inseriti. Controlla che ogni affermazione sia vera, soprattutto per marca, autenticità, condizioni e materiali.")
+
+if is_admin:
+    with tab_admin:
+        st.markdown('<div class="section-title">Pannello amministratore</div><div class="section-subtitle">Area riservata all’indirizzo autorizzato nelle Secrets di Streamlit.</div>', unsafe_allow_html=True)
+        st.success("Accesso amministratore riconosciuto.")
+        a1, a2, a3 = st.columns(3)
+        a1.metric("I tuoi annunci salvati", len(st.session_state.items))
+        a2.metric("Valore del tuo catalogo", money(sum(float(x.get("price", 0)) for x in st.session_state.items)))
+        a3.metric("Stato database", "Connesso", help="La lettura del catalogo è riuscita in questa sessione.")
+        st.markdown('<div class="info-card"><div class="eyebrow">GESTIONE PRODOTTO</div><p style="margin-top:10px"><b>Prossimi moduli amministrativi</b></p><p class="small-muted">Questa prima area admin verifica il tuo ruolo e mostra lo stato del tuo catalogo. Gestione utenti, piani, pagamenti e statistiche globali richiederanno endpoint e autorizzazioni server-side dedicati: non vengono abilitati con una semplice verifica email.</p></div>', unsafe_allow_html=True)
+        st.caption("Email amministratore configurata: " + admin_email)
 
 st.markdown("---")
 st.markdown('<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><span class="small-muted"><b>ListingAI</b> · Seller studio</span><span class="small-muted">Prototipo in sviluppo · Non affiliato ufficialmente a Vinted o altri marketplace</span></div>', unsafe_allow_html=True)
