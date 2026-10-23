@@ -394,6 +394,7 @@ if st.session_state.db_loaded_for != st.session_state.auth_user_id:
                 "details": row.get("details") or "",
                 "price": float(row.get("price") or 0),
                 "platform": row.get("platform") or "",
+                "status": row.get("status") or "Da pubblicare",
                 "created": row.get("created_at") or "",
                 "cost": 0.0,
             })
@@ -643,7 +644,8 @@ with tab_create:
                         "material": item.get("material", ""),
                         "details": item.get("details", ""),
                         "price": float(item.get("price", 0)),
-                        "platform": "",
+                        "platform": item.get("platform", "Generico"),
+                        "status": "Da pubblicare",
                     }
                     supabase.table("listings").insert(payload).execute()
                     st.session_state.db_loaded_for = ""
@@ -677,7 +679,9 @@ with tab_catalog:
         m2.metric("Valore richiesto totale", money(sum(float(x.get("price", 0)) for x in items)))
 
         # Ricerca e filtri del catalogo
-        filter_col1, filter_col2 = st.columns([2, 1])
+        status_col, filter_col1, filter_col2 = st.columns([1, 2, 1])
+        with status_col:
+            catalog_status = st.selectbox("Stato", ["Tutti gli stati", "Da pubblicare", "Pubblicato", "Venduto"], key="catalog_status")
         with filter_col1:
             catalog_query = st.text_input("🔎 Cerca nel catalogo", placeholder="Titolo, marca, colore o taglia…", key="catalog_query")
         with filter_col2:
@@ -687,9 +691,10 @@ with tab_catalog:
             x for x in items
             if (not catalog_query.strip() or catalog_query.strip().lower() in " ".join(str(x.get(k, "")) for k in ("title", "brand", "category", "color", "size", "description")).lower())
             and (catalog_category == "Tutte le categorie" or str(x.get("category") or "Altro") == catalog_category)
+            and (catalog_status == "Tutti gli stati" or str(x.get("status") or "Da pubblicare") == catalog_status)
         ]
         st.caption(f"Visualizzati {len(filtered_items)} di {len(items)} annunci.")
-        rows = [{"Titolo":x.get("title",""), "Categoria":x.get("category",""), "Taglia":x.get("size",""), "Colore":x.get("color",""), "Prezzo":float(x.get("price",0)), "Condizioni":x.get("condition","")} for x in filtered_items]
+        rows = [{"Titolo":x.get("title",""), "Stato":x.get("status","Da pubblicare"), "Categoria":x.get("category",""), "Taglia":x.get("size",""), "Colore":x.get("color",""), "Prezzo":float(x.get("price",0)), "Condizioni":x.get("condition","")} for x in filtered_items]
         if rows:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             csv_buffer = io.StringIO()
@@ -712,6 +717,9 @@ with tab_catalog:
                 edited_description = st.text_area("Descrizione", value=chosen.get("description", ""), height=180)
                 edited_hashtags = st.text_input("Hashtag", value=chosen.get("hashtags", ""))
                 edited_price = st.number_input("Prezzo richiesto (€)", min_value=0.0, max_value=100000.0, value=float(chosen.get("price") or 0), step=1.0)
+                status_options = ["Da pubblicare", "Pubblicato", "Venduto"]
+                current_status = chosen.get("status", "Da pubblicare")
+                edited_status = st.selectbox("Stato dell'annuncio", status_options, index=status_options.index(current_status) if current_status in status_options else 0)
                 save_edit = st.form_submit_button("Salva modifiche", type="primary", use_container_width=True)
             if save_edit:
                 if not edited_title.strip():
@@ -723,6 +731,7 @@ with tab_catalog:
                             "description": edited_description.strip(),
                             "hashtags": edited_hashtags.strip(),
                             "price": float(edited_price),
+                            "status": edited_status,
                         }).eq("id", chosen["id"]).eq("user_id", st.session_state.auth_user_id).execute()
                         st.session_state.db_loaded_for = ""
                         st.success("Annuncio aggiornato correttamente.")
