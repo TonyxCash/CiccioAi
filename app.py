@@ -377,9 +377,9 @@ if "generated" not in st.session_state:
 if st.session_state.db_loaded_for != st.session_state.auth_user_id:
     try:
         response = supabase.table("listings").select("*").eq("user_id", st.session_state.auth_user_id).order("created_at", desc=True).execute()
-        st.session_state.items = []
+        st.session_state["items"] = []
         for row in (response.data or []):
-            st.session_state.items.append({
+            st.session_state["items"].append({
                 "id": row.get("id"),
                 "user_id": row.get("user_id"),
                 "title": row.get("title") or "",
@@ -400,7 +400,7 @@ if st.session_state.db_loaded_for != st.session_state.auth_user_id:
         st.session_state.db_loaded_for = st.session_state.auth_user_id
     except Exception as e:
         st.error("Non riesco a leggere il catalogo da Supabase. Verifica che supabase_schema.sql sia stato eseguito e che le policy RLS siano attive. Dettaglio: " + str(e))
-        st.session_state.items = []
+        st.session_state["items"] = []
 
 CATEGORIES = ["Jeans", "Pantaloni", "T-shirt", "Camicia", "Felpa", "Giacca", "Cappotto", "Scarpe", "Abito", "Borsa", "Accessori", "Altro"]
 CONDITIONS = ["Nuovo con etichette", "Nuovo senza etichette", "Ottime condizioni", "Buone condizioni", "Condizioni accettabili"]
@@ -448,8 +448,8 @@ def make_listing(item, tone, keywords):
 def money(value):
     return f"€{float(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-total_items = len(st.session_state.items)
-total_value = sum(float(x.get("price", 0)) for x in st.session_state.items)
+total_items = len(st.session_state["items"])
+total_value = sum(float(x.get("price", 0)) for x in st.session_state["items"])
 k1, k2, k3 = st.columns(3)
 k1.metric("Capi nel catalogo", total_items)
 k2.metric("Valore richiesto", money(total_value))
@@ -553,7 +553,7 @@ with tab_create:
 
 with tab_catalog:
     st.markdown('<div class="section-title">Il tuo catalogo</div><div class="section-subtitle">Tieni sotto controllo gli annunci salvati nel tuo account.</div>', unsafe_allow_html=True)
-    items = st.session_state.items
+    items = st.session_state["items"]
     if not items:
         st.info("Il catalogo è vuoto. Crea un annuncio e scegli «Salva nel catalogo» per iniziare. Gli annunci salvati resteranno nel tuo account.")
     else:
@@ -593,8 +593,8 @@ if is_admin:
         st.markdown('<div class="section-title">Pannello amministratore</div><div class="section-subtitle">Area riservata all’indirizzo autorizzato nelle Secrets di Streamlit.</div>', unsafe_allow_html=True)
         st.success("Accesso amministratore riconosciuto.")
         a1, a2, a3 = st.columns(3)
-        a1.metric("I tuoi annunci salvati", len(st.session_state.items))
-        a2.metric("Valore del tuo catalogo", money(sum(float(x.get("price", 0)) for x in st.session_state.items)))
+        a1.metric("I tuoi annunci salvati", len(st.session_state["items"]))
+        a2.metric("Valore del tuo catalogo", money(sum(float(x.get("price", 0)) for x in st.session_state["items"])))
         a3.metric("Stato database", "Connesso", help="La lettura del catalogo è riuscita in questa sessione.")
         st.markdown('<div class="info-card"><div class="eyebrow">GESTIONE PRODOTTO</div><p style="margin-top:10px"><b>Prossimi moduli amministrativi</b></p><p class="small-muted">Questa prima area admin verifica il tuo ruolo e mostra lo stato del tuo catalogo. Gestione utenti, piani, pagamenti e statistiche globali richiederanno endpoint e autorizzazioni server-side dedicati: non vengono abilitati con una semplice verifica email.</p></div>', unsafe_allow_html=True)
         st.caption("Email amministratore configurata: " + admin_email)
