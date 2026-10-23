@@ -92,6 +92,64 @@ except Exception:
     st.error("Configurazione Supabase non trovata. Apri Manage app → Settings → Secrets su Streamlit e verifica SUPABASE_URL e SUPABASE_KEY.")
     st.stop()
 
+# --- Recupero password: il link email deve riportare token_hash e type=recovery nella query ---
+if "recovery_verified" not in st.session_state:
+    st.session_state.recovery_verified = False
+
+try:
+    recovery_token_hash = st.query_params.get("token_hash", "")
+    recovery_type = st.query_params.get("type", "")
+except Exception:
+    recovery_token_hash = ""
+    recovery_type = ""
+
+if recovery_token_hash and recovery_type == "recovery" and not st.session_state.recovery_verified:
+    try:
+        recovery_result = supabase.auth.verify_otp({
+            "token_hash": recovery_token_hash,
+            "type": "recovery",
+        })
+        if recovery_result.session and recovery_result.user:
+            st.session_state.auth_access_token = recovery_result.session.access_token
+            st.session_state.auth_refresh_token = recovery_result.session.refresh_token
+            st.session_state.auth_user_id = recovery_result.user.id
+            st.session_state.auth_email = recovery_result.user.email or ""
+            st.session_state.recovery_verified = True
+            st.query_params.clear()
+            st.rerun()
+        else:
+            st.error("Il link di recupero non è valido o è scaduto. Richiedi una nuova email.")
+            st.stop()
+    except Exception:
+        st.error("Non riesco a verificare il link di recupero. Potrebbe essere scaduto o già utilizzato. Richiedi un nuovo link.")
+        st.stop()
+
+if st.session_state.recovery_verified:
+    st.markdown('<div class="section-title">Imposta una nuova password</div><div class="section-subtitle">Il link è stato verificato. Scegli una password nuova per ListingAI.</div>', unsafe_allow_html=True)
+    with st.form("complete_password_recovery_form"):
+        new_password = st.text_input("Nuova password (almeno 6 caratteri)", type="password")
+        confirm_new_password = st.text_input("Ripeti la nuova password", type="password")
+        save_new_password = st.form_submit_button("Salva nuova password", type="primary", use_container_width=True)
+    if save_new_password:
+        if len(new_password) < 6:
+            st.error("La password deve contenere almeno 6 caratteri.")
+        elif new_password != confirm_new_password:
+            st.error("Le due password non coincidono.")
+        else:
+            try:
+                supabase.auth.update_user({"password": new_password})
+                st.session_state.recovery_verified = False
+                st.session_state.auth_access_token = ""
+                st.session_state.auth_refresh_token = ""
+                st.session_state.auth_user_id = ""
+                st.session_state.auth_email = ""
+                st.session_state.db_loaded_for = ""
+                st.success("Password aggiornata. Ora puoi accedere con la nuova password.")
+                st.rerun()
+            except Exception:
+                st.error("Non è stato possibile aggiornare la password. Richiedi un nuovo link e riprova.")
+    st.stop()
+
 if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
     try:
         supabase.auth.set_session(st.session_state.auth_access_token, st.session_state.auth_refresh_token)
