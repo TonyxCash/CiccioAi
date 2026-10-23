@@ -5,6 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+from urllib.parse import parse_qsl
+from streamlit_url_fragment import get_fragment
 
 st.set_page_config(
     page_title="ListingAI — Studio annunci",
@@ -95,6 +97,28 @@ except Exception:
 # --- Recupero password: il link email deve riportare token_hash e type=recovery nella query ---
 if "recovery_verified" not in st.session_state:
     st.session_state.recovery_verified = False
+
+# Supabase può restituire i token nella parte #fragment dell'URL.
+# st.query_params non legge il fragment: lo recuperiamo dal browser.
+try:
+    browser_fragment = get_fragment()
+    if browser_fragment:
+        fragment_params = dict(parse_qsl(str(browser_fragment).lstrip("#")))
+        if fragment_params.get("type") == "recovery":
+            fragment_access_token = fragment_params.get("access_token", "")
+            fragment_refresh_token = fragment_params.get("refresh_token", "")
+            if fragment_access_token and fragment_refresh_token:
+                supabase.auth.set_session(fragment_access_token, fragment_refresh_token)
+                fragment_user = supabase.auth.get_user()
+                if fragment_user and fragment_user.user:
+                    st.session_state.auth_access_token = fragment_access_token
+                    st.session_state.auth_refresh_token = fragment_refresh_token
+                    st.session_state.auth_user_id = fragment_user.user.id
+                    st.session_state.auth_email = fragment_user.user.email or ""
+                    st.session_state.recovery_verified = True
+                    st.rerun()
+except Exception:
+    pass
 
 try:
     recovery_token_hash = st.query_params.get("token_hash", "") or st.query_params.get("token", "")
