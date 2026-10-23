@@ -708,11 +708,26 @@ with tab_catalog:
         rows = [{"Titolo":x.get("title",""), "Stato":x.get("status","Da pubblicare"), "Categoria":x.get("category",""), "Taglia":x.get("size",""), "Colore":x.get("color",""), "Prezzo":float(x.get("price",0)), "Condizioni":x.get("condition","")} for x in filtered_items]
         if rows:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            export_rows = [{
+                "Titolo": x.get("title", ""),
+                "Descrizione": x.get("description", ""),
+                "Hashtag": x.get("hashtags", ""),
+                "Stato": x.get("status", "Da pubblicare"),
+                "Categoria": x.get("category", ""),
+                "Marca": x.get("brand", ""),
+                "Taglia": x.get("size", ""),
+                "Colore": x.get("color", ""),
+                "Condizioni": x.get("condition", ""),
+                "Materiale": x.get("material", ""),
+                "Dettagli aggiuntivi": x.get("details", ""),
+                "Piattaforma": x.get("platform", ""),
+                "Prezzo richiesto": float(x.get("price", 0) or 0),
+            } for x in filtered_items]
             csv_buffer = io.StringIO()
-            writer = csv.DictWriter(csv_buffer, fieldnames=list(rows[0].keys()))
+            writer = csv.DictWriter(csv_buffer, fieldnames=list(export_rows[0].keys()))
             writer.writeheader()
-            writer.writerows(rows)
-            st.download_button("↓ Esporta risultati CSV", csv_buffer.getvalue().encode("utf-8-sig"), "catalogo_listingai.csv", "text/csv", use_container_width=True)
+            writer.writerows(export_rows)
+            st.download_button("↓ Esporta catalogo completo CSV", csv_buffer.getvalue().encode("utf-8-sig"), "catalogo_listingai.csv", "text/csv", use_container_width=True, help="Include descrizioni, hashtag e tutti i dettagli salvati per gli articoli visualizzati.")
         else:
             st.info("Nessun annuncio corrisponde alla ricerca. Prova a cambiare parole o categoria.")
 
