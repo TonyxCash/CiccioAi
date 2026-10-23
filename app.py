@@ -122,6 +122,7 @@ except Exception:
 
 try:
     recovery_token_hash = st.query_params.get("token_hash", "") or st.query_params.get("token", "")
+    recovery_type = st.query_params.get("type", "")
 except Exception:
     recovery_token_hash = ""
     recovery_type = ""
