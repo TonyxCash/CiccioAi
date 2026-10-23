@@ -66,14 +66,107 @@ hr { border-color:var(--line)!important; }
 </style>
 """, unsafe_allow_html=True)
 
+
+# --- Supabase: account personali e archivio persistente ---
+from supabase import create_client
+
+if "auth_access_token" not in st.session_state:
+    st.session_state.auth_access_token = ""
+if "auth_refresh_token" not in st.session_state:
+    st.session_state.auth_refresh_token = ""
+if "auth_user_id" not in st.session_state:
+    st.session_state.auth_user_id = ""
+if "auth_email" not in st.session_state:
+    st.session_state.auth_email = ""
+if "db_loaded_for" not in st.session_state:
+    st.session_state.db_loaded_for = ""
+
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    st.error("Configurazione Supabase non trovata. Apri Manage app → Settings → Secrets su Streamlit e verifica SUPABASE_URL e SUPABASE_KEY.")
+    st.stop()
+
+if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
+    try:
+        supabase.auth.set_session(st.session_state.auth_access_token, st.session_state.auth_refresh_token)
+        current_user = supabase.auth.get_user()
+        if current_user and current_user.user:
+            st.session_state.auth_user_id = current_user.user.id
+            st.session_state.auth_email = current_user.user.email or st.session_state.auth_email
+    except Exception:
+        st.session_state.auth_access_token = ""
+        st.session_state.auth_refresh_token = ""
+        st.session_state.auth_user_id = ""
+        st.session_state.db_loaded_for = ""
+
+if not st.session_state.auth_user_id:
+    st.markdown('<div class="section-title">Accedi a ListingAI</div><div class="section-subtitle">Crea un account gratuito per salvare i tuoi annunci nel tuo archivio personale.</div>', unsafe_allow_html=True)
+    login_tab, register_tab = st.tabs(["Accedi", "Crea account"])
+    with login_tab:
+        with st.form("login_form"):
+            login_email = st.text_input("Email", key="login_email")
+            login_password = st.text_input("Password", type="password", key="login_password")
+            login_submit = st.form_submit_button("Accedi", type="primary", use_container_width=True)
+        if login_submit:
+            try:
+                result = supabase.auth.sign_in_with_password({"email": login_email.strip(), "password": login_password})
+                st.session_state.auth_access_token = result.session.access_token
+                st.session_state.auth_refresh_token = result.session.refresh_token
+                st.session_state.auth_user_id = result.user.id
+                st.session_state.auth_email = result.user.email or login_email.strip()
+                st.session_state.db_loaded_for = ""
+                st.rerun()
+            except Exception as e:
+                st.error("Accesso non riuscito. Controlla email e password. Se hai appena creato l'account, verifica l'email se richiesto da Supabase.")
+    with register_tab:
+        with st.form("register_form"):
+            register_email = st.text_input("La tua email", key="register_email")
+            register_password = st.text_input("Crea una password (almeno 6 caratteri)", type="password", key="register_password")
+            register_password_confirm = st.text_input("Ripeti la password", type="password", key="register_password_confirm")
+            register_submit = st.form_submit_button("Crea account", type="primary", use_container_width=True)
+        if register_submit:
+            if register_password != register_password_confirm:
+                st.error("Le due password non coincidono.")
+            elif len(register_password) < 6:
+                st.error("Scegli una password di almeno 6 caratteri.")
+            else:
+                try:
+                    result = supabase.auth.sign_up({"email": register_email.strip(), "password": register_password})
+                    if result.session:
+                        st.session_state.auth_access_token = result.session.access_token
+                        st.session_state.auth_refresh_token = result.session.refresh_token
+                        st.session_state.auth_user_id = result.user.id
+                        st.session_state.auth_email = result.user.email or register_email.strip()
+                        st.session_state.db_loaded_for = ""
+                        st.rerun()
+                    else:
+                        st.success("Account creato. Controlla la tua email per confermare la registrazione, poi accedi.")
+                except Exception as e:
+                    st.error("Registrazione non riuscita. Controlla l'email: potrebbe essere già registrata. Dettaglio: " + str(e))
+    st.caption("Usa una password nuova per ListingAI. Non riutilizzare password importanti.")
+    st.stop()
+
+
 with st.sidebar:
     st.markdown('<div style="display:flex;gap:11px;align-items:center"><div class="brand-mark">✳</div><div><div class="brand-name">ListingAI</div><div class="brand-sub">Seller studio</div></div></div>', unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("**IL TUO SPAZIO DI LAVORO**")
     st.caption("Crea annunci migliori, organizza i capi e prepara i testi da pubblicare.")
     st.markdown("---")
-    st.markdown('<span class="pill">✦ Versione iniziale</span>', unsafe_allow_html=True)
-    st.markdown("<div class='small-muted' style='margin-top:12px'>Nessuna chiave API richiesta.<br>Controlla sempre i testi prima di pubblicarli.</div>", unsafe_allow_html=True)
+    st.markdown('<span class="pill">✦ Archivio personale</span>', unsafe_allow_html=True)
+    st.caption(st.session_state.auth_email)
+    if st.button("Esci dall’account", use_container_width=True):
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+        for key in ("auth_access_token", "auth_refresh_token", "auth_user_id", "auth_email", "db_loaded_for", "items", "generated"):
+            st.session_state.pop(key, None)
+        st.rerun()
+    st.markdown("<div class='small-muted' style='margin-top:12px'>Gli annunci salvati vengono conservati nel database del tuo account.</div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div class="hero">
@@ -83,10 +176,37 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-if "items" not in st.session_state:
-    st.session_state.items = []
 if "generated" not in st.session_state:
     st.session_state.generated = None
+
+# Carica dal database una sola volta per account/sessione.
+if st.session_state.db_loaded_for != st.session_state.auth_user_id:
+    try:
+        response = supabase.table("listings").select("*").eq("user_id", st.session_state.auth_user_id).order("created_at", desc=True).execute()
+        st.session_state.items = []
+        for row in (response.data or []):
+            st.session_state.items.append({
+                "id": row.get("id"),
+                "user_id": row.get("user_id"),
+                "title": row.get("title") or "",
+                "description": row.get("description") or "",
+                "hashtags": row.get("hashtags") or "",
+                "category": row.get("category") or "Altro",
+                "brand": row.get("brand") or "",
+                "size": row.get("size") or "",
+                "color": row.get("color") or "",
+                "condition": row.get("condition") or "",
+                "material": row.get("material") or "",
+                "details": row.get("details") or "",
+                "price": float(row.get("price") or 0),
+                "platform": row.get("platform") or "",
+                "created": row.get("created_at") or "",
+                "cost": 0.0,
+            })
+        st.session_state.db_loaded_for = st.session_state.auth_user_id
+    except Exception as e:
+        st.error("Non riesco a leggere il catalogo da Supabase. Verifica che supabase_schema.sql sia stato eseguito e che le policy RLS siano attive. Dettaglio: " + str(e))
+        st.session_state.items = []
 
 CATEGORIES = ["Jeans", "Pantaloni", "T-shirt", "Camicia", "Felpa", "Giacca", "Cappotto", "Scarpe", "Abito", "Borsa", "Accessori", "Altro"]
 CONDITIONS = ["Nuovo con etichette", "Nuovo senza etichette", "Ottime condizioni", "Buone condizioni", "Condizioni accettabili"]
@@ -192,11 +312,28 @@ with tab_create:
             st.markdown("</div>", unsafe_allow_html=True)
             st.markdown('<div class="info-card"><div class="eyebrow">PROSSIMO PASSO</div><p style="margin-top:10px"><b>Controlla, copia e pubblica</b></p><p class="small-muted">Verifica taglia, condizioni, marca e prezzo. La bozza non viene pubblicata automaticamente.</p></div>', unsafe_allow_html=True)
             if st.button("＋ Salva nel catalogo", type="primary", use_container_width=True):
-                saved = dict(item)
-                saved.update({"title":title, "description":description, "hashtags":hashtags, "id":datetime.now().strftime("%Y%m%d%H%M%S%f")})
-                st.session_state.items.insert(0, saved)
-                st.success("Annuncio salvato nel catalogo di questa sessione.")
-                st.rerun()
+                try:
+                    payload = {
+                        "user_id": st.session_state.auth_user_id,
+                        "title": title,
+                        "description": description,
+                        "hashtags": hashtags,
+                        "category": item.get("category", ""),
+                        "brand": item.get("brand", ""),
+                        "size": item.get("size", ""),
+                        "color": item.get("color", ""),
+                        "condition": item.get("condition", ""),
+                        "material": item.get("material", ""),
+                        "details": item.get("details", ""),
+                        "price": float(item.get("price", 0)),
+                        "platform": "",
+                    }
+                    supabase.table("listings").insert(payload).execute()
+                    st.session_state.db_loaded_for = ""
+                    st.success("Annuncio salvato nel database del tuo account.")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Salvataggio non riuscito. Verifica tabella e policy Supabase. Dettaglio: " + str(e))
             if st.button("Crea un'altra bozza", use_container_width=True):
                 st.session_state.generated = None
                 for key in ("edit_title", "edit_description", "edit_hashtags"):
@@ -213,10 +350,10 @@ with tab_create:
             st.markdown('<div class="info-card"><div class="info-icon">▦</div><b>Catalogo esportabile</b><p class="small-muted">Salva le bozze e scarica i dati in formato CSV.</p></div>', unsafe_allow_html=True)
 
 with tab_catalog:
-    st.markdown('<div class="section-title">Il tuo catalogo</div><div class="section-subtitle">Tieni sotto controllo le bozze create in questa sessione.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Il tuo catalogo</div><div class="section-subtitle">Tieni sotto controllo gli annunci salvati nel tuo account.</div>', unsafe_allow_html=True)
     items = st.session_state.items
     if not items:
-        st.info("Il catalogo è vuoto. Crea un annuncio e scegli «Salva nel catalogo» per iniziare.")
+        st.info("Il catalogo è vuoto. Crea un annuncio e scegli «Salva nel catalogo» per iniziare. Gli annunci salvati resteranno nel tuo account.")
     else:
         m1, m2 = st.columns(2)
         m1.metric("Annunci salvati", len(items))
@@ -231,15 +368,19 @@ with tab_catalog:
         options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}":x.get("id") for x in items}
         selected_label = st.selectbox("Seleziona un annuncio da eliminare", list(options.keys()))
         if st.button("Elimina annuncio selezionato"):
-            st.session_state.items = [x for x in items if x.get("id") != options[selected_label]]
-            st.rerun()
+            try:
+                supabase.table("listings").delete().eq("id", options[selected_label]).eq("user_id", st.session_state.auth_user_id).execute()
+                st.session_state.db_loaded_for = ""
+                st.rerun()
+            except Exception as e:
+                st.error("Eliminazione non riuscita. Dettaglio: " + str(e))
 
 with tab_help:
     st.markdown('<div class="section-title">ListingAI, in breve</div><div class="section-subtitle">Le funzioni disponibili oggi e cosa svilupperemo dopo.</div>', unsafe_allow_html=True)
     h1, h2 = st.columns(2)
     with h1:
         st.markdown('<div class="info-card"><div class="info-icon">✦</div><b>Generazione della bozza</b><p class="small-muted">Questa versione usa modelli di testo locali inclusi nel codice: non utilizza un servizio AI esterno e non richiede chiavi API.</p></div>', unsafe_allow_html=True)
-        st.markdown('<div class="info-card" style="margin-top:14px"><div class="info-icon">▦</div><b>Catalogo temporaneo</b><p class="small-muted">I dati sono conservati nella sessione corrente. Non chiudere o aggiornare la sessione se vuoi evitare di perderli.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="info-card" style="margin-top:14px"><div class="info-icon">▦</div><b>Catalogo temporaneo</b><p class="small-muted">Gli annunci salvati sono conservati nel database associato al tuo account.</p></div>', unsafe_allow_html=True)
     with h2:
         st.markdown('<div class="info-card"><div class="info-icon">↗</div><b>Pubblicazione manuale</b><p class="small-muted">ListingAI non accede agli account marketplace e non pubblica annunci in automatico. Copia la bozza e controllala prima di usarla.</p></div>', unsafe_allow_html=True)
         st.markdown('<div class="info-card" style="margin-top:14px"><div class="info-icon">⌁</div><b>Prossime evoluzioni</b><p class="small-muted">Database persistente, account personali, gestione immagini, strumenti di prezzo e piani a pagamento sono sviluppi successivi, da testare prima del lancio commerciale.</p></div>', unsafe_allow_html=True)
