@@ -1,3 +1,4 @@
 streamlit>=1.39,<2.0
 pandas>=2.0,<3.0
 supabase>=2.10,<3.0
+streamlit-url-fragment>=0.0.3
