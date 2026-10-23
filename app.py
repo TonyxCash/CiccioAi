@@ -720,8 +720,12 @@ with tab_catalog:
         st.markdown('<div class="section-title">Modifica un annuncio</div><div class="section-subtitle">Aggiorna titolo, descrizione, hashtag e prezzo senza ricreare il prodotto.</div>', unsafe_allow_html=True)
         editable_items = [x for x in filtered_items if x.get("id")]
         if editable_items:
-            edit_options = {f"{x.get('title','Articolo')} · {money(x.get('price',0))}": x for x in editable_items}
-            edit_label = st.selectbox("Annuncio da modificare", list(edit_options.keys()), key="catalog_edit_choice")
+            st.info("Per modificare un articolo: selezionalo qui sotto, cambia i campi nel modulo e premi «Salva tutte le modifiche». La tabella sopra serve solo per consultare gli articoli.")
+            edit_options = {
+                f"{x.get('title') or 'Articolo senza titolo'} · {money(x.get('price',0))} · ID {str(x.get('id'))[-6:]}": x
+                for x in editable_items
+            }
+            edit_label = st.selectbox("1. Scegli l'articolo da modificare", list(edit_options.keys()), key="catalog_edit_choice")
             chosen = edit_options[edit_label]
             st.markdown('<div class="info-card" style="margin-bottom:12px"><b>Modifica tutti i dettagli</b><p class="small-muted">Aggiorna i dati del capo e salva: il record esistente viene aggiornato, senza crearne uno nuovo.</p></div>', unsafe_allow_html=True)
             with st.form("edit_catalog_listing_form"):
