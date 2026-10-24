@@ -412,46 +412,69 @@ def clean(value):
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 def make_listing(item, tone, keywords):
-    brand = clean(item.get("brand")) or "Senza marca indicata"
+    brand = clean(item.get("brand"))
     category = clean(item.get("category")) or "Abbigliamento"
-    size = clean(item.get("size")) or "Non indicata"
-    color = clean(item.get("color")) or "Non indicato"
-    condition = clean(item.get("condition")) or "Non specificate"
+    size = clean(item.get("size"))
+    color = clean(item.get("color"))
+    condition = clean(item.get("condition"))
     material = clean(item.get("material"))
     details = clean(item.get("details"))
     price = float(item.get("price") or 0)
     fit = clean(item.get("fit"))
     style = clean(item.get("style"))
     platform = clean(item.get("platform")) or "Generico"
-    title_parts = [brand if brand != "Senza marca indicata" else "", category, color if color != "Non indicato" else "", fit if fit else "", f"taglia {size}" if size != "Non indicata" else ""]
+
+    # Titolo leggibile, senza aggiungere informazioni non fornite.
+    title_parts = [brand, category, color, fit, f"taglia {size}" if size else ""]
     title = " ".join(x for x in title_parts if x).strip() or "Articolo di abbigliamento"
-    title = title[:100]
+    title = re.sub(r"\\s+", " ", title)[:100].strip()
+
     if tone == "Essenziale":
-        intro = f"{category} {('di ' + brand) if brand != 'Senza marca indicata' else ''}, colore {color.lower()}."
+        intro = f"{category}{(' di ' + brand) if brand else ''}{(', colore ' + color.lower()) if color else ''}."
     elif tone == "Elegante":
-        intro = f"Un capo {category.lower()} dal look curato{(' firmato ' + brand) if brand != 'Senza marca indicata' else ''}, facile da abbinare."
+        intro = f"Capo {category.lower()}{(' di ' + brand) if brand else ''}, dal look curato e facile da abbinare."
     else:
-        intro = f"In vendita: {category.lower()}{(' ' + brand) if brand != 'Senza marca indicata' else ''}, ideale per completare i tuoi outfit."
-    lines = [intro, f"• Taglia: {size}", f"• Colore: {color}", f"• Condizioni: {condition}"]
+        intro = f"In vendita: {category.lower()}{(' ' + brand) if brand else ''}{(' in colore ' + color.lower()) if color else ''}."
+
+    lines = [intro, ""]
+    facts = []
+    if size:
+        facts.append(f"Taglia: {size}")
+    if color:
+        facts.append(f"Colore: {color}")
+    if condition:
+        facts.append(f"Condizioni: {condition}")
     if material:
-        lines.append(f"• Materiale: {material}")
+        facts.append(f"Materiale: {material}")
     if fit:
-        lines.append(f"• Vestibilità: {fit}")
+        facts.append(f"Vestibilità: {fit}")
     if style:
-        lines.append(f"• Stile: {style}")
+        facts.append(f"Stile: {style}")
     if details:
-        lines.append(f"• Dettagli: {details}")
+        facts.append(f"Dettagli: {details}")
+    lines.extend(f"• {fact}" for fact in facts)
+
     if platform == "Vinted":
-        lines += ["", "Se hai domande su taglia o vestibilità, scrivimi pure."]
+        lines += ["", "Guarda le foto per valutare il capo. Se ti servono altre misure o informazioni, scrivimi pure."]
     elif platform == "eBay":
-        lines += ["", "Controlla attentamente descrizione, taglia e condizioni prima dell'acquisto."]
+        lines += ["", "Leggi i dettagli e controlla taglia e condizioni prima dell'acquisto. Le informazioni riportate si riferiscono al capo descritto."]
     elif platform == "Subito":
-        lines += ["", "Per ulteriori informazioni o dettagli, contattami tramite la piattaforma."]
+        lines += ["", "Per ulteriori informazioni o per chiarire i dettagli dell'articolo, contattami tramite la piattaforma."]
+    elif platform == "Facebook Marketplace":
+        lines += ["", "Se vuoi altre informazioni sul capo, mandami un messaggio."]
     else:
-        lines += ["", "Guarda le foto per tutti i dettagli e scrivimi se vuoi altre informazioni."]
+        lines += ["", "Per altre informazioni o foto aggiuntive, scrivimi pure."]
+
     if price > 0:
         lines += ["", f"Prezzo richiesto: €{price:.2f}".replace(".", ",")]
-    tags = [category, brand, color, "abbigliamento", "secondamano", "outfit"]
+
+    base_tags = {
+        "Vinted": [category, brand, color, "secondamano", "preloved", "outfit"],
+        "eBay": [category, brand, color, "abbigliamento", "moda", "taglia" + size if size else ""],
+        "Subito": [category, brand, color, "abbigliamento", "usato", "affare"],
+        "Facebook Marketplace": [category, brand, color, "abbigliamento", "moda", "outfit"],
+    }
+    tags = base_tags.get(platform, [category, brand, color, "abbigliamento", "secondamano", "outfit"])
     if keywords:
         tags += [x.strip().lstrip("#") for x in keywords.split(",") if x.strip()]
     seen, hashtags = set(), []
@@ -460,7 +483,7 @@ def make_listing(item, tone, keywords):
         if normalized and normalized not in seen:
             seen.add(normalized)
             hashtags.append("#" + normalized)
-    return title, "\n".join(lines), " ".join(hashtags[:12])
+    return title, "\\n".join(lines), " ".join(hashtags[:12])
 
 def money(value):
     return f"€{float(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
