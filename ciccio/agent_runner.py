@@ -36,11 +36,11 @@ Scegli un'azione concreta, gratuita e verificabile. Non inventare risultati.
 Rispondi esclusivamente con JSON valido con:
 goal, action_type, action_title, action_notes, memory_kind, memory_content,
 reason, expected_result, verification, learning, next_cycle.
-action_type deve essere uno fra "create_task", "save_memory", "complete_task", "no_op".
+action_type deve essere uno fra "create_task", "save_memory", "complete_task", "audit_project", "no_op".
 Per complete_task, action_title deve corrispondere esattamente al titolo di un'attività aperta.
 Per create_task, action_title deve essere un'attività piccola e verificabile, non generica.
 Per save_memory, memory_content deve contenere una deduzione concreta utile ai cicli futuri.
-Per no_op spiega il blocco e cosa manca. Lingua italiana.
+Per audit_project, action_title deve descrivere un controllo concreto del progetto e action_notes deve indicare cosa controllare. Per no_op spiega il blocco e cosa manca. Lingua italiana.
 """
     prompt = (
         "Ora UTC: " + datetime.now(timezone.utc).isoformat()
@@ -94,6 +94,31 @@ def execute_internal_action(db, plan, open_tasks):
         if not result.data:
             raise RuntimeError("Supabase non ha confermato il salvataggio della memoria.")
         return "completed", "Memoria persistente salvata in Supabase."
+    if kind == "audit_project":
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        checks = {
+            "app.py": root / "ciccio" / "app.py",
+            "agent_runner.py": root / "ciccio" / "agent_runner.py",
+            "agent_schema.sql": root / "ciccio" / "agent_schema.sql",
+            "workflow": root / ".github" / "workflows" / "ciccio-agent.yml",
+            "readme": root / "README.md",
+        }
+        findings = []
+        for label, path in checks.items():
+            if path.exists():
+                findings.append(f"{label}: presente ({path.stat().st_size} byte)")
+            else:
+                findings.append(f"{label}: MANCANTE")
+        report = "Controllo locale del repository:\n" + "\n".join(findings)
+        db.table("ciccio_memories").insert({
+            "kind": "audit_progetto",
+            "content": report[:3000],
+        }).execute()
+        missing = [label for label, path in checks.items() if not path.exists()]
+        if missing:
+            return "blocked", report + "\nDa correggere: " + ", ".join(missing)
+        return "completed", report + "\nVerifica completata: i file essenziali controllati sono presenti."
     if kind == "complete_task":
         match = next((t for t in open_tasks if str(t.get("title","")) == title), None)
         if not match:
@@ -124,6 +149,16 @@ def main():
              .limit(30).execute().data or [])
 
     plan = ask_agent(groq, memories, tasks, previous)
+    # Prefer a real repository audit when the history is empty or the last audit is old.
+    recent_audit = any(
+        str(m.get("kind", "")) == "audit_progetto"
+        and str(m.get("created_at", ""))[:10] >= datetime.now(timezone.utc).date().isoformat()
+        for m in memories
+    )
+    if not recent_audit and not any(str(t.get("status", "")) != "Completata" for t in tasks):
+        plan["action_type"] = "audit_project"
+        plan["action_title"] = "Verifica integrità del progetto Ciccio"
+        plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
     execution_status, execution_result = execute_internal_action(db, plan, tasks)
     learning = str(plan["learning"])[:1200]
     next_cycle = str(plan["next_cycle"])[:800]
