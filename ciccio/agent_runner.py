@@ -4,8 +4,8 @@ create/update tasks and save durable memories. External actions require approval
 """
 import json
 import os
-import urllib.parse
-import urllib.request
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timezone
 
 from groq import Groq
@@ -14,31 +14,30 @@ from supabase import create_client
 MODEL = "openai/gpt-oss-20b"
 
 
-def notify_user(message):
-    """Send an autonomous Telegram message when optional secrets are configured."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    if not token or not chat_id:
-        print("Telegram non configurato: ciclo salvato senza invio esterno.")
+def notify_email(subject, message):
+    """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.getenv("SMTP_PORT", "587").strip())
+    username = os.getenv("SMTP_USERNAME", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+    recipient = os.getenv("EMAIL_TO", "").strip()
+    sender = os.getenv("EMAIL_FROM", "").strip() or username
+    if not all((host, username, password, recipient, sender)):
+        print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
-    payload = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": message[:3900],
-        "disable_web_page_preview": "true",
-    }).encode("utf-8")
-    request = urllib.request.Request(
-        "https://api.telegram.org/bot" + token + "/sendMessage",
-        data=payload,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=15) as response:
-        result = json.loads(response.read().decode("utf-8"))
-    if not result.get("ok"):
-        raise RuntimeError("Telegram non ha confermato l'invio del messaggio.")
-    print("Notifica Telegram inviata e confermata.")
+    email = EmailMessage()
+    email["Subject"] = subject[:180]
+    email["From"] = sender
+    email["To"] = recipient
+    email.set_content(message[:12000])
+    with smtplib.SMTP(host, port, timeout=20) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(username, password)
+        server.send_message(email)
+    print("Email Ciccio inviata al destinatario configurato.")
     return True
-
 
 def required_env(name):
     value = os.getenv(name, "").strip()
@@ -92,7 +91,7 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
                 "expected_result","verification","learning","next_cycle"]
     if any(not str(plan.get(k, "")).strip() for k in required):
         raise RuntimeError("Risposta incompleta: manca un campo obbligatorio.")
-    if plan["action_type"] not in {"create_task","save_memory","complete_task","no_op"}:
+    if plan["action_type"] not in {"create_task","save_memory","complete_task","audit_project","no_op"}:
         raise RuntimeError("Tipo di azione non consentito.")
     return plan
 
@@ -227,10 +226,10 @@ def main():
         + "Prossimo passo: " + next_cycle
     )
     try:
-        notify_user(notification)
+        notify_email("Ciccio — aggiornamento autonomo", notification)
     except Exception as exc:
         # Un errore di notifica non annulla il ciclo già salvato.
-        print("Invio Telegram non riuscito: " + str(exc)[:250])
+        print("Invio email non riuscito: " + str(exc)[:250])
     print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
                       "status": row["status"], "action": row["action"],
                       "result": row["result"]}, ensure_ascii=False, indent=2))
