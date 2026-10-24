@@ -113,7 +113,22 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
     return plan
 
 
-def execute_internal_action(db, plan, open_tasks):
+def resolve_user_id(db):
+    """Resolve the owner UUID required by user-scoped Ciccio tables."""
+    configured = os.getenv("CICCIO_USER_ID", "").strip()
+    if configured:
+        return configured
+    for table in ("ciccio_memories", "ciccio_tasks", "ciccio_agent_runs"):
+        try:
+            found = db.table(table).select("user_id").not_.is_("user_id", "null").limit(1).execute().data or []
+            if found and found[0].get("user_id"):
+                return str(found[0]["user_id"])
+        except Exception:
+            continue
+    raise RuntimeError("Manca CICCIO_USER_ID: aggiungi nei GitHub Actions Secrets l'UUID dell'utente proprietario da Supabase > Authentication > Users.")
+
+
+def execute_internal_action(db, plan, open_tasks, user_id):
     """Execute only bounded, reversible actions in Ciccio's own database."""
     kind = plan["action_type"]
     title = str(plan["action_title"]).strip()[:180]
@@ -122,7 +137,7 @@ def execute_internal_action(db, plan, open_tasks):
         if any(str(t.get("title","")).casefold() == title.casefold() for t in open_tasks):
             return "blocked", "Attività non creata: esiste già un'attività aperta con lo stesso titolo."
         result = db.table("ciccio_tasks").insert({
-            "title": title, "status": "Da fare", "notes": notes
+            "user_id": user_id, "title": title, "status": "Da fare", "notes": notes
         }).execute()
         if not result.data:
             raise RuntimeError("Supabase non ha confermato la creazione dell'attività.")
@@ -132,6 +147,7 @@ def execute_internal_action(db, plan, open_tasks):
         if not memory:
             return "blocked", "Memoria non salvata: contenuto vuoto."
         result = db.table("ciccio_memories").insert({
+            "user_id": user_id,
             "kind": str(plan.get("memory_kind", "apprendimento_agente"))[:80],
             "content": memory[:3000],
         }).execute()
@@ -156,6 +172,7 @@ def execute_internal_action(db, plan, open_tasks):
                 findings.append(f"{label}: MANCANTE")
         report = "Controllo locale del repository:\n" + "\n".join(findings)
         db.table("ciccio_memories").insert({
+            "user_id": user_id,
             "kind": "audit_progetto",
             "content": report[:3000],
         }).execute()
@@ -203,7 +220,8 @@ def main():
         plan["action_type"] = "audit_project"
         plan["action_title"] = "Verifica integrità del progetto Ciccio"
         plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
-    execution_status, execution_result = execute_internal_action(db, plan, tasks)
+    user_id = resolve_user_id(db)
+    execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
     learning = str(plan["learning"])[:1200]
     next_cycle = str(plan["next_cycle"])[:800]
     result_text = (
@@ -226,6 +244,7 @@ def main():
         raise RuntimeError("Supabase non ha confermato il salvataggio del ciclo.")
     # Every cycle leaves a compact, durable learning record for the next one.
     db.table("ciccio_memories").insert({
+        "user_id": user_id,
         "kind": "apprendimento_agente",
         "content": json.dumps({
             "goal": row["goal"], "action": row["action"], "reason": row["reason"],
