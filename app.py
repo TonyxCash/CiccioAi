@@ -684,26 +684,47 @@ with tab_create:
                         "Per Vinted, non menzionare spedizione o prezzo nella descrizione."
                     )
                     response = None
-                    # I 503 sono spesso temporanei: riprova poche volte con attese progressive.
-                    for attempt, wait_seconds in enumerate((0, 2, 5), start=1):
-                        if wait_seconds:
-                            import time
-                            time.sleep(wait_seconds)
-                        response = requests.post(
-                            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-                            params={"key": gemini_key},
-                            json={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime_type,"data":image_b64}}]}],
-                                  "generationConfig":{"responseMimeType":"application/json"}},
-                            timeout=60
-                        )
-                        if response.status_code not in (408, 429, 500, 502, 503, 504) or attempt == 3:
+                    last_error = ""
+                    # Prova prima il modello principale, poi un modello alternativo per i 503.
+                    model_candidates = [
+                        ("gemini-3.8-flash", (0, 2, 5)),
+                        ("gemini-2.5-flash", (0, 2)),
+                    ]
+                    for model_name, waits in model_candidates:
+                        for attempt, wait_seconds in enumerate(waits, start=1):
+                            if wait_seconds:
+                                import time
+                                time.sleep(wait_seconds)
+                            try:
+                                candidate_response = requests.post(
+                                    f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+                                    params={"key": gemini_key},
+                                    json={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime_type,"data":image_b64}}]}],
+                                          "generationConfig":{"responseMimeType":"application/json"}},
+                                    timeout=60
+                                )
+                            except requests.RequestException as request_error:
+                                last_error = f"{model_name}: {request_error}"
+                                continue
+                            if candidate_response.status_code < 400:
+                                response = candidate_response
+                                break
+                            try:
+                                error_detail = candidate_response.json().get("error", {}).get("message", candidate_response.text)
+                            except Exception:
+                                error_detail = candidate_response.text
+                            last_error = f"Gemini {model_name} HTTP {candidate_response.status_code}: {str(error_detail)[:500]}"
+                            # Gli errori di configurazione/chiave non migliorano cambiando modello.
+                            if candidate_response.status_code not in (408, 429, 500, 502, 503, 504):
+                                raise RuntimeError(last_error)
+                        if response is not None:
                             break
-                    if response is not None and response.status_code >= 400:
-                        try:
-                            error_detail = response.json().get("error", {}).get("message", response.text)
-                        except Exception:
-                            error_detail = response.text
-                        raise RuntimeError(f"Gemini API HTTP {response.status_code}: {str(error_detail)[:700]}")
+                    if response is None:
+                        raise RuntimeError(
+                            "Tutti i tentativi di analisi foto sono falliti. Ultimo errore: "
+                            + (last_error or "nessuna risposta dal servizio")
+                            + ". Riprova tra qualche minuto."
+                        )
                     response.raise_for_status()
                     result_json = response.json()
                     ai_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
