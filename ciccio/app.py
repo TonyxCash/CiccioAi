@@ -59,25 +59,41 @@ if section == "Conversazione":
     if prompt:
         st.session_state.chat.append(("user", prompt))
         low = prompt.lower()
-        if any(w in low for w in ["soldi", "guadagn", "entrate", "cliente", "vendere", "ricavi"]):
-            answer = ("**Analisi orientata ai ricavi**\n\n"
-                      "1. Cerca un servizio che risolva un problema urgente e per cui qualcuno pagherebbe.\n"
-                      "2. Proponi una versione semplice prima di costruire una piattaforma completa.\n"
-                      "3. Contatta potenziali clienti e misura le risposte.\n"
-                      "4. Registra incassi, costi e margine.\n\n"
-                      "**Prossima azione:** scegliamo un cliente specifico e prepariamo un'offerta che puoi inviare oggi. "
-                      "Non posso garantire guadagni; verifichiamo ogni ipotesi con dati reali.")
-        elif any(w in low for w in ["piano", "priorità", "priorita", "iniziare", "prossimo"]):
-            answer = ("**Piano operativo**\n\n"
-                      "• Definire il risultato desiderato.\n"
-                      "• Scomporlo in un'attività che richieda meno di un'ora.\n"
-                      "• Eseguire e registrare l'esito.\n"
-                      "• Aggiornare il piano in base ai risultati.\n\n"
-                      "Posso pianificare e aiutarti a valutare le opzioni, ma questa versione non esegue lavoro in background.")
+        api_key = st.secrets.get("OPENAI_API_KEY", "") if hasattr(st, "secrets") else ""
+        if api_key:
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                history = [
+                    {"role": "system", "content": (
+                        "Sei Ciccio, un agente personale pratico e trasparente. "
+                        "Aiuta l'utente a creare valore e opportunità di reddito con budget minimo, "
+                        "privilegiando azioni concrete, testabili e legali. L'utente gestisce un progetto "
+                        "di app per venditori di abbigliamento e un marchio di abbigliamento. "
+                        "Non promettere guadagni, non inventare verifiche o azioni compiute, "
+                        "non dichiarare di lavorare in background. Dai istruzioni chiare in italiano "
+                        "e indica il prossimo passo concreto."
+                    )}
+                ]
+                for role, msg in st.session_state.chat[-12:]:
+                    history.append({"role": "assistant" if role == "assistant" else "user", "content": msg})
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=history,
+                    temperature=0.5,
+                    max_tokens=700,
+                )
+                answer = response.choices[0].message.content or "Non sono riuscito a generare una risposta."
+            except Exception as e:
+                answer = ("Non riesco a contattare il servizio AI. Controlla che OPENAI_API_KEY "
+                          "sia configurata correttamente nei Secrets di Streamlit. Dettaglio: " + str(e)[:250])
         else:
-            answer = ("Ho letto il tuo messaggio. Per aiutarti in modo concreto, posso trasformarlo in un piano, "
-                      "una lista di attività o una proposta commerciale.\n\n"
-                      "**Domanda di Ciccio:** qual è il risultato pratico che vuoi ottenere e quale vincolo è più importante?")
+            answer = (
+                "La modalità AI non è ancora attivata: manca OPENAI_API_KEY nei Secrets di Streamlit.\n\n"
+                "Posso comunque aiutarti a organizzare il lavoro, ma le risposte automatiche avanzate "
+                "si attiveranno solo dopo aver configurato una chiave API. La chiave va inserita nei "
+                "Secrets dell'app, mai nel codice GitHub."
+            )
         st.session_state.chat.append(("assistant", answer))
         with st.chat_message("assistant"):
             st.markdown(answer)
