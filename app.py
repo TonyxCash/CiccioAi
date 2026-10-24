@@ -429,49 +429,56 @@ def make_listing(item, tone, keywords):
     style = clean(item.get("style"))
     platform = clean(item.get("platform")) or "Generico"
 
-    # Titolo leggibile, senza aggiungere informazioni non fornite.
+    # Titolo e descrizione più naturali, senza inventare caratteristiche.
     title_parts = [brand, category, color, fit, f"taglia {size}" if size else ""]
     title = " ".join(x for x in title_parts if x).strip() or "Articolo di abbigliamento"
-    title = re.sub(r"\\s+", " ", title)[:100].strip()
+    title = re.sub(r"\s+", " ", title)[:100].strip()
+
+    category_lower = category.lower()
+    brand_phrase = f" firmato {brand}" if brand else ""
+    color_phrase = f" nella tonalità {color.lower()}" if color else ""
+    condition_lower = condition.lower() if condition else ""
 
     if tone == "Essenziale":
-        intro = f"{category}{(' di ' + brand) if brand else ''}{(', colore ' + color.lower()) if color else ''}."
+        intro = f"{category}{(' di ' + brand) if brand else ''}{(' in colore ' + color.lower()) if color else ''}."
+        closing = "Per qualsiasi domanda, scrivimi pure."
     elif tone == "Elegante":
-        intro = f"Capo {category.lower()}{(' di ' + brand) if brand else ''}, dal look curato e facile da abbinare."
+        intro = f"Un {category_lower}{brand_phrase}{color_phrase}, ideale per completare un look curato e personale."
+        closing = "Per ulteriori dettagli o misure, mandami un messaggio."
     else:
-        intro = f"In vendita: {category.lower()}{(' ' + brand) if brand else ''}{(' in colore ' + color.lower()) if color else ''}."
+        intro = f"{category.capitalize()}{(' ' + brand) if brand else ''}{(' in colore ' + color.lower()) if color else ''}, perfetto per dare carattere ai tuoi outfit."
+        closing = "Dai un’occhiata alle foto e scrivimi se vuoi maggiori informazioni."
 
-    lines = [intro, ""]
-    facts = []
+    lines = [intro]
+    if condition_lower:
+        lines += ["", f"Condizioni: {condition}."]
+    details_sentences = []
     if size:
-        facts.append(f"Taglia: {size}")
-    if color:
-        facts.append(f"Colore: {color}")
-    if condition:
-        facts.append(f"Condizioni: {condition}")
-    if material:
-        facts.append(f"Materiale: {material}")
+        details_sentences.append(f"Taglia {size}")
     if fit:
-        facts.append(f"Vestibilità: {fit}")
+        details_sentences.append(f"vestibilità {fit.lower()}")
+    if material:
+        details_sentences.append(f"composizione {material}")
     if style:
-        facts.append(f"Stile: {style}")
+        details_sentences.append(f"stile {style.lower()}")
     if details:
-        facts.append(f"Dettagli: {details}")
-    lines.extend(f"• {fact}" for fact in facts)
+        details_sentences.append(details)
+    if details_sentences:
+        lines += ["", "Dettagli: " + "; ".join(details_sentences) + "."]
 
     if platform == "Vinted":
-        lines += ["", "Guarda le foto per valutare il capo. Se ti servono altre misure o informazioni, scrivimi pure."]
+        closing = "Spedizione tramite Vinted. Per qualsiasi domanda o per verificare le misure, scrivimi pure."
     elif platform == "eBay":
-        lines += ["", "Leggi i dettagli e controlla taglia e condizioni prima dell'acquisto. Le informazioni riportate si riferiscono al capo descritto."]
+        closing = "Controlla le informazioni e le foto prima dell’acquisto. Per domande, contattami tramite la piattaforma."
     elif platform == "Subito":
-        lines += ["", "Per ulteriori informazioni o per chiarire i dettagli dell'articolo, contattami tramite la piattaforma."]
+        closing = "Per ulteriori informazioni, contattami tramite la piattaforma."
     elif platform == "Facebook Marketplace":
-        lines += ["", "Se vuoi altre informazioni sul capo, mandami un messaggio."]
-    else:
-        lines += ["", "Per altre informazioni o foto aggiuntive, scrivimi pure."]
+        closing = "Se vuoi altri dettagli, mandami un messaggio."
+    lines += ["", closing]
 
     if price > 0:
-        lines += ["", f"Prezzo richiesto: €{price:.2f}".replace(".", ",")]
+        lines += ["", f"Prezzo: €{price:.2f}".replace(".", ",")]
+
 
     base_tags = {
         "Vinted": [category, brand, color, "secondamano", "preloved", "outfit"],
