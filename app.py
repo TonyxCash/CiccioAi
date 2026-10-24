@@ -11,6 +11,8 @@ import pandas as pd
 import streamlit as st
 from urllib.parse import parse_qsl
 from streamlit_url_fragment import get_fragment
+import json
+from streamlit_cookies_manager import EncryptedCookieManager
 
 st.set_page_config(
     page_title="ListingAI — Studio annunci",
@@ -81,6 +83,14 @@ hr{border-color:#e9e9f1!important}
 # --- Supabase: account personali e archivio persistente ---
 from supabase import create_client
 
+# Persistenza della sessione in cookie cifrato.
+_cookie_password = str(st.secrets.get("COOKIE_PASSWORD", "")).strip()
+auth_cookies = None
+if _cookie_password:
+    auth_cookies = EncryptedCookieManager(prefix="listingai/", password=_cookie_password)
+    if not auth_cookies.ready():
+        st.stop()
+
 if "auth_access_token" not in st.session_state:
     st.session_state.auth_access_token = ""
 if "auth_refresh_token" not in st.session_state:
@@ -91,6 +101,35 @@ if "auth_email" not in st.session_state:
     st.session_state.auth_email = ""
 if "db_loaded_for" not in st.session_state:
     st.session_state.db_loaded_for = ""
+
+# Ripristina i token quando la pagina viene ricaricata.
+if auth_cookies is not None and not st.session_state.auth_access_token:
+    try:
+        saved = json.loads(auth_cookies.get("auth_session", "{}") or "{}")
+        st.session_state.auth_access_token = saved.get("access_token", "")
+        st.session_state.auth_refresh_token = saved.get("refresh_token", "")
+        st.session_state.auth_user_id = saved.get("user_id", "")
+        st.session_state.auth_email = saved.get("email", "")
+    except Exception:
+        pass
+
+def persist_auth_session():
+    if auth_cookies is None:
+        return
+    payload = {
+        "access_token": st.session_state.get("auth_access_token", ""),
+        "refresh_token": st.session_state.get("auth_refresh_token", ""),
+        "user_id": st.session_state.get("auth_user_id", ""),
+        "email": st.session_state.get("auth_email", ""),
+    }
+    if payload["access_token"] and payload["refresh_token"]:
+        auth_cookies["auth_session"] = json.dumps(payload, separators=(",", ":"))
+    else:
+        try:
+            del auth_cookies["auth_session"]
+        except KeyError:
+            pass
+    auth_cookies.save()
 
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -121,6 +160,7 @@ try:
                     st.session_state.auth_refresh_token = fragment_refresh_token
                     st.session_state.auth_user_id = fragment_user.user.id
                     st.session_state.auth_email = fragment_user.user.email or ""
+                    persist_auth_session()
                     st.session_state.recovery_verified = True
                     st.rerun()
 except Exception:
@@ -141,6 +181,7 @@ if auth_code and not st.session_state.recovery_verified:
             st.session_state.auth_refresh_token = code_result.session.refresh_token
             st.session_state.auth_user_id = code_result.user.id
             st.session_state.auth_email = code_result.user.email or ""
+            persist_auth_session()
             st.session_state.recovery_verified = True
             st.query_params.clear()
             st.rerun()
@@ -169,6 +210,7 @@ if recovery_token_hash and recovery_type == "recovery" and not st.session_state.
             st.session_state.auth_refresh_token = recovery_result.session.refresh_token
             st.session_state.auth_user_id = recovery_result.user.id
             st.session_state.auth_email = recovery_result.user.email or ""
+            persist_auth_session()
             st.session_state.recovery_verified = True
             st.query_params.clear()
             st.rerun()
@@ -226,6 +268,7 @@ if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
         if current_user and current_user.user:
             st.session_state.auth_user_id = current_user.user.id
             st.session_state.auth_email = current_user.user.email or st.session_state.auth_email
+            persist_auth_session()
     except Exception:
         st.session_state.auth_access_token = ""
         st.session_state.auth_refresh_token = ""
@@ -283,6 +326,7 @@ if not st.session_state.auth_user_id:
                             st.session_state.auth_refresh_token = result.session.refresh_token
                             st.session_state.auth_user_id = result.user.id
                             st.session_state.auth_email = result.user.email or login_email.strip()
+                            persist_auth_session()
                             st.session_state.db_loaded_for = ""
                             st.rerun()
                     except Exception as error:
@@ -313,6 +357,7 @@ if not st.session_state.auth_user_id:
                             st.session_state.auth_refresh_token = result.session.refresh_token
                             st.session_state.auth_user_id = result.user.id
                             st.session_state.auth_email = result.user.email or register_email.strip()
+                            persist_auth_session()
                             st.session_state.db_loaded_for = ""
                             st.rerun()
                         else:
@@ -370,6 +415,7 @@ with st.sidebar:
             pass
         for key in ("auth_access_token", "auth_refresh_token", "auth_user_id", "auth_email", "db_loaded_for", "items", "generated"):
             st.session_state.pop(key, None)
+        persist_auth_session()
         st.rerun()
     st.markdown("<div class='small-muted' style='margin-top:12px'>Gli annunci salvati vengono conservati nel database del tuo account.</div>", unsafe_allow_html=True)
 
