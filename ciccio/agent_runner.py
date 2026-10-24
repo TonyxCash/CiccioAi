@@ -219,11 +219,11 @@ def main():
     }).execute()
     # Ciccio può raggiungerti anche quando la dashboard è chiusa.
     notification = (
-        "🧠 Ciccio — aggiornamento autonomo\\n\\n"
-        + "Stato: " + row["status"] + "\\n"
-        + "Obiettivo: " + row["goal"] + "\\n"
-        + "Azione: " + row["action"] + "\\n\\n"
-        + "Esito: " + execution_result[:900] + "\\n\\n"
+        "🧠 Ciccio — aggiornamento autonomo\n\n"
+        + "Stato: " + row["status"] + "\n"
+        + "Obiettivo: " + row["goal"] + "\n"
+        + "Azione: " + row["action"] + "\n\n"
+        + "Esito: " + execution_result[:900] + "\n\n"
         + "Prossimo passo: " + next_cycle
     )
     try:
