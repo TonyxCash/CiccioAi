@@ -417,6 +417,8 @@ def clean(value):
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 def make_listing(item, tone, keywords):
+    import random
+
     brand = clean(item.get("brand"))
     category = clean(item.get("category")) or "Articolo"
     size = clean(item.get("size"))
@@ -429,49 +431,79 @@ def make_listing(item, tone, keywords):
     style = clean(item.get("style"))
     platform = clean(item.get("platform")) or "Generico"
 
-    # Annuncio conciso e credibile: niente slogan generici o caratteristiche inventate.
+    # Titolo e descrizione classici: variazioni linguistiche, senza inventare dettagli.
     title_parts = [brand, category, color, fit, f"taglia {size}" if size else ""]
-    title = re.sub(r"\\s+", " ", " ".join(x for x in title_parts if x)).strip()[:100]
+    title = re.sub(r"\s+", " ", " ".join(x for x in title_parts if x)).strip()[:100]
     if not title:
         title = category
 
-    intro_parts = []
-    if brand:
-        intro_parts.append(brand)
-    intro_parts.append(category.lower())
-    if color:
-        intro_parts.append(f"di colore {color.lower()}")
-    intro = " ".join(intro_parts).capitalize() + "."
+    opening_templates = [
+        "{article} {color_part}{brand_part}{fit_part}{style_part}.",
+        "In questo annuncio trovi {article}{color_part}{brand_part}{fit_part}{style_part}.",
+        "{article_cap}{color_part}{brand_part}{fit_part}{style_part}, con i dettagli riportati qui sotto.",
+        "Propongo {article}{color_part}{brand_part}{fit_part}{style_part}.",
+    ]
+    article = category.lower()
+    color_part = f" di colore {color.lower()}" if color else ""
+    brand_part = f" {brand}" if brand else ""
+    fit_part = f", vestibilità {fit}" if fit else ""
+    style_part = f", stile {style.lower()}" if style else ""
+    article_cap = article[:1].upper() + article[1:]
+    opening = random.choice(opening_templates).format(
+        article=article, article_cap=article_cap, color_part=color_part,
+        brand_part=brand_part, fit_part=fit_part, style_part=style_part
+    )
 
-    facts = []
+    fact_templates = []
     if size:
-        facts.append(f"Taglia: {size}")
-    if fit:
-        facts.append(f"Vestibilità: {fit}")
+        fact_templates.append(random.choice([f"Taglia {size}.", f"La taglia indicata è {size}."]))
     if material:
-        facts.append(f"Composizione: {material}")
-    if style:
-        facts.append(f"Stile: {style}")
+        fact_templates.append(random.choice([f"Composizione: {material}.", f"Materiale indicato: {material}."]))
     if details:
-        facts.append(details.rstrip(". "))
+        fact_templates.append(details.rstrip(". ") + ".")
+    random.shuffle(fact_templates)
 
-    paragraphs = [intro]
-    if facts:
-        paragraphs.append(" ".join(facts) if len(facts) == 1 else "\n".join(facts))
+    condition_line = ""
     if condition:
-        paragraphs.append(f"Condizioni: {condition.lower()}.")
-    if platform == "Vinted":
-        paragraphs.append("Guarda le foto per tutti i dettagli. Se ti serve una misura o un’informazione in più, scrivimi.")
-    elif platform == "eBay":
-        paragraphs.append("Per domande o ulteriori dettagli, contattami tramite eBay.")
-    elif platform == "Subito":
-        paragraphs.append("Per domande o ulteriori dettagli, scrivimi tramite Subito.")
-    elif platform == "Facebook Marketplace":
-        paragraphs.append("Per domande o ulteriori dettagli, mandami un messaggio.")
-    else:
-        paragraphs.append("Per informazioni o misure aggiuntive, contattami.")
+        condition_line = random.choice([
+            f"Condizioni dichiarate: {condition.lower()}.",
+            f"Il capo è indicato come {condition.lower()}.",
+            f"Stato del capo: {condition.lower()}."
+        ])
 
-    if price > 0:
+    closing_by_platform = {
+        "Vinted": [
+            "Per misure o altre informazioni, scrivimi pure.",
+            "Se vuoi conoscere altre misure o dettagli, mandami un messaggio.",
+            "Per qualsiasi domanda sul capo, contattami prima dell'acquisto."
+        ],
+        "eBay": [
+            "Per ulteriori informazioni, contattami tramite eBay.",
+            "Se hai domande o ti servono altri dettagli, scrivimi su eBay."
+        ],
+        "Subito": [
+            "Per misure o chiarimenti, scrivimi tramite Subito.",
+            "Contattami su Subito se desideri altre informazioni."
+        ],
+        "Facebook Marketplace": [
+            "Per qualsiasi domanda, mandami un messaggio.",
+            "Scrivimi se desideri altre misure o informazioni."
+        ],
+        "Generico": [
+            "Per informazioni o misure aggiuntive, contattami.",
+            "Se ti servono altri dettagli, scrivimi pure.",
+            "Resto disponibile per eventuali domande o misure."
+        ]
+    }
+    closing = random.choice(closing_by_platform.get(platform, closing_by_platform["Generico"]))
+
+    paragraphs = [opening]
+    if fact_templates:
+        paragraphs.append("\n".join(fact_templates))
+    if condition_line:
+        paragraphs.append(condition_line)
+    paragraphs.append(closing)
+    if price > 0 and platform != "Vinted":
         paragraphs.append(f"Prezzo richiesto: €{price:.2f}".replace(".", ","))
 
     description = "\n\n".join(paragraphs)
