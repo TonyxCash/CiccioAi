@@ -688,7 +688,7 @@ with tab_create:
                     # Prova prima il modello principale, poi un modello alternativo per i 503.
                     model_candidates = [
                         ("gemini-3.8-flash", (0, 2, 5)),
-                        ("gemini-2.5-flash", (0, 2)),
+                        ("gemini-3.5-flash-lite", (0, 2)),
                     ]
                     for model_name, waits in model_candidates:
                         for attempt, wait_seconds in enumerate(waits, start=1):
