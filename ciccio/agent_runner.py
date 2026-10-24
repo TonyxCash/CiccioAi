@@ -31,7 +31,7 @@ def notify_email(subject, message):
     sender = sender.replace("\u00a0", " ").strip()
     recipient = recipient.replace("\u00a0", " ").strip()
     email = EmailMessage()
-    email["Subject"] = Header(subject[:180], "utf-8")
+    email["Subject"] = str(Header(subject[:180], "utf-8"))
     email["From"] = sender
     email["To"] = recipient
     email.set_content(message[:12000])
