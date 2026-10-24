@@ -457,7 +457,7 @@ def make_listing(item, tone, keywords):
 
     paragraphs = [intro]
     if facts:
-        paragraphs.append(" ".join(facts) if len(facts) == 1 else "\\n".join(facts))
+        paragraphs.append(" ".join(facts) if len(facts) == 1 else "\n".join(facts))
     if condition:
         paragraphs.append(f"Condizioni: {condition.lower()}.")
     if platform == "Vinted":
@@ -474,7 +474,7 @@ def make_listing(item, tone, keywords):
     if price > 0:
         paragraphs.append(f"Prezzo richiesto: €{price:.2f}".replace(".", ","))
 
-    description = "\\n\\n".join(paragraphs)
+    description = "\n\n".join(paragraphs)
 
     base_tags = {
         "Vinted": [category, brand, color, "secondamano", "preloved", "outfit"],
@@ -730,6 +730,10 @@ with tab_create:
                     ai_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
                     ai_data = __import__("json").loads(ai_text)
                     title = str(ai_data.get("title") or title)[:100]
+                    # La categoria scelta dall’utente è vincolante: l’AI può descrivere la foto, non cambiare il tipo di capo.
+                    ai_category = str(ai_data.get("category") or "").strip()
+                    if ai_category and ai_category.lower() == category.lower():
+                        item["category"] = category
                     description = str(ai_data.get("description") or description)
                     hashtags = str(ai_data.get("hashtags") or hashtags)
                     if not item.get("color") and ai_data.get("color"):
