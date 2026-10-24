@@ -86,30 +86,54 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
     start, end = raw.find("{"), raw.rfind("}")
     if start < 0 or end <= start:
         raise RuntimeError("Il modello non ha restituito JSON valido.")
-    plan = json.loads(raw[start:end + 1])
+    try:
+        plan = json.loads(raw[start:end + 1])
+    except (json.JSONDecodeError, TypeError):
+        plan = {}
+
+    if not isinstance(plan, dict):
+        plan = {}
+
+    # Risposte parziali o con tipi inattesi non devono interrompere il ciclo.
+    # In caso di dubbio si sceglie sempre no_op, senza eseguire azioni.
     required = ["goal","action_type","action_title","action_notes","reason",
                 "expected_result","verification","learning","next_cycle"]
-    # Alcuni modelli omettono campi descrittivi: completa in modo sicuro i valori mancanti
-    # invece di interrompere l'intero ciclo. L'azione resta comunque validata sotto.
     defaults = {
         "goal": "Migliorare in modo sicuro il progetto Ciccio",
         "action_type": "no_op",
         "action_title": "Verifica e pianificazione del prossimo ciclo",
-        "action_notes": "Nessuna modifica esterna autorizzata.",
+        "action_notes": "Nessuna azione eseguita: risposta del modello incompleta.",
         "reason": "Risposta del modello incompleta; scelta prudenziale.",
         "expected_result": "Ciclo registrato senza azioni esterne.",
         "verification": "Verificare nel database che il ciclo sia stato salvato.",
         "learning": "Se la risposta del modello è incompleta, mantenere un comportamento prudente.",
         "next_cycle": "Ripetere il ciclo e verificare la qualità della risposta del modello.",
     }
+    missing = []
     for key in required:
-        if not str(plan.get(key, "")).strip():
+        value = plan.get(key)
+        if value is None or not isinstance(value, (str, int, float, bool)) or not str(value).strip():
+            missing.append(key)
             plan[key] = defaults[key]
-    if plan.get("action_type") not in {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}:
+
+    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}
+    if missing:
+        plan["action_type"] = "no_op"
+        plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
+        plan["reason"] = "Risposta incompleta del modello; nessuna azione eseguita."
+    elif plan.get("action_type") not in allowed_actions:
         plan["action_type"] = "no_op"
         plan["action_notes"] = "Tipo di azione non valido nella risposta del modello; nessuna azione eseguita."
-    if plan["action_type"] not in {"create_task","save_memory","complete_task","audit_project","no_op"}:
-        raise RuntimeError("Tipo di azione non consentito.")
+
+    # Questi campi sono facoltativi per alcune azioni, ma vengono normalizzati
+    # perché il resto del programma li legge in seguito.
+    for key, default in {
+        "memory_kind": "apprendimento_agente",
+        "memory_content": "",
+    }.items():
+        value = plan.get(key, default)
+        plan[key] = value if isinstance(value, str) else default
+
     return plan
 
 
