@@ -846,6 +846,20 @@ with tab_create:
                     st.caption("Per generare descrizioni AI anche senza foto, configura GEMINI_API_KEY nelle Secrets di Streamlit. Per ora uso la bozza classica.")
             except Exception as text_error:
                 st.info("Generazione AI non riuscita: uso la bozza classica. Controlla i dati prima di pubblicare.")
+        # Controllo finale: evita che una risposta AI descriva una categoria diversa da quella selezionata.
+        generated_copy = (str(title) + " " + str(description)).lower()
+        category_conflicts = {
+            "T-shirt": ["pantaloni", "jeans", "felpa", "cappotto", "camicia"],
+            "Pantaloni": ["t-shirt", "maglietta", "felpa", "cappotto"],
+            "Jeans": ["t-shirt", "maglietta", "felpa", "cappotto"],
+            "Camicia": ["pantaloni", "jeans", "t-shirt", "maglietta", "felpa"],
+            "Felpa": ["pantaloni", "jeans", "t-shirt", "maglietta", "camicia"],
+        }
+        conflict_terms = category_conflicts.get(category, [])
+        if any(re.search(r"\\b" + re.escape(term) + r"\\b", generated_copy) for term in conflict_terms):
+            title, description, hashtags = make_listing(item, tone, keywords)
+            st.warning("La risposta AI non era coerente con la categoria selezionata. Ho creato una bozza corretta usando i dati inseriti: controllala prima di salvarla.")
+
         st.session_state.generated = {"item":item, "title":title, "description":description, "hashtags":hashtags}
         st.session_state.pop("edit_title", None)
         st.session_state.pop("edit_description", None)
