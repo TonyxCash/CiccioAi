@@ -1,6 +1,8 @@
 import csv
 import io
 import re
+import base64
+import requests
 import uuid
 import mimetypes
 from datetime import datetime
@@ -636,10 +638,59 @@ with tab_create:
         keyword_parts.extend([part.strip() for part in custom_keywords.split(",") if part.strip()])
     keywords = ", ".join(dict.fromkeys(keyword_parts))
     details = st.text_area("Dettagli da valorizzare", placeholder="Vestibilità, misure, modello, particolari o eventuali difetti da segnalare…", height=110)
+    photo_for_ai = st.file_uploader(
+        "📷 Oppure carica una foto del capo per far creare la bozza all’AI",
+        type=["jpg", "jpeg", "png", "webp"],
+        accept_multiple_files=False,
+        help="L’analisi delle immagini richiede una chiave Gemini configurata nelle Secrets di Streamlit. Se non è configurata, puoi continuare con la generazione classica."
+    )
     submitted = st.button("✦ Genera la bozza", type="primary", use_container_width=True)
     if submitted:
         item = {"category":category, "brand":clean(brand), "size":clean(size), "color":clean(color), "condition":condition, "price":float(price), "cost":float(cost), "material":clean(material), "fit":clean(fit), "style":clean(style), "platform":platform, "details":clean(details), "tone":tone, "keywords":clean(keywords), "created":datetime.now().strftime("%Y-%m-%d %H:%M")}
         title, description, hashtags = make_listing(item, tone, keywords)
+        if photo_for_ai is not None:
+            try:
+                gemini_key = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+                if not gemini_key:
+                    st.warning("Analisi foto non attiva: manca GEMINI_API_KEY nelle Secrets di Streamlit. Creo comunque una bozza dai campi inseriti.")
+                else:
+                    mime_type = photo_for_ai.type or "image/jpeg"
+                    image_b64 = base64.b64encode(photo_for_ai.getvalue()).decode("ascii")
+                    prompt = (
+                        "Sei un assistente professionale per annunci di abbigliamento in italiano. "
+                        "Analizza la foto e restituisci SOLO JSON valido con chiavi title, description, hashtags, category, color, visible_details. "
+                        "title: titolo breve massimo 100 caratteri; description: descrizione utile e naturale; hashtags: massimo 10 hashtag separati da spazi; "
+                        "category: categoria più adatta; color: colore visibile; visible_details: dettagli osservabili. "
+                        "Non inventare marca, taglia, composizione, autenticità, condizioni, difetti o caratteristiche non verificabili. "
+                        "Per informazioni non visibili, non affermarle e non indovinarle. "
+                        f"Campi forniti dall’utente: categoria={category}; marca={brand or 'non indicata'}; taglia={size or 'non indicata'}; "
+                        f"colore={color or 'da riconoscere'}; condizioni={condition}; materiale={material or 'non indicato'}; "
+                        f"piattaforma={platform}; dettagli={details or 'nessuno'}; parole chiave={keywords or 'nessuna'}. "
+                        "Usa i dati forniti dall’utente come fonte attendibile; non sovrascrivere dati espliciti con supposizioni visive."
+                    )
+                    response = requests.post(
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                        params={"key": gemini_key},
+                        json={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime_type,"data":image_b64}}]}],
+                              "generationConfig":{"responseMimeType":"application/json","temperature":0.3}},
+                        timeout=45
+                    )
+                    response.raise_for_status()
+                    result_json = response.json()
+                    ai_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
+                    ai_data = __import__("json").loads(ai_text)
+                    title = str(ai_data.get("title") or title)[:100]
+                    description = str(ai_data.get("description") or description)
+                    hashtags = str(ai_data.get("hashtags") or hashtags)
+                    if not item.get("color") and ai_data.get("color"):
+                        item["color"] = str(ai_data["color"])[:100]
+                    if ai_data.get("visible_details"):
+                        item["details"] = (item.get("details", "") + " " + str(ai_data["visible_details"])).strip()[:1000]
+                    st.success("Foto analizzata: ho preparato una bozza basata sull’immagine. Controlla ogni dettaglio prima di salvarla.")
+            except Exception as error:
+                st.error("Non sono riuscito ad analizzare la foto. Creo una bozza classica; verifica i campi prima di salvarla.")
+                with st.expander("Dettagli tecnici dell’analisi foto"):
+                    st.code(str(error)[:1200])
         st.session_state.generated = {"item":item, "title":title, "description":description, "hashtags":hashtags}
         st.session_state.pop("edit_title", None)
         st.session_state.pop("edit_description", None)
@@ -931,7 +982,7 @@ with tab_help:
     st.markdown('<div class="section-title">ListingAI, in breve</div><div class="section-subtitle">Le funzioni disponibili oggi e cosa svilupperemo dopo.</div>', unsafe_allow_html=True)
     h1, h2 = st.columns(2)
     with h1:
-        st.markdown('<div class="info-card"><div class="info-icon">✦</div><b>Generazione della bozza</b><p class="small-muted">Questa versione usa modelli di testo locali inclusi nel codice: non utilizza un servizio AI esterno e non richiede chiavi API.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="info-card"><div class="info-icon">✦</div><b>Generazione della bozza</b><p class="small-muted">La bozza classica usa modelli locali. L’analisi delle foto usa Gemini quando GEMINI_API_KEY è configurata nelle Secrets di Streamlit; l’accesso può avere limiti o costi secondo il piano del provider.</p></div>', unsafe_allow_html=True)
         st.markdown('<div class="info-card" style="margin-top:14px"><div class="info-icon">▦</div><b>Catalogo temporaneo</b><p class="small-muted">Gli annunci salvati sono conservati nel database associato al tuo account.</p></div>', unsafe_allow_html=True)
     with h2:
         st.markdown('<div class="info-card"><div class="info-icon">↗</div><b>Pubblicazione manuale</b><p class="small-muted">ListingAI non accede agli account marketplace e non pubblica annunci in automatico. Copia la bozza e controllala prima di usarla.</p></div>', unsafe_allow_html=True)
