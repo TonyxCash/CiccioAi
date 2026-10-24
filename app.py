@@ -777,6 +777,75 @@ with tab_create:
                 st.error("Non sono riuscito ad analizzare la foto. Creo una bozza classica; verifica i campi prima di salvarla.")
                 with st.expander("Dettagli tecnici dell’analisi foto"):
                     st.code(str(error)[:1200])
+        elif photo_for_ai is None:
+            # Generazione AI testuale: usa soltanto i campi inseriti dall'utente.
+            try:
+                gemini_key = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+                if gemini_key:
+                    text_prompt = (
+                        "Sei un copywriter e-commerce esperto di annunci di abbigliamento in italiano. "
+                        "Crea una bozza originale, concreta e naturale usando esclusivamente i dati forniti. "
+                        "Restituisci SOLO JSON valido con chiavi title, description, hashtags. "
+                        "Il titolo deve essere chiaro e massimo 100 caratteri. La descrizione deve avere 3-5 frasi brevi, "
+                        "senza slogan, senza informazioni inventate e senza ripetizioni. Non inventare caratteristiche, "
+                        "marca, autenticità, materiali, vestibilità, condizioni o dettagli non specificati. "
+                        "La categoria scelta dall'utente è VINCOLANTE: non cambiarla. "
+                        "Non inserire il prezzo nella descrizione se la piattaforma è Vinted. "
+                        "Rispetta il tono richiesto. Hashtag: massimo 8, pertinenti e separati da spazi. "
+                        f"Categoria={category}; marca={brand or 'non indicata'}; taglia={size or 'non indicata'}; "
+                        f"colore={color or 'non indicato'}; condizioni={condition or 'non indicate'}; "
+                        f"materiale={material or 'non indicato'}; vestibilità={fit or 'non indicata'}; "
+                        f"stile={style or 'non indicato'}; piattaforma={platform}; tono={tone}; "
+                        f"dettagli={details or 'nessuno'}; parole chiave={keywords or 'nessuna'}; prezzo={price}."
+                    )
+                    text_response = None
+                    text_last_error = ""
+                    for model_name, waits in [
+                        ("gemini-3.8-flash", (0, 2, 5)),
+                        ("gemini-3.5-flash-lite", (0, 2)),
+                    ]:
+                        for wait_seconds in waits:
+                            if wait_seconds:
+                                import time
+                                time.sleep(wait_seconds)
+                            try:
+                                candidate_response = requests.post(
+                                    f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+                                    params={"key": gemini_key},
+                                    json={"contents": [{"parts": [{"text": text_prompt}]}],
+                                          "generationConfig": {"responseMimeType": "application/json"}},
+                                    timeout=45
+                                )
+                            except requests.RequestException as request_error:
+                                text_last_error = f"{model_name}: {request_error}"
+                                continue
+                            if candidate_response.status_code < 400:
+                                text_response = candidate_response
+                                break
+                            try:
+                                error_detail = candidate_response.json().get("error", {}).get("message", candidate_response.text)
+                            except Exception:
+                                error_detail = candidate_response.text
+                            text_last_error = f"Gemini {model_name} HTTP {candidate_response.status_code}: {str(error_detail)[:300]}"
+                            if candidate_response.status_code not in (408, 429, 500, 502, 503, 504):
+                                break
+                        if text_response is not None:
+                            break
+                    if text_response is not None:
+                        text_response.raise_for_status()
+                        text_data = text_response.json()
+                        generated_text = text_data["candidates"][0]["content"]["parts"][0]["text"]
+                        generated_data = __import__("json").loads(generated_text)
+                        title = str(generated_data.get("title") or title).strip()[:100]
+                        description = str(generated_data.get("description") or description).strip()
+                        hashtags = str(generated_data.get("hashtags") or hashtags).strip()
+                        st.success("Bozza AI generata dai dati inseriti. Controlla il testo prima di salvarlo.")
+                    else:
+                        st.info("AI testuale momentaneamente non disponibile: uso la bozza classica. " + (text_last_error[:240] if text_last_error else ""))
+                else:
+                    st.caption("Per generare descrizioni AI anche senza foto, configura GEMINI_API_KEY nelle Secrets di Streamlit. Per ora uso la bozza classica.")
+            except Exception as text_error:
+                st.info("Generazione AI non riuscita: uso la bozza classica. Controlla i dati prima di pubblicare.")
         st.session_state.generated = {"item":item, "title":title, "description":description, "hashtags":hashtags}
         st.session_state.pop("edit_title", None)
         st.session_state.pop("edit_description", None)
