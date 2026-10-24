@@ -6,6 +6,7 @@ import json
 import os
 import smtplib
 from email.message import EmailMessage
+from email.header import Header
 from datetime import datetime, timezone
 
 from groq import Groq
@@ -25,8 +26,12 @@ def notify_email(subject, message):
     if not all((host, username, password, recipient, sender)):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
+    # Normalize non-breaking spaces and encode non-ASCII subject text safely.
+    subject = subject.replace("\u00a0", " ").strip()
+    sender = sender.replace("\u00a0", " ").strip()
+    recipient = recipient.replace("\u00a0", " ").strip()
     email = EmailMessage()
-    email["Subject"] = subject[:180]
+    email["Subject"] = Header(subject[:180], "utf-8")
     email["From"] = sender
     email["To"] = recipient
     email.set_content(message[:12000])
