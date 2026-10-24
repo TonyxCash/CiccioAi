@@ -81,11 +81,18 @@ hr{border-color:#e9e9f1!important}
 # --- Supabase: account personali e archivio persistente ---
 from supabase import create_client
 
-# Cookie persistence temporarily disabled to keep the app compatible with current Streamlit.
-auth_cookies = None
+# Persistenza sicura della sessione nel cookie del browser.
+import json
+import hashlib
+from cryptography.fernet import Fernet, InvalidToken
+from streamlit_cookies_controller import CookieController
 
-def persist_auth_session():
-    return
+_cookie_password = str(st.secrets.get("COOKIE_PASSWORD", "")).strip()
+auth_cookies = CookieController(key="listingai_auth_cookies")
+_cookie_cipher = None
+if _cookie_password:
+    _fernet_key = base64.urlsafe_b64encode(hashlib.sha256(_cookie_password.encode("utf-8")).digest())
+    _cookie_cipher = Fernet(_fernet_key)
 
 if "auth_access_token" not in st.session_state:
     st.session_state.auth_access_token = ""
@@ -98,19 +105,18 @@ if "auth_email" not in st.session_state:
 if "db_loaded_for" not in st.session_state:
     st.session_state.db_loaded_for = ""
 
-# Ripristina i token quando la pagina viene ricaricata.
-if auth_cookies is not None and not st.session_state.auth_access_token:
-    try:
-        saved = json.loads(auth_cookies.get("auth_session", "{}") or "{}")
-        st.session_state.auth_access_token = saved.get("access_token", "")
-        st.session_state.auth_refresh_token = saved.get("refresh_token", "")
-        st.session_state.auth_user_id = saved.get("user_id", "")
-        st.session_state.auth_email = saved.get("email", "")
-    except Exception:
-        pass
+# Al primo caricamento il componente deve leggere i cookie dal browser.
+try:
+    _browser_cookies = auth_cookies.getAll()
+except Exception:
+    _browser_cookies = None
+
+if _browser_cookies is None:
+    with st.spinner("Ripristino della sessione..."):
+        st.stop()
 
 def persist_auth_session():
-    if auth_cookies is None:
+    if _cookie_cipher is None:
         return
     payload = {
         "access_token": st.session_state.get("auth_access_token", ""),
@@ -119,13 +125,23 @@ def persist_auth_session():
         "email": st.session_state.get("auth_email", ""),
     }
     if payload["access_token"] and payload["refresh_token"]:
-        auth_cookies["auth_session"] = json.dumps(payload, separators=(",", ":"))
+        encrypted = _cookie_cipher.encrypt(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("utf-8")
+        auth_cookies.set("listingai_auth_session", encrypted, max_age=30 * 24 * 60 * 60, path="/", secure=True, same_site="lax")
     else:
-        try:
-            del auth_cookies["auth_session"]
-        except KeyError:
-            pass
-    auth_cookies.save()
+        auth_cookies.remove("listingai_auth_session", path="/")
+
+# Ripristina la sessione dopo un aggiornamento della pagina.
+if not st.session_state.auth_access_token and _cookie_cipher is not None:
+    try:
+        _encrypted_session = auth_cookies.get("listingai_auth_session")
+        if _encrypted_session:
+            _saved = json.loads(_cookie_cipher.decrypt(_encrypted_session.encode("utf-8")).decode("utf-8"))
+            st.session_state.auth_access_token = _saved.get("access_token", "")
+            st.session_state.auth_refresh_token = _saved.get("refresh_token", "")
+            st.session_state.auth_user_id = _saved.get("user_id", "")
+            st.session_state.auth_email = _saved.get("email", "")
+    except (InvalidToken, ValueError, TypeError, json.JSONDecodeError):
+        auth_cookies.remove("listingai_auth_session", path="/")
 
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
