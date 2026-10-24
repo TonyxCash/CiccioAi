@@ -3,4 +3,3 @@ pandas>=2.0,<3.0
 supabase>=2.10,<3.0
 streamlit-url-fragment>=0.0.3
 requests>=2.31,<3.0
-streamlit-cookies-manager>=0.2.0,<0.3.0
