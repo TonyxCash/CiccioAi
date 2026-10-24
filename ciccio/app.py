@@ -44,7 +44,7 @@ st.caption("Agente personale orientato a creare valore, ridurre i costi e impara
 with st.sidebar:
     st.header("Missione")
     st.write("Generare opportunità concrete con budget iniziale minimo.")
-    st.info("Questa versione è un prototipo: non lavora in background quando l'app è chiusa e non esegue pagamenti o azioni esterne autonomamente.")
+    st.info("I cicli programmati possono continuare tramite GitHub Actions anche con questa app chiusa. Ciccio può modificare solo le risorse per cui dispone di strumenti e permessi; le modifiche al codice devono essere testate e reversibili. Spese, pubblicazioni e contatti esterni richiedono approvazione.")
     section = st.radio("Area", ["Conversazione", "Memoria", "Attività", "Cicli automatici", "Registro economico"])
 
 if section == "Conversazione":
@@ -158,25 +158,52 @@ if section == "Conversazione":
             conn.commit()
 
 elif section == "Memoria":
-    st.subheader("Memoria di lavoro")
-    st.caption("Salva qui decisioni e informazioni non sensibili da riutilizzare nelle sessioni future.")
+    st.subheader("Memoria condivisa dell'agente")
+    st.caption("La memoria usa la stessa tabella Supabase dei cicli automatici; SQLite resta come ripiego.")
+    sb_ui = None
+    try:
+        u = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
+        k = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
+        if u and k:
+            from supabase import create_client
+            sb_ui = create_client(u, k)
+    except Exception:
+        sb_ui = None
     with st.form("memory_form", clear_on_submit=True):
         kind = st.selectbox("Tipo", ["Decisione", "Preferenza", "Idea", "Risultato", "Nota"])
         content = st.text_area("Contenuto", placeholder="Scrivi una nota utile per il progetto…")
         submitted = st.form_submit_button("Salva memoria")
     if submitted and content.strip():
-        conn.execute("INSERT INTO memories(created_at,kind,content) VALUES(?,?,?)",
-                     (datetime.now().isoformat(timespec="seconds"), kind, content.strip()))
-        conn.commit()
-        st.success("Memoria salvata.")
-    rows = conn.execute("SELECT id,created_at,kind,content FROM memories ORDER BY id DESC LIMIT 100").fetchall()
-    for rid, created, k, c in rows:
-        with st.expander(f"{k} · {created[:16]}"):
-            st.write(c)
-            if st.button("Elimina", key=f"delmem{rid}"):
-                conn.execute("DELETE FROM memories WHERE id=?", (rid,))
+        try:
+            if sb_ui:
+                sb_ui.table("ciccio_memories").insert({"kind": kind, "content": content.strip()}).execute()
+            else:
+                conn.execute("INSERT INTO memories(created_at,kind,content) VALUES(?,?,?)", (datetime.now().isoformat(timespec="seconds"), kind, content.strip()))
                 conn.commit()
-                st.rerun()
+            st.success("Memoria salvata.")
+            st.rerun()
+        except Exception as e:
+            st.error("Non sono riuscito a salvare la memoria condivisa.")
+            st.caption(str(e)[:200])
+    try:
+        if sb_ui:
+            rows = sb_ui.table("ciccio_memories").select("id,created_at,kind,content").order("created_at", desc=True).limit(100).execute().data or []
+        else:
+            rows = [{"id": rid, "created_at": created, "kind": k, "content": body} for rid, created, k, body in conn.execute("SELECT id,created_at,kind,content FROM memories WHERE kind NOT LIKE 'finanza:%' ORDER BY id DESC LIMIT 100").fetchall()]
+        for item in rows:
+            rid, created, k, body = item["id"], str(item.get("created_at", "")), item.get("kind", "Nota"), item.get("content", "")
+            with st.expander(f"{k} · {created[:16]}"):
+                st.write(body)
+                if st.button("Elimina", key=f"delmem{rid}"):
+                    if sb_ui:
+                        sb_ui.table("ciccio_memories").delete().eq("id", rid).execute()
+                    else:
+                        conn.execute("DELETE FROM memories WHERE id=?", (rid,))
+                        conn.commit()
+                    st.rerun()
+    except Exception as e:
+        st.error("Errore nella lettura della memoria.")
+        st.caption(str(e)[:200])
 
 elif section == "Attività":
     st.subheader("Piano operativo")
@@ -286,4 +313,4 @@ else:
         st.write(f"**{k.split(':',1)[1]}** · {c}")
 
 st.divider()
-st.caption("Ciccio AI · prototipo iniziale · verifica sempre i risultati prima di prendere decisioni economiche.")
+st.caption("Ciccio AI · agente in evoluzione · i cicli programmati operano entro strumenti e permessi configurati; verifica le modifiche importanti.")
