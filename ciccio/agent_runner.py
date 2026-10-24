@@ -138,18 +138,25 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
 
 
 def resolve_user_id(db):
-    """Resolve the owner UUID required by user-scoped Ciccio tables."""
+    """Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
     configured = os.getenv("CICCIO_USER_ID", "").strip()
     if configured:
         return configured
+    # Fallback only for installations where an existing row already has an owner.
     for table in ("ciccio_memories", "ciccio_tasks", "ciccio_agent_runs"):
         try:
             found = db.table(table).select("user_id").not_.is_("user_id", "null").limit(1).execute().data or []
-            if found and found[0].get("user_id"):
-                return str(found[0]["user_id"])
+            if found:
+                value = found[0].get("user_id")
+                if value and str(value).strip():
+                    return str(value).strip()
         except Exception:
             continue
-    raise RuntimeError("Manca CICCIO_USER_ID: aggiungi nei GitHub Actions Secrets l'UUID dell'utente proprietario da Supabase > Authentication > Users.")
+    raise RuntimeError(
+        "CICCIO_USER_ID assente: imposta il secret GitHub Actions con l'UUID "
+        "dell'utente in Supabase > Authentication > Users. Il ciclo viene fermato "
+        "prima di inserire righe con user_id nullo."
+    )
 
 
 def execute_internal_action(db, plan, open_tasks, user_id):
