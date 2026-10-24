@@ -206,34 +206,62 @@ elif section == "Memoria":
         st.caption(str(e)[:200])
 
 elif section == "Attività":
-    st.subheader("Piano operativo")
+    st.subheader("Piano operativo condiviso")
+    st.caption("Le attività qui sono condivise con i cicli automatici di Ciccio.")
+    sb_tasks = None
+    try:
+        u = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
+        k = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
+        if u and k:
+            from supabase import create_client
+            sb_tasks = create_client(u, k)
+    except Exception:
+        sb_tasks = None
     with st.form("task_form", clear_on_submit=True):
         title = st.text_input("Nuova attività", placeholder="Es. Preparare un'offerta per 10 negozi")
         notes = st.text_area("Note (facoltative)")
         add = st.form_submit_button("Aggiungi attività")
     if add and title.strip():
-        conn.execute("INSERT INTO tasks(created_at,title,notes) VALUES(?,?,?)",
-                     (datetime.now().isoformat(timespec="seconds"), title.strip(), notes.strip()))
-        conn.commit()
-        st.success("Attività aggiunta.")
-    tasks = conn.execute("SELECT id,title,status,notes FROM tasks ORDER BY id DESC").fetchall()
-    if not tasks:
-        st.info("Nessuna attività ancora. Aggiungi il primo passo concreto.")
-    for tid, title, status, notes in tasks:
-        with st.container(border=True):
-            st.markdown(f"**{title}**")
-            if notes:
-                st.caption(notes)
-            new_status = st.selectbox("Stato", ["Da fare", "In corso", "Completata"], index=["Da fare","In corso","Completata"].index(status), key=f"status{tid}")
-            a, b = st.columns([3,1])
-            if a.button("Aggiorna stato", key=f"upd{tid}"):
-                conn.execute("UPDATE tasks SET status=? WHERE id=?", (new_status, tid))
+        try:
+            if sb_tasks:
+                sb_tasks.table("ciccio_tasks").insert({"title": title.strip(), "notes": notes.strip(), "status": "Da fare"}).execute()
+            else:
+                conn.execute("INSERT INTO tasks(created_at,title,notes) VALUES(?,?,?)", (datetime.now().isoformat(timespec="seconds"), title.strip(), notes.strip()))
                 conn.commit()
-                st.rerun()
-            if b.button("Elimina", key=f"del{tid}"):
-                conn.execute("DELETE FROM tasks WHERE id=?", (tid,))
-                conn.commit()
-                st.rerun()
+            st.success("Attività aggiunta.")
+            st.rerun()
+        except Exception as e:
+            st.error("Non sono riuscito a salvare l'attività.")
+            st.caption(str(e)[:200])
+    try:
+        if sb_tasks:
+            tasks = sb_tasks.table("ciccio_tasks").select("id,title,status,notes").order("created_at", desc=True).limit(100).execute().data or []
+        else:
+            tasks = [{"id": tid, "title": title, "status": status, "notes": notes} for tid, title, status, notes in conn.execute("SELECT id,title,status,notes FROM tasks ORDER BY id DESC").fetchall()]
+        if not tasks:
+            st.info("Nessuna attività ancora. Aggiungi il primo passo concreto.")
+        for task in tasks:
+            tid, title, status, notes = task["id"], task["title"], task.get("status", "Da fare"), task.get("notes", "")
+            with st.container(border=True):
+                st.markdown(f"**{title}**")
+                if notes:
+                    st.caption(notes)
+                new_status = st.selectbox("Stato", ["Da fare", "In corso", "Completata"], index=["Da fare","In corso","Completata"].index(status), key=f"status{tid}")
+                a, b = st.columns([3,1])
+                if a.button("Aggiorna stato", key=f"upd{tid}"):
+                    if sb_tasks:
+                        sb_tasks.table("ciccio_tasks").update({"status": new_status, "updated_at": datetime.now().isoformat(timespec="seconds")}).eq("id", tid).execute()
+                    else:
+                        conn.execute("UPDATE tasks SET status=? WHERE id=?", (new_status, tid))
+                        conn.commit()
+                    st.rerun()
+                if b.button("Elimina", key=f"deltask{tid}"):
+                    if sb_tasks:
+                        sb_tasks.table("ciccio_tasks").delete().eq("id", tid).execute()
+                    else:
+                        conn.execute("DELETE FROM tasks WHERE id=?", (tid,))
+                        conn.commit()
+                    st.rerun()
 
 
 elif section == "Cicli automatici":
