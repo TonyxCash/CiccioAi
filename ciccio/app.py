@@ -59,17 +59,17 @@ if section == "Conversazione":
     if prompt:
         st.session_state.chat.append(("user", prompt))
         low = prompt.lower()
-        api_key = st.secrets.get("OPENAI_API_KEY", "") if hasattr(st, "secrets") else ""
+        api_key = st.secrets.get("GROQ_API_KEY", "") if hasattr(st, "secrets") else ""
         if api_key:
             try:
-                from openai import OpenAI
-                client = OpenAI(api_key=api_key)
+                from groq import Groq
+                client = Groq(api_key=api_key)
                 history = [
                     {"role": "system", "content": (
                         "Sei Ciccio, un agente personale pratico e trasparente. "
                         "Aiuta l'utente a creare valore e opportunità di reddito con budget minimo, "
-                        "privilegiando azioni concrete, testabili e legali. L'utente gestisce un progetto "
-                        "di app per venditori di abbigliamento e un marchio di abbigliamento. "
+                        "privilegiando azioni concrete, testabili e legali. L'utente gestisce ListingAI, "
+                        "un assistente per venditori di abbigliamento, e il marchio Jhavè. "
                         "Non promettere guadagni, non inventare verifiche o azioni compiute, "
                         "non dichiarare di lavorare in background. Dai istruzioni chiare in italiano "
                         "e indica il prossimo passo concreto."
@@ -78,21 +78,21 @@ if section == "Conversazione":
                 for role, msg in st.session_state.chat[-12:]:
                     history.append({"role": "assistant" if role == "assistant" else "user", "content": msg})
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="openai/gpt-oss-20b",
                     messages=history,
                     temperature=0.5,
-                    max_tokens=700,
+                    max_completion_tokens=700,
                 )
                 answer = response.choices[0].message.content or "Non sono riuscito a generare una risposta."
             except Exception as e:
-                answer = ("Non riesco a contattare il servizio AI. Controlla che OPENAI_API_KEY "
-                          "sia configurata correttamente nei Secrets di Streamlit. Dettaglio: " + str(e)[:250])
+                answer = ("Non riesco a contattare Groq. Controlla che GROQ_API_KEY sia configurata "
+                          "nei Secrets di Streamlit e che il piano gratuito abbia quota disponibile. "
+                          "Dettaglio: " + str(e)[:250])
         else:
             answer = (
-                "La modalità AI non è ancora attivata: manca OPENAI_API_KEY nei Secrets di Streamlit.\n\n"
-                "Posso comunque aiutarti a organizzare il lavoro, ma le risposte automatiche avanzate "
-                "si attiveranno solo dopo aver configurato una chiave API. La chiave va inserita nei "
-                "Secrets dell'app, mai nel codice GitHub."
+                "La modalità AI non è ancora attivata: manca GROQ_API_KEY nei Secrets di Streamlit.\n\n"
+                "Crea una chiave gratuita su https://console.groq.com/keys e aggiungila ai Secrets. "
+                "Non inserirla mai nel codice GitHub e non attivare un piano a pagamento."
             )
         st.session_state.chat.append(("assistant", answer))
         with st.chat_message("assistant"):
