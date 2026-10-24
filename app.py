@@ -856,7 +856,7 @@ with tab_create:
             "Felpa": ["pantaloni", "jeans", "t-shirt", "maglietta", "camicia"],
         }
         conflict_terms = category_conflicts.get(category, [])
-        if any(re.search(r"\\b" + re.escape(term) + r"\\b", generated_copy) for term in conflict_terms):
+        if any(term in generated_copy for term in conflict_terms):
             title, description, hashtags = make_listing(item, tone, keywords)
             st.warning("La risposta AI non era coerente con la categoria selezionata. Ho creato una bozza corretta usando i dati inseriti: controllala prima di salvarla.")
 
