@@ -89,8 +89,25 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
     plan = json.loads(raw[start:end + 1])
     required = ["goal","action_type","action_title","action_notes","reason",
                 "expected_result","verification","learning","next_cycle"]
-    if any(not str(plan.get(k, "")).strip() for k in required):
-        raise RuntimeError("Risposta incompleta: manca un campo obbligatorio.")
+    # Alcuni modelli omettono campi descrittivi: completa in modo sicuro i valori mancanti
+    # invece di interrompere l'intero ciclo. L'azione resta comunque validata sotto.
+    defaults = {
+        "goal": "Migliorare in modo sicuro il progetto Ciccio",
+        "action_type": "no_op",
+        "action_title": "Verifica e pianificazione del prossimo ciclo",
+        "action_notes": "Nessuna modifica esterna autorizzata.",
+        "reason": "Risposta del modello incompleta; scelta prudenziale.",
+        "expected_result": "Ciclo registrato senza azioni esterne.",
+        "verification": "Verificare nel database che il ciclo sia stato salvato.",
+        "learning": "Se la risposta del modello è incompleta, mantenere un comportamento prudente.",
+        "next_cycle": "Ripetere il ciclo e verificare la qualità della risposta del modello.",
+    }
+    for key in required:
+        if not str(plan.get(key, "")).strip():
+            plan[key] = defaults[key]
+    if plan.get("action_type") not in {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}:
+        plan["action_type"] = "no_op"
+        plan["action_notes"] = "Tipo di azione non valido nella risposta del modello; nessuna azione eseguita."
     if plan["action_type"] not in {"create_task","save_memory","complete_task","audit_project","no_op"}:
         raise RuntimeError("Tipo di azione non consentito.")
     return plan
