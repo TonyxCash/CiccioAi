@@ -216,7 +216,12 @@ if st.session_state.recovery_verified:
 
 if st.session_state.auth_access_token and st.session_state.auth_refresh_token:
     try:
+        # Ripristina la sessione e conserva gli eventuali token ruotati da Supabase.
         supabase.auth.set_session(st.session_state.auth_access_token, st.session_state.auth_refresh_token)
+        refreshed_session = supabase.auth.get_session()
+        if refreshed_session:
+            st.session_state.auth_access_token = refreshed_session.access_token or st.session_state.auth_access_token
+            st.session_state.auth_refresh_token = refreshed_session.refresh_token or st.session_state.auth_refresh_token
         current_user = supabase.auth.get_user()
         if current_user and current_user.user:
             st.session_state.auth_user_id = current_user.user.id
