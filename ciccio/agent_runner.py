@@ -26,7 +26,26 @@ def main() -> None:
         db.table("ciccio_agent_runs")
         .select("created_at,status,goal,action,result")
         .order("created_at", desc=True)
-        .limit(5)
+        .limit(8)
+        .execute()
+        .data
+        or []
+    )
+    memories = (
+        db.table("ciccio_memories")
+        .select("created_at,kind,content")
+        .order("created_at", desc=True)
+        .limit(20)
+        .execute()
+        .data
+        or []
+    )
+    open_tasks = (
+        db.table("ciccio_tasks")
+        .select("created_at,title,status,notes")
+        .neq("status", "Completata")
+        .order("created_at", desc=True)
+        .limit(15)
         .execute()
         .data
         or []
