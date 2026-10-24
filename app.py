@@ -669,7 +669,7 @@ with tab_create:
                         "Usa i dati forniti dall’utente come fonte attendibile; non sovrascrivere dati espliciti con supposizioni visive."
                     )
                     response = requests.post(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
                         params={"key": gemini_key},
                         json={"contents":[{"parts":[{"text":prompt},{"inline_data":{"mime_type":mime_type,"data":image_b64}}]}],
                               "generationConfig":{"responseMimeType":"application/json","temperature":0.3}},
