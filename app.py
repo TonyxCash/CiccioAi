@@ -1,6 +1,8 @@
 import csv
 import io
 import re
+import uuid
+import mimetypes
 from datetime import datetime
 
 import pandas as pd
@@ -397,6 +399,7 @@ if st.session_state.db_loaded_for != st.session_state.auth_user_id:
                 "price": float(row.get("price") or 0),
                 "platform": row.get("platform") or "",
                 "status": row.get("status") or "Da pubblicare",
+                "image_paths": row.get("image_paths") or [],
                 "created": row.get("created_at") or "",
                 "cost": 0.0,
             })
@@ -680,6 +683,7 @@ with tab_create:
                         "price": float(item.get("price", 0)),
                         "platform": item.get("platform", "Generico"),
                         "status": "Da pubblicare",
+                        "image_paths": [],
                     }
                     supabase.table("listings").insert(payload).execute()
                     st.session_state.db_loaded_for = ""
@@ -771,7 +775,7 @@ with tab_catalog:
                 st.caption("Crea un nuovo annuncio in bozza con i dettagli dell'articolo selezionato.")
                 if st.button("Duplica annuncio", use_container_width=True, key="catalog_duplicate_button"):
                     try:
-                        copy_fields = ("title", "description", "hashtags", "category", "brand", "size", "color", "condition", "material", "details", "platform", "price")
+                        copy_fields = ("title", "description", "hashtags", "category", "brand", "size", "color", "condition", "material", "details", "platform", "price", "image_paths")
                         duplicate_data = {field: managed.get(field) for field in copy_fields}
                         duplicate_data["title"] = (str(managed.get("title") or "Articolo") + " (copia)")[:100]
                         duplicate_data["status"] = "Da pubblicare"
@@ -854,6 +858,70 @@ with tab_catalog:
                         st.rerun()
                     except Exception as e:
                         st.error("Modifica non riuscita. Dettaglio: " + str(e))
+            st.markdown('<div class="section-title">Foto del capo</div><div class="section-subtitle">Carica fino a 8 immagini per l’annuncio selezionato. Le foto vengono salvate nel bucket privato del tuo account.</div>', unsafe_allow_html=True)
+            existing_paths = chosen.get("image_paths") or []
+            if existing_paths:
+                photo_cols = st.columns(min(4, len(existing_paths)))
+                for photo_index, photo_path in enumerate(existing_paths):
+                    try:
+                        signed = supabase.storage.from_("listing-photos").create_signed_url(photo_path, 3600)
+                        photo_url = signed.get("signedURL") or signed.get("signedUrl")
+                        if photo_url:
+                            with photo_cols[photo_index % len(photo_cols)]:
+                                st.image(photo_url, use_container_width=True)
+                                st.caption(f"Foto {photo_index + 1}")
+                    except Exception:
+                        st.caption("Una foto non è al momento visualizzabile.")
+            uploaded_photos = st.file_uploader(
+                "Aggiungi foto (JPG, PNG o WEBP)",
+                type=["jpg", "jpeg", "png", "webp"],
+                accept_multiple_files=True,
+                key=f"listing_photos_{chosen.get('id')}",
+                help="Puoi selezionare più immagini insieme. Massimo 8 foto per annuncio."
+            )
+            if st.button("Carica foto nell’annuncio", type="primary", use_container_width=True, key=f"upload_listing_photos_{chosen.get('id')}"):
+                if not uploaded_photos:
+                    st.warning("Prima seleziona almeno una foto.")
+                elif len(existing_paths) + len(uploaded_photos) > 8:
+                    st.error("Puoi conservare al massimo 8 foto per annuncio. Rimuovi o riduci la selezione.")
+                else:
+                    new_paths = list(existing_paths)
+                    try:
+                        for photo in uploaded_photos:
+                            ext = photo.name.rsplit(".", 1)[-1].lower()
+                            safe_ext = ext if ext in ("jpg", "jpeg", "png", "webp") else "jpg"
+                            object_path = f"{st.session_state.auth_user_id}/{chosen.get('id')}/{uuid.uuid4().hex}.{safe_ext}"
+                            content_type = photo.type or mimetypes.guess_type(photo.name)[0] or "application/octet-stream"
+                            supabase.storage.from_("listing-photos").upload(
+                                object_path,
+                                photo.getvalue(),
+                                {"content-type": content_type, "upsert": "false"}
+                            )
+                            new_paths.append(object_path)
+                        supabase.table("listings").update({"image_paths": new_paths}).eq("id", chosen["id"]).eq("user_id", st.session_state.auth_user_id).execute()
+                        st.session_state.db_loaded_for = ""
+                        st.success("Foto caricate e collegate all’annuncio.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Caricamento foto non riuscito. Verifica bucket e policy Storage. Dettaglio: " + str(e))
+            if existing_paths:
+                remove_photo_index = st.selectbox(
+                    "Seleziona una foto da rimuovere",
+                    options=list(range(len(existing_paths))),
+                    format_func=lambda idx: f"Foto {idx + 1}",
+                    key=f"remove_photo_choice_{chosen.get('id')}"
+                )
+                if st.button("Rimuovi foto selezionata", key=f"remove_photo_{chosen.get('id')}"):
+                    try:
+                        path_to_remove = existing_paths[remove_photo_index]
+                        supabase.storage.from_("listing-photos").remove([path_to_remove])
+                        remaining_paths = [p for i, p in enumerate(existing_paths) if i != remove_photo_index]
+                        supabase.table("listings").update({"image_paths": remaining_paths}).eq("id", chosen["id"]).eq("user_id", st.session_state.auth_user_id).execute()
+                        st.session_state.db_loaded_for = ""
+                        st.success("Foto rimossa.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Non è stato possibile rimuovere la foto. Dettaglio: " + str(e))
         else:
             st.caption("Nessun annuncio salvato disponibile per la modifica con questi filtri.")
 
