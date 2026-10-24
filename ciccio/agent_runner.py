@@ -4,12 +4,40 @@ create/update tasks and save durable memories. External actions require approval
 """
 import json
 import os
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 
 from groq import Groq
 from supabase import create_client
 
 MODEL = "openai/gpt-oss-20b"
+
+
+def notify_user(message):
+    """Send an autonomous Telegram message when optional secrets are configured."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        print("Telegram non configurato: ciclo salvato senza invio esterno.")
+        return False
+    payload = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": message[:3900],
+        "disable_web_page_preview": "true",
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.telegram.org/bot" + token + "/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    if not result.get("ok"):
+        raise RuntimeError("Telegram non ha confermato l'invio del messaggio.")
+    print("Notifica Telegram inviata e confermata.")
+    return True
 
 
 def required_env(name):
@@ -189,6 +217,20 @@ def main():
             "learning": learning, "next_cycle": next_cycle,
         }, ensure_ascii=False),
     }).execute()
+    # Ciccio può raggiungerti anche quando la dashboard è chiusa.
+    notification = (
+        "🧠 Ciccio — aggiornamento autonomo\\n\\n"
+        + "Stato: " + row["status"] + "\\n"
+        + "Obiettivo: " + row["goal"] + "\\n"
+        + "Azione: " + row["action"] + "\\n\\n"
+        + "Esito: " + execution_result[:900] + "\\n\\n"
+        + "Prossimo passo: " + next_cycle
+    )
+    try:
+        notify_user(notification)
+    except Exception as exc:
+        # Un errore di notifica non annulla il ciclo già salvato.
+        print("Invio Telegram non riuscito: " + str(exc)[:250])
     print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
                       "status": row["status"], "action": row["action"],
                       "result": row["result"]}, ensure_ascii=False, indent=2))
