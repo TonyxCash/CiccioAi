@@ -11,8 +11,6 @@ import pandas as pd
 import streamlit as st
 from urllib.parse import parse_qsl
 from streamlit_url_fragment import get_fragment
-import json
-from streamlit_cookies_manager import EncryptedCookieManager
 
 st.set_page_config(
     page_title="ListingAI — Studio annunci",
@@ -83,13 +81,11 @@ hr{border-color:#e9e9f1!important}
 # --- Supabase: account personali e archivio persistente ---
 from supabase import create_client
 
-# Persistenza della sessione in cookie cifrato.
-_cookie_password = str(st.secrets.get("COOKIE_PASSWORD", "")).strip()
+# Cookie persistence temporarily disabled to keep the app compatible with current Streamlit.
 auth_cookies = None
-if _cookie_password:
-    auth_cookies = EncryptedCookieManager(prefix="listingai/", password=_cookie_password)
-    if not auth_cookies.ready():
-        st.stop()
+
+def persist_auth_session():
+    return
 
 if "auth_access_token" not in st.session_state:
     st.session_state.auth_access_token = ""
