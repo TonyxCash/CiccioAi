@@ -121,7 +121,7 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
             missing.append(key)
             plan[key] = defaults[key]
 
-    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}
+    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "execute_task", "no_op"}
     if missing:
         plan["action_type"] = "no_op"
         plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
@@ -164,7 +164,58 @@ def resolve_user_id(db):
     )
 
 
+
+def execute_task(db, groq, open_tasks, user_id):
+    """Turn the oldest open task into a concrete deliverable and verify persistence."""
+    if not open_tasks:
+        return None
+    task = sorted(open_tasks, key=lambda t: str(t.get("created_at", "")))[0]
+    title = str(task.get("title", "")).strip()
+    notes = str(task.get("notes", "")).strip()
+    if not title:
+        return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
+    prompt = (
+        "Sei Ciccio, assistente operativo per un piccolo venditore di abbigliamento. "
+        "Produci un risultato finito e subito utilizzabile per l'attività indicata, non un piano "
+        "e non una lista di controlli. Se riguarda un annuncio, scrivi titolo, descrizione e parole "
+        "chiave; se riguarda altro, produci il documento o risultato richiesto. Non dichiarare "
+        "azioni esterne mai eseguite. Rispondi in italiano, in testo semplice.\n\n"
+        "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
+    )
+    response = groq.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Crea un deliverable concreto, completo e pronto all'uso."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.3,
+        max_completion_tokens=1400,
+    )
+    deliverable = (response.choices[0].message.content or "").strip()
+    if len(deliverable) < 40:
+        return {"status": "blocked", "result": "Output troppo breve: attività lasciata aperta."}
+    saved_memory = db.table("ciccio_memories").insert({
+        "user_id": user_id,
+        "kind": "deliverable",
+        "content": ("Attività: " + title + "\n\n" + deliverable)[:3000],
+    }).execute()
+    if not saved_memory.data:
+        raise RuntimeError("Supabase non ha confermato il salvataggio del deliverable.")
+    old_notes = str(task.get("notes", "")).strip()
+    new_notes = (old_notes + "\n\nDeliverable creato da Ciccio:\n" + deliverable)[:3000]
+    db.table("ciccio_tasks").update({
+        "status": "Completata",
+        "notes": new_notes,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", task["id"]).execute()
+    check = db.table("ciccio_tasks").select("status").eq("id", task["id"]).limit(1).execute().data or []
+    if not check or check[0].get("status") != "Completata":
+        raise RuntimeError("Il deliverable è salvato, ma la verifica della chiusura attività è fallita.")
+    return {"status": "completed", "result": "Deliverable creato e salvato in Memorie; attività completata: " + title + "\n\n" + deliverable}
+
+
 def execute_internal_action(db, plan, open_tasks, user_id):
+
     """Execute only bounded, reversible actions in Ciccio's own database."""
     kind = plan["action_type"]
     title = str(plan["action_title"]).strip()[:180]
@@ -246,6 +297,11 @@ def main():
              .limit(30).execute().data or [])
 
     plan = ask_agent(groq, memories, tasks, previous)
+    # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
+    if tasks and plan.get("action_type") in {"no_op", "audit_project", "create_task", "save_memory"}:
+        plan["action_type"] = "execute_task"
+        plan["action_title"] = str(sorted(tasks, key=lambda t: str(t.get("created_at", "")))[0].get("title", "Attività aperta"))
+        plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
     # Prefer a real repository audit when the history is empty or the last audit is old.
     recent_audit = any(
         str(m.get("kind", "")) == "audit_progetto"
@@ -257,7 +313,12 @@ def main():
         plan["action_title"] = "Verifica integrità del progetto Ciccio"
         plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
     user_id = resolve_user_id(db)
-    execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
+    if plan.get("action_type") == "execute_task":
+        task_result = execute_task(db, groq, tasks, user_id)
+        execution_status = task_result["status"] if task_result else "blocked"
+        execution_result = task_result["result"] if task_result else "Nessuna attività aperta da eseguire."
+    else:
+        execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
     learning = str(plan["learning"])[:1200]
     next_cycle = str(plan["next_cycle"])[:800]
     result_text = (
