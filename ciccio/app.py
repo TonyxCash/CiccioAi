@@ -263,6 +263,9 @@ elif section == "Attività":
                         conn.commit()
                     st.rerun()
 
+    except Exception as e:
+        st.error("Errore nel caricamento delle attività.")
+        st.caption(str(e)[:200])
 
 elif section == "Cicli automatici":
     st.subheader("Cicli automatici di Ciccio")
