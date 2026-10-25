@@ -17,9 +17,9 @@ MODEL = "openai/gpt-oss-20b"
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
     host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
-    port = int(os.getenv("SMTP_PORT", "587").strip())
+    port = int(os.getenv("SMTP_PORT", "587").replace("\\u00a0", " ").strip())
     username = os.getenv("SMTP_USERNAME", "").strip()
-    password = os.getenv("SMTP_PASSWORD", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").replace("\\u00a0", " ").strip()
     recipient = os.getenv("EMAIL_TO", "").strip()
     sender = os.getenv("EMAIL_FROM", "").strip() or username
     if not all((host, username, password, recipient, sender)):
@@ -35,7 +35,7 @@ def notify_email(subject, message):
     message = message.replace("\u00a0", " ")
 
     email = EmailMessage()
-    email["Subject"] = subject[:180]
+    # Encode non-ASCII subject explicitly to avoid SMTP ASCII header failures.\n    from email.header import Header\n    email["Subject"] = Header(subject[:180], "utf-8").encode()
     email["From"] = sender
     email["To"] = recipient
     email.set_content(message[:12000], charset="utf-8")
