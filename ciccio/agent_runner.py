@@ -16,35 +16,37 @@ MODEL = "openai/gpt-oss-20b"
 
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
-    host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
-    port = int(os.getenv("SMTP_PORT", "587").replace("\\u00a0", " ").strip())
-    username = os.getenv("SMTP_USERNAME", "").strip()
-    password = os.getenv("SMTP_PASSWORD", "").replace("\\u00a0", " ").strip()
-    recipient = os.getenv("EMAIL_TO", "").strip()
-    sender = os.getenv("EMAIL_FROM", "").strip() or username
+    def clean(value):
+        # Normalize NBSP and other Unicode spacing characters in secrets/headers.
+        return str(value or "").replace("\\u00a0", " ").replace("\u00a0", " ").strip()
+
+    host = clean(os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    port = int(clean(os.getenv("SMTP_PORT", "587")))
+    username = clean(os.getenv("SMTP_USERNAME", ""))
+    password = clean(os.getenv("SMTP_PASSWORD", ""))
+    recipient = clean(os.getenv("EMAIL_TO", ""))
+    sender = clean(os.getenv("EMAIL_FROM", "")) or username
     if not all((host, username, password, recipient, sender)):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
-    # Normalize non-breaking spaces that can trigger ASCII encoding errors.
-    # Sanitize header values separately from the UTF-8 message body.
-    host = host.replace("\u00a0", " ").strip()
-    username = username.replace("\u00a0", " ").strip()
-    recipient = recipient.replace("\u00a0", " ").strip()
-    sender = (sender or username).replace("\u00a0", " ").strip()
-    subject = subject.replace("\u00a0", " ").strip()
-    message = message.replace("\u00a0", " ")
 
+    # Force safe UTF-8 headers/body and sanitize invisible whitespace.
+    from email.header import Header
+    from email.utils import formataddr
+    subject = clean(subject)
+    message = str(message or "").replace("\\u00a0", " ").replace("\u00a0", " ")
     email = EmailMessage()
-    # Encode non-ASCII subject explicitly to avoid SMTP ASCII header failures.\n    from email.header import Header\n    email["Subject"] = Header(subject[:180], "utf-8").encode()
+    email["Subject"] = Header(subject[:180], "utf-8").encode()
     email["From"] = sender
     email["To"] = recipient
-    email.set_content(message[:12000], charset="utf-8")
+    email.set_content(message[:12000], charset="utf-8", cte="quoted-printable")
+
     with smtplib.SMTP(host, port, timeout=20) as server:
         server.ehlo()
         server.starttls()
         server.ehlo()
         server.login(username, password)
-        server.send_message(email)
+        server.send_message(email, from_addr=sender, to_addrs=[recipient])
     print("Email Ciccio inviata al destinatario configurato.")
     return True
 
