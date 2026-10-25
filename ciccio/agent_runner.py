@@ -20,9 +20,9 @@ def notify_email(subject, message):
     from email.policy import SMTP
 
     def clean(value):
-        # SMTP credentials and envelope addresses must not contain Unicode spaces.
-        value = str(value or "").replace("\\u00a0", " ").replace("\u00a0", " ")
-        value = "".join(" " if unicodedata.category(ch) == "Zs" else ch for ch in value)
+        value = unicodedata.normalize("NFKC", str(value or ""))
+        value = value.replace("\\u00a0", " ").replace("\u00a0", " ")
+        value = "".join(" " if unicodedata.category(ch).startswith("Z") else ch for ch in value)
         return value.strip()
 
     host = clean(os.getenv("SMTP_HOST", "smtp.gmail.com"))
@@ -35,30 +35,26 @@ def notify_email(subject, message):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
 
-    # Envelope addresses must be plain ASCII email addresses; fail clearly if malformed.
     try:
-        sender.encode("ascii")
-        recipient.encode("ascii")
-        host.encode("ascii")
-        username.encode("ascii")
-        password.encode("ascii")
-    except UnicodeEncodeError as exc:
-        print("Email non inviata: un secret SMTP contiene caratteri non ASCII dopo la pulizia. Controllare EMAIL_FROM, EMAIL_TO, SMTP_HOST, SMTP_USERNAME e SMTP_PASSWORD.")
-        return False
+        # Fail early on invalid SMTP credentials/envelope addresses, without
+        # allowing a Unicode header error to escape and obscure the cycle result.
+        for label, value in (("EMAIL_FROM", sender), ("EMAIL_TO", recipient),
+                             ("SMTP_HOST", host), ("SMTP_USERNAME", username),
+                             ("SMTP_PASSWORD", password)):
+            try:
+                value.encode("ascii")
+            except UnicodeEncodeError:
+                print(f"Email non inviata: {label} contiene caratteri non ASCII dopo la normalizzazione.")
+                return False
 
-    email = EmailMessage(policy=SMTP)
-    # Keep headers ASCII-safe and let EmailMessage encode UTF-8 body content.
-    safe_subject = clean(subject)[:180]
-    # Force a strictly ASCII header: some SMTP stacks still reject Unicode spaces
-    # even when the body is correctly encoded as UTF-8.
-    safe_subject = safe_subject.encode("ascii", "backslashreplace").decode("ascii")
-    email["Subject"] = safe_subject
-    email["From"] = sender
-    email["To"] = recipient
-    body = clean(message).replace("\\u00a0", " ").replace("\u00a0", " ")
-    email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
+        email = EmailMessage(policy=SMTP)
+        safe_subject = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
+        email["Subject"] = safe_subject
+        email["From"] = sender
+        email["To"] = recipient
+        body = clean(message)
+        email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
 
-    try:
         with smtplib.SMTP(host, port, timeout=20) as server:
             server.ehlo()
             server.starttls()
@@ -68,7 +64,8 @@ def notify_email(subject, message):
         print("Email Ciccio inviata al destinatario configurato.")
         return True
     except Exception as exc:
-        print(f"Invio email non riuscito ({type(exc).__name__}): {str(exc).encode('ascii', 'backslashreplace').decode('ascii')}")
+        detail = str(exc).encode("ascii", "backslashreplace").decode("ascii")
+        print(f"Invio email non riuscito ({type(exc).__name__}): {detail}")
         return False
 
 def required_env(name):
