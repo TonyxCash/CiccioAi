@@ -49,7 +49,10 @@ def notify_email(subject, message):
     email = EmailMessage(policy=SMTP)
     # Keep headers ASCII-safe and let EmailMessage encode UTF-8 body content.
     safe_subject = clean(subject)[:180]
-    email["Subject"] = safe_subject.encode("ascii", "xmlcharrefreplace").decode("ascii")
+    # Force a strictly ASCII header: some SMTP stacks still reject Unicode spaces
+    # even when the body is correctly encoded as UTF-8.
+    safe_subject = safe_subject.encode("ascii", "backslashreplace").decode("ascii")
+    email["Subject"] = safe_subject
     email["From"] = sender
     email["To"] = recipient
     body = clean(message).replace("\\u00a0", " ").replace("\u00a0", " ")
