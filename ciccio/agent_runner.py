@@ -16,9 +16,15 @@ MODEL = "openai/gpt-oss-20b"
 
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
+    import unicodedata
+    from email.header import Header
+    from email.policy import SMTP
+
     def clean(value):
-        # Normalize NBSP and other Unicode spacing characters in secrets/headers.
-        return str(value or "").replace("\\u00a0", " ").replace("\u00a0", " ").strip()
+        # SMTP credentials and envelope addresses must not contain Unicode spaces.
+        value = str(value or "").replace("\\u00a0", " ").replace("\u00a0", " ")
+        value = "".join(" " if unicodedata.category(ch) == "Zs" else ch for ch in value)
+        return value.strip()
 
     host = clean(os.getenv("SMTP_HOST", "smtp.gmail.com"))
     port = int(clean(os.getenv("SMTP_PORT", "587")))
@@ -30,25 +36,36 @@ def notify_email(subject, message):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
 
-    # Force safe UTF-8 headers/body and sanitize invisible whitespace.
-    from email.header import Header
-    from email.utils import formataddr
-    subject = clean(subject)
-    message = str(message or "").replace("\\u00a0", " ").replace("\u00a0", " ")
-    email = EmailMessage()
-    email["Subject"] = Header(subject[:180], "utf-8").encode()
+    # Envelope addresses must be plain ASCII email addresses; fail clearly if malformed.
+    try:
+        sender.encode("ascii")
+        recipient.encode("ascii")
+        host.encode("ascii")
+        username.encode("ascii")
+        password.encode("ascii")
+    except UnicodeEncodeError as exc:
+        print("Email non inviata: un secret SMTP contiene caratteri non ASCII dopo la pulizia. Controllare EMAIL_FROM, EMAIL_TO, SMTP_HOST, SMTP_USERNAME e SMTP_PASSWORD.")
+        return False
+
+    email = EmailMessage(policy=SMTP)
+    email["Subject"] = Header(clean(subject)[:180], "utf-8").encode()
     email["From"] = sender
     email["To"] = recipient
-    email.set_content(message[:12000], charset="utf-8", cte="quoted-printable")
+    body = clean(message).replace("\\u00a0", " ").replace("\u00a0", " ")
+    email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
 
-    with smtplib.SMTP(host, port, timeout=20) as server:
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(username, password)
-        server.send_message(email, from_addr=sender, to_addrs=[recipient])
-    print("Email Ciccio inviata al destinatario configurato.")
-    return True
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(username, password)
+            server.send_message(email, from_addr=sender, to_addrs=[recipient])
+        print("Email Ciccio inviata al destinatario configurato.")
+        return True
+    except Exception as exc:
+        print(f"Invio email non riuscito ({type(exc).__name__}): {str(exc).encode('ascii', 'backslashreplace').decode('ascii')}")
+        return False
 
 def required_env(name):
     value = os.getenv(name, "").strip()
