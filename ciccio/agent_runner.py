@@ -25,16 +25,20 @@ def notify_email(subject, message):
     if not all((host, username, password, recipient, sender)):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
-    # Normalize invisible spaces in every header; EmailMessage handles UTF-8 subjects.
-    subject = subject.replace("\u00a0", " ").strip()
-    sender = sender.replace("\u00a0", " ").strip()
-    recipient = recipient.replace("\u00a0", " ").strip()
+    # Normalize non-breaking spaces that can trigger ASCII encoding errors.
+    # Sanitize header values separately from the UTF-8 message body.
+    host = host.replace("\u00a0", " ").strip()
     username = username.replace("\u00a0", " ").strip()
+    recipient = recipient.replace("\u00a0", " ").strip()
+    sender = (sender or username).replace("\u00a0", " ").strip()
+    subject = subject.replace("\u00a0", " ").strip()
+    message = message.replace("\u00a0", " ")
+
     email = EmailMessage()
     email["Subject"] = subject[:180]
     email["From"] = sender
     email["To"] = recipient
-    email.set_content(message[:12000])
+    email.set_content(message[:12000], charset="utf-8")
     with smtplib.SMTP(host, port, timeout=20) as server:
         server.ehlo()
         server.starttls()
