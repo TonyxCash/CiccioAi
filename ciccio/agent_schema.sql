@@ -45,3 +45,18 @@ create index if not exists ciccio_tasks_created_at_idx
 alter table public.ciccio_memories enable row level security;
 alter table public.ciccio_tasks enable row level security;
 -- No client policies: access remains server-side using the service-role secret.
+
+-- Compatibility migration for the autonomous runner's user-scoped records.
+-- Safe to run repeatedly: existing tables receive the missing column only once.
+alter table public.ciccio_memories
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table public.ciccio_tasks
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
+
+create index if not exists ciccio_memories_user_created_idx
+  on public.ciccio_memories (user_id, created_at desc);
+create index if not exists ciccio_tasks_user_created_idx
+  on public.ciccio_tasks (user_id, created_at desc);
+
+-- ciccio_agent_runs is an operational log rather than a user-owned content table.
+-- Keep it server-side under service-role access as configured above.
