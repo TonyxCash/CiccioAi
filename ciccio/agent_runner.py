@@ -6,7 +6,6 @@ import json
 import os
 import smtplib
 from email.message import EmailMessage
-from email.header import Header
 from datetime import datetime, timezone
 
 from groq import Groq
@@ -26,12 +25,13 @@ def notify_email(subject, message):
     if not all((host, username, password, recipient, sender)):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
-    # Normalize non-breaking spaces and encode non-ASCII subject text safely.
+    # Normalize invisible spaces in every header; EmailMessage handles UTF-8 subjects.
     subject = subject.replace("\u00a0", " ").strip()
     sender = sender.replace("\u00a0", " ").strip()
     recipient = recipient.replace("\u00a0", " ").strip()
+    username = username.replace("\u00a0", " ").strip()
     email = EmailMessage()
-    email["Subject"] = str(Header(subject[:180], "utf-8"))
+    email["Subject"] = subject[:180]
     email["From"] = sender
     email["To"] = recipient
     email.set_content(message[:12000])
@@ -51,8 +51,11 @@ def required_env(name):
     return value
 
 
-def rows(db, table, columns, limit, order="created_at"):
-    return db.table(table).select(columns).order(order, desc=True).limit(limit).execute().data or []
+def rows(db, table, columns, limit, order="created_at", user_id=None):
+    query = db.table(table).select(columns)
+    if user_id and table in {"ciccio_memories", "ciccio_tasks"}:
+        query = query.eq("user_id", user_id)
+    return query.order(order, desc=True).limit(limit).execute().data or []
 
 
 def ask_agent(groq, memories, tasks, previous):
@@ -289,12 +292,13 @@ def execute_internal_action(db, plan, open_tasks, user_id):
 def main():
     db = create_client(required_env("SUPABASE_URL"), required_env("SUPABASE_SERVICE_ROLE_KEY"))
     groq = Groq(api_key=required_env("GROQ_API_KEY"))
+    user_id = resolve_user_id(db)
     previous = rows(db, "ciccio_agent_runs",
                     "created_at,status,goal,action,reason,result,verification", 12)
-    memories = rows(db, "ciccio_memories", "created_at,kind,content", 30)
+    memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
     tasks = (db.table("ciccio_tasks").select("id,created_at,title,status,notes")
-             .neq("status", "Completata").order("created_at", desc=True)
-             .limit(30).execute().data or [])
+             .eq("user_id", user_id).neq("status", "Completata")
+             .order("created_at", desc=True).limit(30).execute().data or [])
 
     plan = ask_agent(groq, memories, tasks, previous)
     # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
@@ -312,7 +316,6 @@ def main():
         plan["action_type"] = "audit_project"
         plan["action_title"] = "Verifica integrità del progetto Ciccio"
         plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
-    user_id = resolve_user_id(db)
     if plan.get("action_type") == "execute_task":
         task_result = execute_task(db, groq, tasks, user_id)
         execution_status = task_result["status"] if task_result else "blocked"
