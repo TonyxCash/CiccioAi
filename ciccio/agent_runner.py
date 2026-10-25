@@ -21,40 +21,35 @@ def notify_email(subject, message):
 
     def clean(value):
         value = unicodedata.normalize("NFKC", str(value or ""))
-        value = value.replace("\\u00a0", " ").replace("\u00a0", " ")
         value = "".join(" " if unicodedata.category(ch).startswith("Z") else ch for ch in value)
-        return value.strip()
+        return value.replace("\\u00a0", " ").replace("\u00a0", " ").strip()
 
-    host = clean(os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    def ascii_setting(label, value):
+        value = clean(value)
+        try:
+            value.encode("ascii")
+        except UnicodeEncodeError:
+            raise ValueError(f"{label} contiene caratteri non ASCII; controlla il secret GitHub Actions.")
+        return value
+
+    host = ascii_setting("SMTP_HOST", os.getenv("SMTP_HOST", "smtp.gmail.com"))
     port = int(clean(os.getenv("SMTP_PORT", "587")))
-    username = clean(os.getenv("SMTP_USERNAME", ""))
-    password = clean(os.getenv("SMTP_PASSWORD", ""))
-    recipient = clean(os.getenv("EMAIL_TO", ""))
-    sender = clean(os.getenv("EMAIL_FROM", "")) or username
+    username = ascii_setting("SMTP_USERNAME", os.getenv("SMTP_USERNAME", ""))
+    password = ascii_setting("SMTP_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
+    recipient = ascii_setting("EMAIL_TO", os.getenv("EMAIL_TO", ""))
+    sender = ascii_setting("EMAIL_FROM", os.getenv("EMAIL_FROM", "")) or username
     if not all((host, username, password, recipient, sender)):
         print("Email SMTP non configurata: ciclo salvato senza invio email.")
         return False
 
     try:
-        # Fail early on invalid SMTP credentials/envelope addresses, without
-        # allowing a Unicode header error to escape and obscure the cycle result.
-        for label, value in (("EMAIL_FROM", sender), ("EMAIL_TO", recipient),
-                             ("SMTP_HOST", host), ("SMTP_USERNAME", username),
-                             ("SMTP_PASSWORD", password)):
-            try:
-                value.encode("ascii")
-            except UnicodeEncodeError:
-                print(f"Email non inviata: {label} contiene caratteri non ASCII dopo la normalizzazione.")
-                return False
-
         email = EmailMessage(policy=SMTP)
-        safe_subject = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
-        email["Subject"] = safe_subject
+        email["Subject"] = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
         email["From"] = sender
         email["To"] = recipient
+        # Explicit UTF-8 quoted-printable prevents body text from being sent through ASCII.
         body = clean(message)
         email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
-
         with smtplib.SMTP(host, port, timeout=20) as server:
             server.ehlo()
             server.starttls()
