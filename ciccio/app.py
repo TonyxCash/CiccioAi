@@ -209,6 +209,7 @@ elif section == "Attività":
     st.subheader("Piano operativo condiviso")
     st.caption("Le attività qui sono condivise con i cicli automatici di Ciccio.")
     sb_tasks = None
+    task_owner_id = st.secrets.get("CICCIO_USER_ID", "").strip() if hasattr(st, "secrets") else ""
     try:
         u = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
         k = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
@@ -217,6 +218,8 @@ elif section == "Attività":
             sb_tasks = create_client(u, k)
     except Exception:
         sb_tasks = None
+    if sb_tasks and not task_owner_id:
+        st.warning("Manca CICCIO_USER_ID nei Secrets di Streamlit: le attività condivise con l'agente non possono essere caricate o modificate in sicurezza.")
     with st.form("task_form", clear_on_submit=True):
         title = st.text_input("Nuova attività", placeholder="Es. Preparare un'offerta per 10 negozi")
         notes = st.text_area("Note (facoltative)")
@@ -224,7 +227,10 @@ elif section == "Attività":
     if add and title.strip():
         try:
             if sb_tasks:
-                sb_tasks.table("ciccio_tasks").insert({"title": title.strip(), "notes": notes.strip(), "status": "Da fare"}).execute()
+                if not task_owner_id:
+                    st.error("Configura CICCIO_USER_ID nei Secrets di Streamlit prima di aggiungere attività condivise.")
+                    st.stop()
+                sb_tasks.table("ciccio_tasks").insert({"user_id": task_owner_id, "title": title.strip(), "notes": notes.strip(), "status": "Da fare"}).execute()
             else:
                 conn.execute("INSERT INTO tasks(created_at,title,notes) VALUES(?,?,?)", (datetime.now().isoformat(timespec="seconds"), title.strip(), notes.strip()))
                 conn.commit()
@@ -235,7 +241,7 @@ elif section == "Attività":
             st.caption(str(e)[:200])
     try:
         if sb_tasks:
-            tasks = sb_tasks.table("ciccio_tasks").select("id,title,status,notes").order("created_at", desc=True).limit(100).execute().data or []
+            tasks = (sb_tasks.table("ciccio_tasks").select("id,title,status,notes").eq("user_id", task_owner_id).order("created_at", desc=True).limit(100).execute().data or []) if task_owner_id else []
         else:
             tasks = [{"id": tid, "title": title, "status": status, "notes": notes} for tid, title, status, notes in conn.execute("SELECT id,title,status,notes FROM tasks ORDER BY id DESC").fetchall()]
         if not tasks:
@@ -250,14 +256,20 @@ elif section == "Attività":
                 a, b = st.columns([3,1])
                 if a.button("Aggiorna stato", key=f"upd{tid}"):
                     if sb_tasks:
-                        sb_tasks.table("ciccio_tasks").update({"status": new_status, "updated_at": datetime.now().isoformat(timespec="seconds")}).eq("id", tid).execute()
+                        if not task_owner_id:
+                            st.error("Manca CICCIO_USER_ID: modifica bloccata.")
+                            st.stop()
+                        sb_tasks.table("ciccio_tasks").update({"status": new_status, "updated_at": datetime.now().isoformat(timespec="seconds")}).eq("id", tid).eq("user_id", task_owner_id).execute()
                     else:
                         conn.execute("UPDATE tasks SET status=? WHERE id=?", (new_status, tid))
                         conn.commit()
                     st.rerun()
                 if b.button("Elimina", key=f"deltask{tid}"):
                     if sb_tasks:
-                        sb_tasks.table("ciccio_tasks").delete().eq("id", tid).execute()
+                        if not task_owner_id:
+                            st.error("Manca CICCIO_USER_ID: eliminazione bloccata.")
+                            st.stop()
+                        sb_tasks.table("ciccio_tasks").delete().eq("id", tid).eq("user_id", task_owner_id).execute()
                     else:
                         conn.execute("DELETE FROM tasks WHERE id=?", (tid,))
                         conn.commit()
