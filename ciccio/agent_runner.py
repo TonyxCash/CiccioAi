@@ -17,7 +17,6 @@ MODEL = "openai/gpt-oss-20b"
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
     import unicodedata
-    from email.header import Header
     from email.policy import SMTP
 
     def clean(value):
@@ -48,7 +47,7 @@ def notify_email(subject, message):
         return False
 
     email = EmailMessage(policy=SMTP)
-    email["Subject"] = Header(clean(subject)[:180], "utf-8").encode()
+    email["Subject"] = clean(subject)[:180]
     email["From"] = sender
     email["To"] = recipient
     body = clean(message).replace("\\u00a0", " ").replace("\u00a0", " ")
