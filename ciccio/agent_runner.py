@@ -498,7 +498,7 @@ def main():
         for task in tasks:
             if failed_task_attempts(task, previous) >= 3:
                 pause_note = "Ciccio: attività sospesa automaticamente dopo 3 tentativi falliti. Correggi le note e reimposta lo stato per riprovare."
-                updated_notes = (str(task.get("notes", "")).strip() + "\n\n" + pause_note).strip()[:3000]
+                updated_notes = (str(task.get("notes", "")).strip()[:1500] + "\n\n" + pause_note).strip()[:3000]
                 db.table("ciccio_tasks").update({
                     "status": "Bloccata",
                     "notes": updated_notes,
