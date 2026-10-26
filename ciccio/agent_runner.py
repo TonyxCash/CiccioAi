@@ -259,7 +259,7 @@ def resolve_user_id(db):
     if configured:
         return configured
     # Fallback only for installations where an existing row already has an owner.
-    for table in ("ciccio_memories", "ciccio_tasks", "ciccio_agent_runs"):
+    for table in ("ciccio_memories", "ciccio_tasks"):
         try:
             found = execute_read_with_retry(db.table(table).select("user_id").not_.is_("user_id", "null").limit(1)).data or []
             if found:
