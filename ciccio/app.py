@@ -278,7 +278,7 @@ elif section == "Attività":
                 st.markdown(f"**{title}**")
                 if notes:
                     st.caption(notes)
-                new_status = st.selectbox("Stato", ["Da fare", "In corso", "Completata"], index=["Da fare","In corso","Completata"].index(status), key=f"status{tid}")
+                new_status = st.selectbox("Stato", ["Da fare", "In corso", "Completata", "Bloccata"], index=["Da fare","In corso","Completata","Bloccata"].index(status), key=f"status{tid}")
                 a, b = st.columns([3,1])
                 if a.button("Aggiorna stato", key=f"upd{tid}"):
                     if sb_tasks:
