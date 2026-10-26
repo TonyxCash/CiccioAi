@@ -313,9 +313,14 @@ def execute_task(db, groq, open_tasks, user_id):
         "notes": new_notes,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", task["id"]).eq("user_id", user_id).execute()
-    check = execute_read_with_retry(db.table("ciccio_tasks").select("status").eq("id", task["id"]).eq("user_id", user_id).limit(1)).data or []
-    if not check or check[0].get("status") != "Completata":
-        raise RuntimeError("Il deliverable è stato generato, ma la verifica della chiusura attività è fallita.")
+    check = execute_read_with_retry(db.table("ciccio_tasks").select("status,notes").eq("id", task["id"]).eq("user_id", user_id).limit(1)).data or []
+    if (
+        not check
+        or check[0].get("status") != "Completata"
+        or "Deliverable creato da Ciccio:" not in str(check[0].get("notes", ""))
+        or deliverable not in str(check[0].get("notes", ""))
+    ):
+        raise RuntimeError("Il deliverable è stato generato, ma il salvataggio o la chiusura non è stato verificato.")
     # Store the separate memory only after the task is safely marked complete.
     # If this insert fails, the deliverable remains in task notes and won't be regenerated next cycle.
     saved_memory = db.table("ciccio_memories").insert({
@@ -407,9 +412,13 @@ def execute_internal_action(db, plan, open_tasks, user_id):
             "status": "Completata", "notes": (str(match.get("notes","")) + "\n" + notes)[:3000],
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", match["id"]).eq("user_id", user_id).execute()
-        check = execute_read_with_retry(db.table("ciccio_tasks").select("status").eq("id", match["id"]).eq("user_id", user_id).limit(1)).data or []
-        if not check or check[0].get("status") != "Completata":
-            raise RuntimeError("Verifica del completamento non riuscita.")
+        check = execute_read_with_retry(db.table("ciccio_tasks").select("status,notes").eq("id", match["id"]).eq("user_id", user_id).limit(1)).data or []
+        if (
+            not check
+            or check[0].get("status") != "Completata"
+            or notes not in str(check[0].get("notes", ""))
+        ):
+            raise RuntimeError("Verifica del completamento e delle note non riuscita.")
         return "completed", "Attività completata e stato verificato nel database."
     return "blocked", "Nessuna azione eseguita: l'agente ha scelto no_op."
 
