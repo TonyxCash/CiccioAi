@@ -16,51 +16,61 @@ MODEL = "openai/gpt-oss-20b"
 
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
+    import re
     import unicodedata
     from email.policy import SMTP
 
     def clean(value):
         value = unicodedata.normalize("NFKC", str(value or ""))
-        value = "".join(" " if unicodedata.category(ch).startswith("Z") else ch for ch in value)
-        return value.replace("\\u00a0", " ").replace("\u00a0", " ").strip()
+        # Convert every Unicode separator/control whitespace to plain ASCII spaces.
+        value = "".join(" " if ch.isspace() or unicodedata.category(ch).startswith("Z") else ch
+                        for ch in value)
+        value = value.replace("\\u00a0", " ").strip()
+        return re.sub(r" +", " ", value)
 
     def ascii_setting(label, value):
         value = clean(value)
         try:
             value.encode("ascii")
-        except UnicodeEncodeError:
-            raise ValueError(f"{label} contiene caratteri non ASCII; controlla il secret GitHub Actions.")
+        except UnicodeEncodeError as exc:
+            raise ValueError(f"{label} contiene caratteri non ASCII (posizione {exc.start}); correggi il secret GitHub Actions.")
         return value
 
-    host = ascii_setting("SMTP_HOST", os.getenv("SMTP_HOST", "smtp.gmail.com"))
-    port = int(clean(os.getenv("SMTP_PORT", "587")))
-    username = ascii_setting("SMTP_USERNAME", os.getenv("SMTP_USERNAME", ""))
-    password = ascii_setting("SMTP_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
-    recipient = ascii_setting("EMAIL_TO", os.getenv("EMAIL_TO", ""))
-    sender = ascii_setting("EMAIL_FROM", os.getenv("EMAIL_FROM", "")) or username
-    if not all((host, username, password, recipient, sender)):
-        print("Email SMTP non configurata: ciclo salvato senza invio email.")
-        return False
-
+    stage = "lettura configurazione"
     try:
+        host = ascii_setting("SMTP_HOST", os.getenv("SMTP_HOST", "smtp.gmail.com"))
+        port = int(clean(os.getenv("SMTP_PORT", "587")))
+        username = ascii_setting("SMTP_USERNAME", os.getenv("SMTP_USERNAME", ""))
+        password = ascii_setting("SMTP_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
+        recipient = ascii_setting("EMAIL_TO", os.getenv("EMAIL_TO", ""))
+        sender = ascii_setting("EMAIL_FROM", os.getenv("EMAIL_FROM", "")) or username
+        if not all((host, username, password, recipient, sender)):
+            print("Email SMTP non configurata: ciclo salvato senza invio email.")
+            return False
+
+        stage = "costruzione messaggio"
         email = EmailMessage(policy=SMTP)
-        email["Subject"] = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
+        safe_subject = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
+        email["Subject"] = safe_subject
         email["From"] = sender
         email["To"] = recipient
-        # Explicit UTF-8 quoted-printable prevents body text from being sent through ASCII.
         body = clean(message)
         email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
+
+        stage = "connessione SMTP"
         with smtplib.SMTP(host, port, timeout=20) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
+            stage = "autenticazione SMTP"
             server.login(username, password)
+            stage = "invio messaggio SMTP"
             server.send_message(email, from_addr=sender, to_addrs=[recipient])
         print("Email Ciccio inviata al destinatario configurato.")
         return True
     except Exception as exc:
         detail = str(exc).encode("ascii", "backslashreplace").decode("ascii")
-        print(f"Invio email non riuscito ({type(exc).__name__}): {detail}")
+        print(f"Invio email non riuscito durante {stage} ({type(exc).__name__}): {detail}")
         return False
 
 def required_env(name):
