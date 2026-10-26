@@ -288,7 +288,7 @@ elif section == "Attività":
 
 elif section == "Cicli automatici":
     st.subheader("Cicli automatici di Ciccio")
-    st.caption("Questi dati arrivano dal workflow GitHub Actions. I piani vengono registrati automaticamente; non significa che l'azione sia stata eseguita.")
+    st.caption("Questi dati arrivano da GitHub Actions e Supabase: mostra gli esiti, le attività svolte e i fallimenti registrati. Apri ogni ciclo per leggerne il dettaglio.")
     supabase_url = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
     supabase_key = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
     if not supabase_url or not supabase_key:
