@@ -60,3 +60,10 @@ create index if not exists ciccio_tasks_user_created_idx
 
 -- ciccio_agent_runs is an operational log rather than a user-owned content table.
 -- Keep it server-side under service-role access as configured above.
+
+-- Support pausing tasks that have repeatedly failed instead of spending quota forever.
+alter table public.ciccio_tasks
+  drop constraint if exists ciccio_tasks_status_check;
+alter table public.ciccio_tasks
+  add constraint ciccio_tasks_status_check
+  check (status in ('Da fare', 'In corso', 'Completata', 'Bloccata'));
