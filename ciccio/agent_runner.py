@@ -347,86 +347,134 @@ def execute_internal_action(db, plan, open_tasks, user_id):
     return "blocked", "Nessuna azione eseguita: l'agente ha scelto no_op."
 
 
-def main():
-    db = create_client(required_env("SUPABASE_URL"), required_env("SUPABASE_SERVICE_ROLE_KEY"))
-    groq = Groq(api_key=required_env("GROQ_API_KEY"))
-    user_id = resolve_user_id(db)
-    previous = rows(db, "ciccio_agent_runs",
-                    "created_at,status,goal,action,reason,result,verification", 12)
-    memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
-    tasks = (db.table("ciccio_tasks").select("id,created_at,title,status,notes")
-             .eq("user_id", user_id).neq("status", "Completata")
-             .order("created_at", desc=True).limit(30).execute().data or [])
-
-    plan = ask_agent(groq, memories, tasks, previous)
-    # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
-    if tasks and plan.get("action_type") in {"no_op", "audit_project", "create_task", "save_memory"}:
-        plan["action_type"] = "execute_task"
-        plan["action_title"] = str(sorted(tasks, key=lambda t: str(t.get("created_at", "")))[0].get("title", "Attività aperta"))
-        plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
-    # Prefer a real repository audit when the history is empty or the last audit is old.
-    recent_audit = any(
-        str(m.get("kind", "")) == "audit_progetto"
-        and str(m.get("created_at", ""))[:10] >= datetime.now(timezone.utc).date().isoformat()
-        for m in memories
-    )
-    if not recent_audit and not any(str(t.get("status", "")) != "Completata" for t in tasks):
-        plan["action_type"] = "audit_project"
-        plan["action_title"] = "Verifica integrità del progetto Ciccio"
-        plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
-    if plan.get("action_type") == "execute_task":
-        task_result = execute_task(db, groq, tasks, user_id)
-        execution_status = task_result["status"] if task_result else "blocked"
-        execution_result = task_result["result"] if task_result else "Nessuna attività aperta da eseguire."
-    else:
-        execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
-    learning = str(plan["learning"])[:1200]
-    next_cycle = str(plan["next_cycle"])[:800]
-    result_text = (
-        execution_result + "\nApprendimento: " + learning
-        + "\nProssimo controllo: " + next_cycle
-    )
+def record_failure(db, stage, exc, plan=None):
+    """Persist a compact failure record without hiding the original exception."""
+    plan = plan if isinstance(plan, dict) else {}
+    detail = (type(exc).__name__ + ": " + str(exc))[:1800]
     row = {
-        "goal": str(plan["goal"])[:500],
-        "action": (str(plan["action_type"]) + ": " + str(plan["action_title"]) + " — " + str(plan["action_notes"]))[:2000],
-        "reason": str(plan["reason"])[:1500],
-        "expected_result": str(plan["expected_result"])[:1000],
-        "verification": str(plan["verification"])[:1000],
-        "status": "completed" if execution_status == "completed" else (
-            "blocked" if execution_status == "blocked" else "failed"),
-        "result": result_text[:3000],
+        "goal": str(plan.get("goal") or "Esecuzione ciclo Ciccio")[:500],
+        "action": (str(plan.get("action_type") or "cycle") + ": "
+                   + str(plan.get("action_title") or "Errore durante il ciclo"))[:2000],
+        "reason": ("Errore nella fase: " + str(stage))[:1500],
+        "expected_result": str(plan.get("expected_result") or "Ciclo completato e salvato")[:1000],
+        "verification": "Controllare il log e riprendere dal prossimo ciclo; non ripetere automaticamente azioni database.",
+        "status": "failed",
+        "result": (detail + "\nFase: " + str(stage))[:3000],
         "model": MODEL,
     }
-    saved = db.table("ciccio_agent_runs").insert(row).execute()
-    if not saved.data:
-        raise RuntimeError("Supabase non ha confermato il salvataggio del ciclo.")
-    # Every cycle leaves a compact, durable learning record for the next one.
-    db.table("ciccio_memories").insert({
-        "user_id": user_id,
-        "kind": "apprendimento_agente",
-        "content": json.dumps({
-            "goal": row["goal"], "action": row["action"], "reason": row["reason"],
-            "status": row["status"], "result": result_text,
-            "learning": learning, "next_cycle": next_cycle,
-        }, ensure_ascii=False),
-    }).execute()
-    # Ciccio può raggiungerti anche quando la dashboard è chiusa.
-    notification = (
-        "🧠 Ciccio — aggiornamento autonomo\n\n"
-        + "Stato: " + row["status"] + "\n"
-        + "Obiettivo: " + row["goal"] + "\n"
-        + "Azione: " + row["action"] + "\n\n"
-        + "Esito: " + execution_result[:900] + "\n\n"
-        + "Prossimo passo: " + next_cycle
-    )
     try:
-        notify_email("Ciccio — aggiornamento autonomo", notification)
+        result = db.table("ciccio_agent_runs").insert(row).execute()
+        if not result.data:
+            print("Registro errore non confermato da Supabase.")
+            return False
+        print("Errore registrato in ciccio_agent_runs.")
+        return True
+    except Exception as log_exc:
+        print("Impossibile registrare l'errore in Supabase: "
+              + (type(log_exc).__name__ + ": " + str(log_exc))[:300])
+        return False
+
+
+def main():
+    db = None
+    plan = {}
+    stage = "inizializzazione Supabase"
+    try:
+        db = create_client(required_env("SUPABASE_URL"), required_env("SUPABASE_SERVICE_ROLE_KEY"))
+        stage = "inizializzazione modello AI"
+        groq = Groq(api_key=required_env("GROQ_API_KEY"))
+        stage = "identificazione utente"
+        user_id = resolve_user_id(db)
+        stage = "lettura storico"
+        previous = rows(db, "ciccio_agent_runs",
+                        "created_at,status,goal,action,reason,result,verification", 12)
+        memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
+        tasks = (db.table("ciccio_tasks").select("id,created_at,title,status,notes")
+                 .eq("user_id", user_id).neq("status", "Completata")
+                 .order("created_at", desc=True).limit(30).execute().data or [])
+
+        stage = "pianificazione AI"
+        plan = ask_agent(groq, memories, tasks, previous)
+        # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
+        if tasks and plan.get("action_type") in {"no_op", "audit_project", "create_task", "save_memory"}:
+            plan["action_type"] = "execute_task"
+            plan["action_title"] = str(sorted(tasks, key=lambda t: str(t.get("created_at", "")))[0].get("title", "Attività aperta"))
+            plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
+        # Prefer a real repository audit when no audit has been recorded today.
+        recent_audit = any(
+            str(m.get("kind", "")) == "audit_progetto"
+            and str(m.get("created_at", ""))[:10] >= datetime.now(timezone.utc).date().isoformat()
+            for m in memories
+        )
+        if not recent_audit and not any(str(t.get("status", "")) != "Completata" for t in tasks):
+            plan["action_type"] = "audit_project"
+            plan["action_title"] = "Verifica integrità del progetto Ciccio"
+            plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
+
+        stage = "esecuzione azione"
+        if plan.get("action_type") == "execute_task":
+            task_result = execute_task(db, groq, tasks, user_id)
+            execution_status = task_result["status"] if task_result else "blocked"
+            execution_result = task_result["result"] if task_result else "Nessuna attività aperta da eseguire."
+        else:
+            execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
+
+        learning = str(plan["learning"])[:1200]
+        next_cycle = str(plan["next_cycle"])[:800]
+        result_text = (
+            execution_result + "\nApprendimento: " + learning
+            + "\nProssimo controllo: " + next_cycle
+        )
+        row = {
+            "goal": str(plan["goal"])[:500],
+            "action": (str(plan["action_type"]) + ": " + str(plan["action_title"]) + " — " + str(plan["action_notes"]))[:2000],
+            "reason": str(plan["reason"])[:1500],
+            "expected_result": str(plan["expected_result"])[:1000],
+            "verification": str(plan["verification"])[:1000],
+            "status": "completed" if execution_status == "completed" else (
+                "blocked" if execution_status == "blocked" else "failed"),
+            "result": result_text[:3000],
+            "model": MODEL,
+        }
+        stage = "salvataggio log del ciclo"
+        saved = db.table("ciccio_agent_runs").insert(row).execute()
+        if not saved.data:
+            raise RuntimeError("Supabase non ha confermato il salvataggio del ciclo.")
+
+        stage = "salvataggio apprendimento"
+        db.table("ciccio_memories").insert({
+            "user_id": user_id,
+            "kind": "apprendimento_agente",
+            "content": json.dumps({
+                "goal": row["goal"], "action": row["action"], "reason": row["reason"],
+                "status": row["status"], "result": result_text,
+                "learning": learning, "next_cycle": next_cycle,
+            }, ensure_ascii=False),
+        }).execute()
+
+        stage = "notifica email"
+        notification = (
+            "🧠 Ciccio — aggiornamento autonomo\n\n"
+            + "Stato: " + row["status"] + "\n"
+            + "Obiettivo: " + row["goal"] + "\n"
+            + "Azione: " + row["action"] + "\n\n"
+            + "Esito: " + execution_result[:900] + "\n\n"
+            + "Prossimo passo: " + next_cycle
+        )
+        try:
+            notify_email("Ciccio — aggiornamento autonomo", notification)
+        except Exception as exc:
+            # Un errore di notifica non annulla il ciclo già salvato.
+            print("Invio email non riuscito: " + str(exc)[:250])
+        print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
+                          "status": row["status"], "action": row["action"],
+                          "result": row["result"]}, ensure_ascii=False, indent=2))
     except Exception as exc:
-        # Un errore di notifica non annulla il ciclo già salvato.
-        print("Invio email non riuscito: " + str(exc)[:250])
-    print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
-                      "status": row["status"], "action": row["action"],
-                      "result": row["result"]}, ensure_ascii=False, indent=2))
+        print("Ciclo Ciccio fallito nella fase '" + stage + "': "
+              + (type(exc).__name__ + ": " + str(exc))[:1200])
+        if db is not None:
+            record_failure(db, stage, exc, plan)
+        raise
 
 
 if __name__ == "__main__":
