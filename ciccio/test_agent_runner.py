@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent, groq_completion_with_retry
+from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry
 
 
 def fake_groq_response(text):
@@ -80,6 +80,28 @@ class GroqRetryTests(unittest.TestCase):
         self.assertEqual(groq.chat.completions.create.call_count, 1)
         sleep.assert_not_called()
 
+
+
+
+class SupabaseReadRetryTests(unittest.TestCase):
+    def test_transient_read_error_is_retried(self):
+        query = Mock()
+        expected = SimpleNamespace(data=[{"id": "1"}])
+        query.execute.side_effect = [TimeoutError("temporary timeout"), expected]
+        with patch("agent_runner.time.sleep") as sleep:
+            result = execute_read_with_retry(query)
+        self.assertIs(result, expected)
+        self.assertEqual(query.execute.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_read_error_is_not_retried_when_permanent(self):
+        query = Mock()
+        query.execute.side_effect = ValueError("bad query")
+        with patch("agent_runner.time.sleep") as sleep:
+            with self.assertRaises(ValueError):
+                execute_read_with_retry(query)
+        self.assertEqual(query.execute.call_count, 1)
+        sleep.assert_not_called()
 
 
 if __name__ == "__main__":
