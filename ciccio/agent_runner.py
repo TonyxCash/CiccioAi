@@ -245,8 +245,8 @@ def execute_task(db, groq, open_tasks, user_id):
         "status": "Completata",
         "notes": new_notes,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", task["id"]).execute()
-    check = db.table("ciccio_tasks").select("status").eq("id", task["id"]).limit(1).execute().data or []
+    }).eq("id", task["id"]).eq("user_id", user_id).execute()
+    check = db.table("ciccio_tasks").select("status").eq("id", task["id"]).eq("user_id", user_id).limit(1).execute().data or []
     if not check or check[0].get("status") != "Completata":
         raise RuntimeError("Il deliverable è salvato, ma la verifica della chiusura attività è fallita.")
     return {"status": "completed", "result": "Deliverable creato e salvato in Memorie; attività completata: " + title + "\n\n" + deliverable}
@@ -316,8 +316,8 @@ def execute_internal_action(db, plan, open_tasks, user_id):
         db.table("ciccio_tasks").update({
             "status": "Completata", "notes": (str(match.get("notes","")) + "\n" + notes)[:3000],
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", match["id"]).execute()
-        check = db.table("ciccio_tasks").select("status").eq("id", match["id"]).limit(1).execute().data or []
+        }).eq("id", match["id"]).eq("user_id", user_id).execute()
+        check = db.table("ciccio_tasks").select("status").eq("id", match["id"]).eq("user_id", user_id).limit(1).execute().data or []
         if not check or check[0].get("status") != "Completata":
             raise RuntimeError("Verifica del completamento non riuscita.")
         return "completed", "Attività completata e stato verificato nel database."
