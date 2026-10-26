@@ -1,5 +1,7 @@
+import io
 import json
 import unittest
+from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -189,6 +191,16 @@ class TelegramNotificationTests(unittest.TestCase):
     def test_telegram_is_optional_without_credentials(self):
         with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""}):
             self.assertFalse(notify_telegram("test message"))
+
+    def test_telegram_token_is_redacted_from_errors(self):
+        token = "123456:secret-token"
+        output = io.StringIO()
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": token, "TELEGRAM_CHAT_ID": "123"}):
+            with patch("urllib.request.urlopen", side_effect=RuntimeError("failed URL https://api.telegram.org/bot" + token + "/sendMessage")):
+                with redirect_stdout(output):
+                    self.assertFalse(notify_telegram("test message"))
+        self.assertNotIn(token, output.getvalue())
+        self.assertIn("[REDACTED]", output.getvalue())
 
 
 if __name__ == "__main__":
