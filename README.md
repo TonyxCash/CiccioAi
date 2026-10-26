@@ -53,14 +53,14 @@ Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito d
 - Genera risultati concreti per le attività aperte e li salva nelle note dell'attività e in Memorie.
 - Verifica la chiusura delle attività prima di considerarle completate.
 - Ritenta fino a tre volte le chiamate Groq e le letture Supabase in caso di errori temporanei riconosciuti.
-- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile e prova a inviare notifiche email e Telegram se configurate.
+- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile, prova a inviare notifiche email e Telegram se configurate e sospende un'attività dopo tre tentativi falliti consecutivi.
 - Esegue test automatici di sicurezza prima di avviare il ciclo.
 
 ### Configurazione richiesta
 
 Nel repository GitHub, in **Settings → Secrets and variables → Actions**, configura i secret usati dal workflow: `GROQ_API_KEY`, `SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CICCIO_USER_ID`. Per le notifiche sono facoltativi `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO`, `EMAIL_FROM`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. Email e Telegram inviano solo riepiloghi al destinatario/chat configurati; un errore di notifica non annulla un'azione già salvata.
 
-Esegui lo schema SQL di `ciccio/agent_schema.sql` nel progetto Supabase prima del primo ciclo. Non mettere mai chiavi segrete nel codice o in file pubblici.
+Esegui l'ultima versione dello schema SQL di `ciccio/agent_schema.sql` nel progetto Supabase prima del primo ciclo; se avevi già configurato Ciccio, riesegui lo script aggiornato per abilitare anche lo stato `Bloccata`. Puoi riaprire un'attività sospesa correggendone le note e reimpostando lo stato dalla dashboard. Non mettere mai chiavi segrete nel codice o in file pubblici.
 
 Per collegare anche la dashboard Streamlit, configura nei Secrets di Streamlit `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CICCIO_USER_ID` e una password robusta in `CICCIO_APP_PASSWORD`. Quando la chiave service-role è presente, la password protegge tutte le sezioni della dashboard, non soltanto i cicli. La dashboard usa `SUPABASE_URL`; nel workflow GitHub il secret del progetto si chiama invece `SUPABASE_PROJECT_URL` e viene passato allo script come `SUPABASE_URL`. Usa lo stesso UUID utente per `CICCIO_USER_ID` in entrambi gli ambienti.
 
