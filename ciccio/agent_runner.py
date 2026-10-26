@@ -118,7 +118,6 @@ def notify_email(subject, message):
         return False
 def notify_telegram(message):
     """Send a status alert only when the owner explicitly configured bot credentials."""
-    import urllib.error
     import urllib.request
 
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
@@ -144,7 +143,7 @@ def notify_telegram(message):
             return False
         print("Notifica Telegram inviata.")
         return True
-    except (Exception, urllib.error.URLError) as exc:
+    except Exception as exc:
         print("Notifica Telegram non riuscita: " + (type(exc).__name__ + ": " + str(exc))[:250])
         return False
 
@@ -545,16 +544,16 @@ def main():
         try:
             notify_email(
                 "Ciccio — errore nel ciclo autonomo",
-                "Il ciclo automatico non è riuscito.\\nFase: " + stage
-                + "\\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:900]
-                + "\\nL'errore è stato registrato in Supabase quando possibile.\\n"
+                "Il ciclo automatico non è riuscito.\nFase: " + stage
+                + "\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:900]
+                + "\nL'errore è stato registrato in Supabase quando possibile.\n"
                 "Il ciclo non viene ripetuto qui per evitare duplicare azioni."
             )
         except Exception as notify_exc:
             print("Notifica email errore non riuscita: " + str(notify_exc)[:200])
         notify_telegram(
-            "Ciccio — errore nel ciclo autonomo\\nFase: " + stage
-            + "\\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:700]
+            "Ciccio — errore nel ciclo autonomo\nFase: " + stage
+            + "\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:700]
         )
         raise
 
