@@ -144,7 +144,9 @@ def notify_telegram(message):
         print("Notifica Telegram inviata.")
         return True
     except Exception as exc:
-        print("Notifica Telegram non riuscita: " + (type(exc).__name__ + ": " + str(exc))[:250])
+        # The Telegram bot token is part of the request URL; never print it in workflow logs.
+        safe_detail = str(exc).replace(token, "[REDACTED]")[:180]
+        print("Notifica Telegram non riuscita: " + type(exc).__name__ + ": " + safe_detail)
         return False
 
 
