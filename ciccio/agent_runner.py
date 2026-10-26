@@ -22,18 +22,23 @@ def notify_email(subject, message):
 
     def clean(value):
         value = unicodedata.normalize("NFKC", str(value or ""))
-        # Convert every Unicode separator/control whitespace to plain ASCII spaces.
-        value = "".join(" " if ch.isspace() or unicodedata.category(ch).startswith("Z") else ch
-                        for ch in value)
-        value = value.replace("\\u00a0", " ").strip()
-        return re.sub(r" +", " ", value)
+        # NBSP often enters GitHub Secrets through copy/paste; remove it explicitly.
+        value = value.replace("\u00a0", " ").replace("\u202f", " ").replace("\u2007", " ")
+        value = "".join(
+            " " if ch.isspace() or unicodedata.category(ch).startswith("Z") else ch
+            for ch in value
+        )
+        return re.sub(r" +", " ", value).strip()
 
     def ascii_setting(label, value):
         value = clean(value)
         try:
             value.encode("ascii")
         except UnicodeEncodeError as exc:
-            raise ValueError(f"{label} contiene caratteri non ASCII (posizione {exc.start}); correggi il secret GitHub Actions.")
+            raise ValueError(
+                f"{label} contiene caratteri non ASCII alla posizione {exc.start}; "
+                "correggi il secret GitHub Actions."
+            ) from None
         return value
 
     stage = "lettura configurazione"
@@ -54,7 +59,9 @@ def notify_email(subject, message):
         email["Subject"] = safe_subject
         email["From"] = sender
         email["To"] = recipient
+        # Normalize all body whitespace before MIME encoding; never pass NBSP onward.
         body = clean(message)
+        body = body.encode("ascii", "backslashreplace").decode("ascii")
         email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
 
         stage = "connessione SMTP"
@@ -72,7 +79,6 @@ def notify_email(subject, message):
         detail = str(exc).encode("ascii", "backslashreplace").decode("ascii")
         print(f"Invio email non riuscito durante {stage} ({type(exc).__name__}): {detail}")
         return False
-
 def required_env(name):
     value = os.getenv(name, "").strip()
     if not value:
