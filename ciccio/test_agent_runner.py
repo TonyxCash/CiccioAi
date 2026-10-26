@@ -1,9 +1,9 @@
 import json
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent
+from agent_runner import ask_agent, groq_completion_with_retry
 
 
 def fake_groq_response(text):
@@ -58,6 +58,28 @@ class AskAgentValidationTests(unittest.TestCase):
         plan = ask_agent(fake_groq_response(json.dumps(plan_data)), [], [], [])
         self.assertEqual(plan["action_type"], "create_task")
         self.assertEqual(plan["action_title"], "Verificare gli annunci salvati")
+
+
+class GroqRetryTests(unittest.TestCase):
+    def test_transient_connection_error_is_retried(self):
+        groq = Mock()
+        expected = object()
+        groq.chat.completions.create.side_effect = [ConnectionError("temporary network issue"), expected]
+        with patch("agent_runner.time.sleep") as sleep:
+            result = groq_completion_with_retry(groq, model="test", messages=[])
+        self.assertIs(result, expected)
+        self.assertEqual(groq.chat.completions.create.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+    def test_non_transient_error_is_not_retried(self):
+        groq = Mock()
+        groq.chat.completions.create.side_effect = ValueError("invalid request")
+        with patch("agent_runner.time.sleep") as sleep:
+            with self.assertRaises(ValueError):
+                groq_completion_with_retry(groq, model="test", messages=[])
+        self.assertEqual(groq.chat.completions.create.call_count, 1)
+        sleep.assert_not_called()
+
 
 
 if __name__ == "__main__":
