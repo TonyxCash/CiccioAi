@@ -62,7 +62,7 @@ Nel repository GitHub, in **Settings → Secrets and variables → Actions**, co
 
 Esegui lo schema SQL di `ciccio/agent_schema.sql` nel progetto Supabase prima del primo ciclo. Non mettere mai chiavi segrete nel codice o in file pubblici.
 
-Per collegare anche la dashboard Streamlit, configura nei Secrets di Streamlit `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CICCIO_USER_ID` e una password robusta in `CICCIO_APP_PASSWORD`. La dashboard usa `SUPABASE_URL`; nel workflow GitHub il secret del progetto si chiama invece `SUPABASE_PROJECT_URL` e viene passato allo script come `SUPABASE_URL`. Usa lo stesso UUID utente per `CICCIO_USER_ID` in entrambi gli ambienti.
+Per collegare anche la dashboard Streamlit, configura nei Secrets di Streamlit `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CICCIO_USER_ID` e una password robusta in `CICCIO_APP_PASSWORD`. Quando la chiave service-role è presente, la password protegge tutte le sezioni della dashboard, non soltanto i cicli. La dashboard usa `SUPABASE_URL`; nel workflow GitHub il secret del progetto si chiama invece `SUPABASE_PROJECT_URL` e viene passato allo script come `SUPABASE_URL`. Usa lo stesso UUID utente per `CICCIO_USER_ID` in entrambi gli ambienti.
 
 ### Limiti e sicurezza
 
