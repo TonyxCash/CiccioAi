@@ -5,6 +5,7 @@ create/update tasks and save durable memories. External actions require approval
 import json
 import os
 import smtplib
+import time
 from email.message import EmailMessage
 from datetime import datetime, timezone
 
@@ -12,6 +13,26 @@ from groq import Groq
 from supabase import create_client
 
 MODEL = "openai/gpt-oss-20b"
+
+
+def groq_completion_with_retry(groq, *, attempts=3, **kwargs):
+    """Retry only transient Groq/API transport failures; never repeat database actions."""
+    for attempt in range(attempts):
+        try:
+            return groq.chat.completions.create(**kwargs)
+        except Exception as exc:
+            status = getattr(exc, "status_code", None)
+            name = type(exc).__name__.lower()
+            transient = (
+                status == 429
+                or (isinstance(status, int) and status >= 500)
+                or any(token in name for token in ("timeout", "connection", "temporarilyunavailable"))
+            )
+            if not transient or attempt >= attempts - 1:
+                raise
+            delay = min(2 ** attempt, 4)
+            print(f"Errore temporaneo Groq ({type(exc).__name__}); nuovo tentativo tra {delay}s ({attempt + 2}/{attempts}).")
+            time.sleep(delay)
 
 
 def notify_email(subject, message):
@@ -119,7 +140,8 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
         + "\nULTIMI CICLI:\n" + json.dumps(previous, ensure_ascii=False)[:8000]
         + "\nScegli ed esegui un solo passo sicuro. Evita duplicati."
     )
-    response = groq.chat.completions.create(
+    response = groq_completion_with_retry(
+        groq,
         model=MODEL,
         messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
         temperature=0.2,
@@ -220,7 +242,8 @@ def execute_task(db, groq, open_tasks, user_id):
         "azioni esterne mai eseguite. Rispondi in italiano, in testo semplice.\n\n"
         "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
     )
-    response = groq.chat.completions.create(
+    response = groq_completion_with_retry(
+        groq,
         model=MODEL,
         messages=[
             {"role": "system", "content": "Crea un deliverable concreto, completo e pronto all'uso."},
