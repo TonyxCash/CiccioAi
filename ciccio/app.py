@@ -336,7 +336,7 @@ elif section == "Cicli automatici":
                 for run in runs:
                     created = str(run.get("created_at", ""))[:16].replace("T", " ")
                     with st.expander(f"{created} · {run.get('status', 'sconosciuto')} · {run.get('goal', 'Senza obiettivo')[:90]}"):
-                        st.markdown("**Azione proposta**")
+                        st.markdown("**Azione eseguita o tentata**")
                         st.write(run.get("action", ""))
                         st.markdown("**Perché**")
                         st.write(run.get("reason", ""))
