@@ -276,18 +276,21 @@ elif section == "Attività":
             tid, title, status, notes = task["id"], task["title"], task.get("status", "Da fare"), task.get("notes", "")
             with st.container(border=True):
                 st.markdown(f"**{title}**")
-                if notes:
-                    st.caption(notes)
+                edited_notes = st.text_area("Note e dettagli", value=notes, key=f"notes{tid}", height=100)
                 new_status = st.selectbox("Stato", ["Da fare", "In corso", "Completata", "Bloccata"], index=["Da fare","In corso","Completata","Bloccata"].index(status), key=f"status{tid}")
                 a, b = st.columns([3,1])
-                if a.button("Aggiorna stato", key=f"upd{tid}"):
+                if a.button("Salva modifiche", key=f"upd{tid}"):
                     if sb_tasks:
                         if not task_owner_id:
                             st.error("Manca CICCIO_USER_ID: modifica bloccata.")
                             st.stop()
-                        sb_tasks.table("ciccio_tasks").update({"status": new_status, "updated_at": datetime.now().isoformat(timespec="seconds")}).eq("id", tid).eq("user_id", task_owner_id).execute()
+                        sb_tasks.table("ciccio_tasks").update({
+                            "status": new_status,
+                            "notes": edited_notes.strip(),
+                            "updated_at": datetime.now().isoformat(timespec="seconds"),
+                        }).eq("id", tid).eq("user_id", task_owner_id).execute()
                     else:
-                        conn.execute("UPDATE tasks SET status=? WHERE id=?", (new_status, tid))
+                        conn.execute("UPDATE tasks SET status=?, notes=? WHERE id=?", (new_status, edited_notes.strip(), tid))
                         conn.commit()
                     st.rerun()
                 if b.button("Elimina", key=f"deltask{tid}"):
