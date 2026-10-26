@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry
+from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry, is_transient_error, record_failure
 
 
 def fake_groq_response(text):
@@ -102,6 +102,36 @@ class SupabaseReadRetryTests(unittest.TestCase):
                 execute_read_with_retry(query)
         self.assertEqual(query.execute.call_count, 1)
         sleep.assert_not_called()
+
+
+
+class FailureLoggingTests(unittest.TestCase):
+    def test_failure_record_uses_failed_status(self):
+        db = Mock()
+        db.table.return_value.insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "run-1"}]
+        )
+        ok = record_failure(
+            db,
+            "esecuzione azione",
+            RuntimeError("test failure"),
+            {"goal": "Test Ciccio", "action_type": "create_task", "action_title": "Test task"},
+        )
+        self.assertTrue(ok)
+        inserted_row = db.table.return_value.insert.call_args.args[0]
+        self.assertEqual(inserted_row["status"], "failed")
+        self.assertIn("esecuzione azione", inserted_row["reason"])
+        self.assertIn("test failure", inserted_row["result"])
+
+    def test_failure_logging_does_not_mask_database_error(self):
+        db = Mock()
+        db.table.return_value.insert.return_value.execute.side_effect = RuntimeError("database offline")
+        self.assertFalse(record_failure(db, "lettura", RuntimeError("original error")))
+        
+    def test_transient_classifier(self):
+        self.assertTrue(is_transient_error(TimeoutError("timeout")))
+        self.assertTrue(is_transient_error(ConnectionError("connection reset")))
+        self.assertFalse(is_transient_error(ValueError("invalid input")))
 
 
 if __name__ == "__main__":
