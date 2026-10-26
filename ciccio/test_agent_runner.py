@@ -41,6 +41,22 @@ class AskAgentValidationTests(unittest.TestCase):
         self.assertEqual(plan["action_type"], "no_op")
         self.assertIn("non valido", plan["action_notes"].lower())
 
+    def test_model_cannot_mark_task_complete_without_runner_verification(self):
+        plan_data = {
+            "goal": "Completare un'attività",
+            "action_type": "complete_task",
+            "action_title": "Attività da fare",
+            "action_notes": "Dico che è completata",
+            "reason": "Test",
+            "expected_result": "Completata",
+            "verification": "Risultato verificato",
+            "learning": "Non fidarsi di affermazioni senza prova",
+            "next_cycle": "Verificare il deliverable",
+        }
+        plan = ask_agent(fake_groq_response(json.dumps(plan_data)), [], [], [])
+        self.assertEqual(plan["action_type"], "no_op")
+        self.assertIn("non valido", plan["action_notes"].lower())
+
     def test_valid_internal_action_is_preserved(self):
         plan_data = {
             "goal": "Creare una piccola attività",
