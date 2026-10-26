@@ -307,7 +307,10 @@ def execute_task(db, groq, open_tasks, user_id):
     if len(deliverable) < 40:
         return {"status": "blocked", "result": "Output troppo breve: attività lasciata aperta."}
     old_notes = str(task.get("notes", "")).strip()
-    new_notes = (old_notes + "\n\nDeliverable creato da Ciccio:\n" + deliverable)[:3000]
+    deliverable_block = "Deliverable creato da Ciccio:\n" + deliverable
+    # Keep a short excerpt of the original request while reserving space for the result.
+    new_notes = ((old_notes[:500] + "\n\n") if old_notes else "") + deliverable_block
+    new_notes = new_notes[:3000]
     db.table("ciccio_tasks").update({
         "status": "Completata",
         "notes": new_notes,
@@ -318,7 +321,7 @@ def execute_task(db, groq, open_tasks, user_id):
         not check
         or check[0].get("status") != "Completata"
         or "Deliverable creato da Ciccio:" not in str(check[0].get("notes", ""))
-        or deliverable not in str(check[0].get("notes", ""))
+        or deliverable[:100] not in str(check[0].get("notes", ""))
     ):
         raise RuntimeError("Il deliverable è stato generato, ma il salvataggio o la chiusura non è stato verificato.")
     # Store the separate memory only after the task is safely marked complete.
