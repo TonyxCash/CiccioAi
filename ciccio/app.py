@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import hmac
 from datetime import datetime
 from pathlib import Path
 
@@ -38,6 +39,24 @@ div[data-testid="stMetric"] {background:#12353a;padding:16px;border-radius:14px;
 .stButton>button {border-radius:10px;border:1px solid #36b7a5}
 </style>
 """, unsafe_allow_html=True)
+
+# The service-role key bypasses Supabase RLS, so protect every section that can
+# read or mutate shared data, not just the cycle-history page.
+try:
+    _service_key_configured = bool(str(st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "")).strip())
+    _app_password = str(st.secrets.get("CICCIO_APP_PASSWORD", "")).strip()
+except Exception:
+    _service_key_configured = False
+    _app_password = ""
+
+if _service_key_configured:
+    if not _app_password:
+        st.error("Accesso bloccato: configura CICCIO_APP_PASSWORD nei Secrets prima di usare la chiave service-role.")
+        st.stop()
+    _entered_password = st.sidebar.text_input("Password di accesso a Ciccio", type="password", key="global_ciccio_password")
+    if not _entered_password or not hmac.compare_digest(_entered_password, _app_password):
+        st.info("Inserisci la password per accedere ai dati personali di Ciccio.")
+        st.stop()
 
 st.title("🧠 Ciccio")
 st.caption("Agente personale orientato a creare valore, ridurre i costi e imparare dal lavoro svolto.")
