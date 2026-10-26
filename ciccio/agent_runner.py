@@ -232,7 +232,7 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
             missing.append(key)
             plan[key] = defaults[key]
 
-    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "execute_task", "no_op"}
+    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}
     if missing:
         plan["action_type"] = "no_op"
         plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
