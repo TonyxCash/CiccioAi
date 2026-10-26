@@ -178,7 +178,7 @@ Scegli un'azione concreta, gratuita e verificabile. Non inventare risultati.
 Rispondi esclusivamente con JSON valido con:
 goal, action_type, action_title, action_notes, memory_kind, memory_content,
 reason, expected_result, verification, learning, next_cycle.
-action_type deve essere uno fra "create_task", "save_memory", "complete_task", "audit_project", "no_op".
+action_type deve essere uno fra "create_task", "save_memory", "audit_project", "no_op". Non segnare attività come completate solo sulla base di una tua affermazione: l'agente le completa esclusivamente dopo aver prodotto e salvato un deliverable verificabile.
 Per complete_task, action_title deve corrispondere esattamente al titolo di un'attività aperta.
 Per create_task, action_title deve essere un'attività piccola e verificabile, non generica.
 Per save_memory, memory_content deve contenere una deduzione concreta utile ai cicli futuri.
@@ -232,7 +232,7 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
             missing.append(key)
             plan[key] = defaults[key]
 
-    allowed_actions = {"create_task", "save_memory", "complete_task", "audit_project", "no_op"}
+    allowed_actions = {"create_task", "save_memory", "audit_project", "no_op"}
     if missing:
         plan["action_type"] = "no_op"
         plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
