@@ -162,6 +162,42 @@ def rows(db, table, columns, limit, order="created_at", user_id=None):
     return execute_read_with_retry(query.order(order, desc=True).limit(limit)).data or []
 
 
+def failed_task_attempts(task, previous):
+    """Count recent blocked/failed executions for this task since its last manual update."""
+    title = str(task.get("title", "")).strip()
+    if not title:
+        return 0
+    prefix = "execute_task: " + title
+    updated_at = None
+    try:
+        updated_raw = str(task.get("updated_at", "")).replace("Z", "+00:00")
+        if updated_raw:
+            updated_at = datetime.fromisoformat(updated_raw)
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        updated_at = None
+
+    count = 0
+    for run in previous:
+        if run.get("status") not in {"blocked", "failed"}:
+            continue
+        if not str(run.get("action", "")).startswith(prefix):
+            continue
+        if updated_at is not None:
+            try:
+                run_raw = str(run.get("created_at", "")).replace("Z", "+00:00")
+                run_at = datetime.fromisoformat(run_raw)
+                if run_at.tzinfo is None:
+                    run_at = run_at.replace(tzinfo=timezone.utc)
+                if run_at <= updated_at:
+                    continue
+            except (TypeError, ValueError):
+                pass
+        count += 1
+    return count
+
+
 def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
