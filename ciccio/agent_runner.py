@@ -170,10 +170,11 @@ Missione pratica: aiutare a migliorare ListingAI e le attività operative di ven
 privilegiando risultati utilizzabili, budget minimo e progressi misurabili. Usa le memorie e le attività
 come fonte primaria del contesto; non inventare dati di mercato, risultati o preferenze.
 Non ripetere un'attività già completata o un piano recente senza una ragione esplicita.
-Hai autorizzazione a operare SOLO nel tuo database: creare una singola attività interna,
-completare un'attività interna solo se i dati dimostrano che è davvero conclusa, oppure
-salvare una memoria utile. Non hai autorizzazione per pubblicare, contattare persone,
-spendere denaro, cambiare account, modificare repository o agire su servizi esterni.
+Hai autorizzazione a operare SOLO nel tuo database: creare una singola attività interna
+oppure salvare una memoria utile. Non dichiarare completata un'attività sulla sola base del piano:
+il runner la completa soltanto dopo aver prodotto e verificato un deliverable salvato.
+Non hai autorizzazione per pubblicare, contattare persone, spendere denaro, cambiare account,
+modificare repository o agire su servizi esterni.
 Scegli un'azione concreta, gratuita e verificabile. Non inventare risultati.
 Rispondi esclusivamente con JSON valido con:
 goal, action_type, action_title, action_notes, memory_kind, memory_content,
