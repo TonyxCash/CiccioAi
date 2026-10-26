@@ -486,10 +486,32 @@ def main():
                         "created_at,status,goal,action,reason,result,verification", 12)
         memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
         tasks = execute_read_with_retry(
-            db.table("ciccio_tasks").select("id,created_at,title,status,notes")
-            .eq("user_id", user_id).neq("status", "Completata")
+            db.table("ciccio_tasks").select("id,created_at,updated_at,title,status,notes")
+            .eq("user_id", user_id).neq("status", "Completata").neq("status", "Bloccata")
             .order("created_at", desc=True).limit(30)
         ).data or []
+
+        # Pause a task after three recent failures; a later manual edit resets its retry window.
+        active_tasks = []
+        for task in tasks:
+            if failed_task_attempts(task, previous) >= 3:
+                pause_note = "Ciccio: attività sospesa automaticamente dopo 3 tentativi falliti. Correggi le note e reimposta lo stato per riprovare."
+                updated_notes = (str(task.get("notes", "")).strip() + "\\n\\n" + pause_note).strip()[:3000]
+                db.table("ciccio_tasks").update({
+                    "status": "Bloccata",
+                    "notes": updated_notes,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", task["id"]).eq("user_id", user_id).neq("status", "Completata").execute()
+                check = execute_read_with_retry(
+                    db.table("ciccio_tasks").select("status,notes")
+                    .eq("id", task["id"]).eq("user_id", user_id).limit(1)
+                ).data or []
+                if not check or check[0].get("status") != "Bloccata" or pause_note not in str(check[0].get("notes", "")):
+                    raise RuntimeError("La sospensione dell'attività dopo tentativi falliti non è stata verificata.")
+                print("Attività sospesa dopo tre tentativi falliti: " + str(task.get("title", ""))[:150])
+            else:
+                active_tasks.append(task)
+        tasks = active_tasks
 
         stage = "pianificazione AI"
         plan = ask_agent(groq, memories, tasks, previous)
