@@ -300,8 +300,12 @@ def execute_internal_action(db, plan, open_tasks, user_id):
     title = str(plan["action_title"]).strip()[:180]
     notes = str(plan["action_notes"]).strip()[:1500]
     if kind == "create_task":
-        if any(str(t.get("title","")).casefold() == title.casefold() for t in open_tasks):
-            return "blocked", "Attività non creata: esiste già un'attività aperta con lo stesso titolo."
+        existing_tasks = execute_read_with_retry(
+            db.table("ciccio_tasks").select("title,status")
+            .eq("user_id", user_id).order("created_at", desc=True).limit(100)
+        ).data or []
+        if any(str(t.get("title", "")).strip().casefold() == title.casefold() for t in existing_tasks):
+            return "blocked", "Attività non creata: esiste già un'attività con lo stesso titolo, anche se completata."
         result = db.table("ciccio_tasks").insert({
             "user_id": user_id, "title": title, "status": "Da fare", "notes": notes
         }).execute()
@@ -312,9 +316,17 @@ def execute_internal_action(db, plan, open_tasks, user_id):
         memory = str(plan.get("memory_content", "")).strip()
         if not memory:
             return "blocked", "Memoria non salvata: contenuto vuoto."
+        memory_kind = str(plan.get("memory_kind", "apprendimento_agente"))[:80]
+        existing_memories = execute_read_with_retry(
+            db.table("ciccio_memories").select("id")
+            .eq("user_id", user_id).eq("kind", memory_kind)
+            .eq("content", memory[:3000]).limit(1)
+        ).data or []
+        if existing_memories:
+            return "blocked", "Memoria non duplicata: esiste già un record identico."
         result = db.table("ciccio_memories").insert({
             "user_id": user_id,
-            "kind": str(plan.get("memory_kind", "apprendimento_agente"))[:80],
+            "kind": memory_kind,
             "content": memory[:3000],
         }).execute()
         if not result.data:
