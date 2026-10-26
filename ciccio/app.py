@@ -308,6 +308,7 @@ elif section == "Attività":
 elif section == "Cicli automatici":
     st.subheader("Cicli automatici di Ciccio")
     st.caption("Questi dati arrivano da GitHub Actions e Supabase: mostra gli esiti, le attività svolte e i fallimenti registrati. Apri ogni ciclo per leggerne il dettaglio.")
+    st.markdown("[Apri GitHub Actions per avviare o controllare un ciclo](https://github.com/TonyxCash/ListingAI/actions/workflows/ciccio-agent.yml)")
     supabase_url = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
     supabase_key = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
     if not supabase_url or not supabase_key:
