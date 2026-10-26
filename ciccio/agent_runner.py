@@ -271,13 +271,6 @@ def execute_task(db, groq, open_tasks, user_id):
     deliverable = (response.choices[0].message.content or "").strip()
     if len(deliverable) < 40:
         return {"status": "blocked", "result": "Output troppo breve: attività lasciata aperta."}
-    saved_memory = db.table("ciccio_memories").insert({
-        "user_id": user_id,
-        "kind": "deliverable",
-        "content": ("Attività: " + title + "\n\n" + deliverable)[:3000],
-    }).execute()
-    if not saved_memory.data:
-        raise RuntimeError("Supabase non ha confermato il salvataggio del deliverable.")
     old_notes = str(task.get("notes", "")).strip()
     new_notes = (old_notes + "\n\nDeliverable creato da Ciccio:\n" + deliverable)[:3000]
     db.table("ciccio_tasks").update({
@@ -287,8 +280,17 @@ def execute_task(db, groq, open_tasks, user_id):
     }).eq("id", task["id"]).eq("user_id", user_id).execute()
     check = execute_read_with_retry(db.table("ciccio_tasks").select("status").eq("id", task["id"]).eq("user_id", user_id).limit(1)).data or []
     if not check or check[0].get("status") != "Completata":
-        raise RuntimeError("Il deliverable è salvato, ma la verifica della chiusura attività è fallita.")
-    return {"status": "completed", "result": "Deliverable creato e salvato in Memorie; attività completata: " + title + "\n\n" + deliverable}
+        raise RuntimeError("Il deliverable è stato generato, ma la verifica della chiusura attività è fallita.")
+    # Store the separate memory only after the task is safely marked complete.
+    # If this insert fails, the deliverable remains in task notes and won't be regenerated next cycle.
+    saved_memory = db.table("ciccio_memories").insert({
+        "user_id": user_id,
+        "kind": "deliverable",
+        "content": ("Attività: " + title + "\n\n" + deliverable)[:3000],
+    }).execute()
+    if not saved_memory.data:
+        raise RuntimeError("Attività completata e deliverable presente nelle note, ma memoria separata non confermata.")
+    return {"status": "completed", "result": "Deliverable creato, salvato nelle note dell'attività e in Memorie; attività completata: " + title + "\n\n" + deliverable}
 
 
 def execute_internal_action(db, plan, open_tasks, user_id):
@@ -335,11 +337,13 @@ def execute_internal_action(db, plan, open_tasks, user_id):
             else:
                 findings.append(f"{label}: MANCANTE")
         report = "Controllo locale del repository:\n" + "\n".join(findings)
-        db.table("ciccio_memories").insert({
+        audit_saved = db.table("ciccio_memories").insert({
             "user_id": user_id,
             "kind": "audit_progetto",
             "content": report[:3000],
         }).execute()
+        if not audit_saved.data:
+            raise RuntimeError("Supabase non ha confermato il salvataggio del rapporto di audit.")
         missing = [label for label, path in checks.items() if not path.exists()]
         if missing:
             return "blocked", report + "\nDa correggere: " + ", ".join(missing)
