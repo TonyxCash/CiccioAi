@@ -44,7 +44,7 @@ streamlit run app.py
 
 ## Ciccio — agente autonomo
 
-Ciccio es un agente separado de la demo ListingAI. Su ciclo è eseguito da GitHub Actions ogni sei ore e può essere avviato manualmente dalla scheda **Actions**.
+Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito da GitHub Actions ogni sei ore e può essere avviato manualmente dalla scheda **Actions**.
 
 ### Funzioni implementate
 
@@ -53,7 +53,7 @@ Ciccio es un agente separado de la demo ListingAI. Su ciclo è eseguito da GitHu
 - Genera risultati concreti per le attività aperte e li salva nelle note dell'attività e in Memorie.
 - Verifica la chiusura delle attività prima di considerarle completate.
 - Ritenta fino a tre volte le chiamate Groq e le letture Supabase in caso di errori temporanei riconosciuti.
-- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile e prova a inviare una notifica email.
+- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile e prova a inviare notifiche email e Telegram se configurate.
 - Esegue test automatici di sicurezza prima di avviare il ciclo.
 
 ### Configurazione richiesta
