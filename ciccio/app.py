@@ -314,10 +314,11 @@ elif section == "Cicli automatici":
                         completed = sum(1 for run in runs if run.get("status") == "completed")
                         planned = sum(1 for run in runs if run.get("status") == "planned")
                         blocked = sum(1 for run in runs if run.get("status") in ("blocked", "failed"))
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Piani recenti", len(runs))
-                        m2.metric("In attesa", planned)
-                        m3.metric("Bloccati / falliti", blocked)
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("Cicli registrati", len(runs))
+                        m2.metric("Completati", completed)
+                        m3.metric("In attesa", planned)
+                        m4.metric("Bloccati / falliti", blocked)
                         for run in runs:
                             created = str(run.get("created_at", ""))[:16].replace("T", " ")
                             with st.expander(f"{created} · {run.get('status', 'sconosciuto')} · {run.get('goal', 'Senza obiettivo')[:90]}"):
