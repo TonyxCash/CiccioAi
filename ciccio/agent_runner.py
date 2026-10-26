@@ -508,7 +508,7 @@ def main():
             raise RuntimeError("Supabase non ha confermato il salvataggio del ciclo.")
 
         stage = "salvataggio apprendimento"
-        db.table("ciccio_memories").insert({
+        learning_saved = db.table("ciccio_memories").insert({
             "user_id": user_id,
             "kind": "apprendimento_agente",
             "content": json.dumps({
@@ -517,6 +517,8 @@ def main():
                 "learning": learning, "next_cycle": next_cycle,
             }, ensure_ascii=False),
         }).execute()
+        if not learning_saved.data:
+            raise RuntimeError("Supabase non ha confermato il salvataggio dell'apprendimento.")
 
         stage = "notifica email"
         notification = (
