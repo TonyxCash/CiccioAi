@@ -58,7 +58,7 @@ Ciccio es un agente separado de la demo ListingAI. Su ciclo è eseguito da GitHu
 
 ### Configurazione richiesta
 
-Nel repository GitHub, in **Settings → Secrets and variables → Actions**, configura i secret usati dal workflow: `GROQ_API_KEY`, `SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CICCIO_USER_ID`. Per le notifiche email sono facoltativi `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO` ed `EMAIL_FROM`.
+Nel repository GitHub, in **Settings → Secrets and variables → Actions**, configura i secret usati dal workflow: `GROQ_API_KEY`, `SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CICCIO_USER_ID`. Per le notifiche sono facoltativi `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO`, `EMAIL_FROM`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. Email e Telegram inviano solo riepiloghi al destinatario/chat configurati; un errore di notifica non annulla un'azione già salvata.
 
 Esegui lo schema SQL di `ciccio/agent_schema.sql` nel progetto Supabase prima del primo ciclo. Non mettere mai chiavi segrete nel codice o in file pubblici.
 
