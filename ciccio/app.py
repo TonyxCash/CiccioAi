@@ -69,16 +69,17 @@ if section == "Conversazione":
                 sb = None
                 supabase_url = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
                 supabase_key = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
-                if supabase_url and supabase_key:
+                ciccio_owner_id = str(st.secrets.get("CICCIO_USER_ID", "")).strip() if hasattr(st, "secrets") else ""
+                if supabase_url and supabase_key and ciccio_owner_id:
                     try:
                         from supabase import create_client
                         sb = create_client(supabase_url, supabase_key)
                         memory_rows = (sb.table("ciccio_memories").select(
                             "created_at,kind,content"
-                        ).order("created_at", desc=True).limit(25).execute().data or [])
+                        ).eq("user_id", ciccio_owner_id).order("created_at", desc=True).limit(25).execute().data or [])
                         task_rows = (sb.table("ciccio_tasks").select(
                             "title,status,notes"
-                        ).neq("status", "Completata").limit(15).execute().data or [])
+                        ).eq("user_id", ciccio_owner_id).neq("status", "Completata").limit(15).execute().data or [])
                         memory_context = "\\n".join(
                             f"- [{str(x.get('created_at',''))[:16]}] {x.get('kind','Nota')}: {str(x.get('content',''))[:500]}"
                             for x in reversed(memory_rows)
@@ -141,11 +142,11 @@ if section == "Conversazione":
         now = datetime.now().isoformat(timespec="seconds")
         # Salva conversazione nella memoria persistente condivisa.
         saved_remote = False
-        if 'sb' in locals() and sb is not None:
+        if 'sb' in locals() and sb is not None and locals().get("ciccio_owner_id"):
             try:
                 sb.table("ciccio_memories").insert([
-                    {"kind": "conversazione", "content": "Utente: " + prompt[:4000]},
-                    {"kind": "risposta_assistente", "content": answer[:4000]}
+                    {"user_id": ciccio_owner_id, "kind": "conversazione", "content": "Utente: " + prompt[:4000]},
+                    {"user_id": ciccio_owner_id, "kind": "risposta_assistente", "content": answer[:4000]}
                 ]).execute()
                 saved_remote = True
             except Exception:
@@ -161,6 +162,7 @@ elif section == "Memoria":
     st.subheader("Memoria condivisa dell'agente")
     st.caption("La memoria usa la stessa tabella Supabase dei cicli automatici; SQLite resta come ripiego.")
     sb_ui = None
+    memory_owner_id = st.secrets.get("CICCIO_USER_ID", "").strip() if hasattr(st, "secrets") else ""
     try:
         u = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
         k = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
@@ -169,6 +171,8 @@ elif section == "Memoria":
             sb_ui = create_client(u, k)
     except Exception:
         sb_ui = None
+    if sb_ui and not memory_owner_id:
+        st.warning("Manca CICCIO_USER_ID nei Secrets di Streamlit: le memorie non possono essere condivise con l’agente in sicurezza.")
     with st.form("memory_form", clear_on_submit=True):
         kind = st.selectbox("Tipo", ["Decisione", "Preferenza", "Idea", "Risultato", "Nota"])
         content = st.text_area("Contenuto", placeholder="Scrivi una nota utile per il progetto…")
@@ -176,7 +180,10 @@ elif section == "Memoria":
     if submitted and content.strip():
         try:
             if sb_ui:
-                sb_ui.table("ciccio_memories").insert({"kind": kind, "content": content.strip()}).execute()
+                if not memory_owner_id:
+                    st.error("Configura CICCIO_USER_ID nei Secrets di Streamlit prima di salvare memorie condivise.")
+                    st.stop()
+                sb_ui.table("ciccio_memories").insert({"user_id": memory_owner_id, "kind": kind, "content": content.strip()}).execute()
             else:
                 conn.execute("INSERT INTO memories(created_at,kind,content) VALUES(?,?,?)", (datetime.now().isoformat(timespec="seconds"), kind, content.strip()))
                 conn.commit()
@@ -187,7 +194,7 @@ elif section == "Memoria":
             st.caption(str(e)[:200])
     try:
         if sb_ui:
-            rows = sb_ui.table("ciccio_memories").select("id,created_at,kind,content").order("created_at", desc=True).limit(100).execute().data or []
+            rows = sb_ui.table("ciccio_memories").select("id,created_at,kind,content").eq("user_id", memory_owner_id).order("created_at", desc=True).limit(100).execute().data or []
         else:
             rows = [{"id": rid, "created_at": created, "kind": k, "content": body} for rid, created, k, body in conn.execute("SELECT id,created_at,kind,content FROM memories WHERE kind NOT LIKE 'finanza:%' ORDER BY id DESC LIMIT 100").fetchall()]
         for item in rows:
@@ -196,7 +203,7 @@ elif section == "Memoria":
                 st.write(body)
                 if st.button("Elimina", key=f"delmem{rid}"):
                     if sb_ui:
-                        sb_ui.table("ciccio_memories").delete().eq("id", rid).execute()
+                        sb_ui.table("ciccio_memories").delete().eq("id", rid).eq("user_id", memory_owner_id).execute()
                     else:
                         conn.execute("DELETE FROM memories WHERE id=?", (rid,))
                         conn.commit()
