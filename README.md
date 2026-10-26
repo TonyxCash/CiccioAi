@@ -53,7 +53,7 @@ Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito d
 - Genera risultati concreti per le attività aperte e li salva nelle note dell'attività e in Memorie.
 - Verifica la chiusura delle attività prima di considerarle completate.
 - Ritenta fino a tre volte le chiamate Groq e le letture Supabase in caso di errori temporanei riconosciuti.
-- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile, prova a inviare notifiche email e Telegram se configurate e sospende un'attività dopo tre tentativi falliti consecutivi.
+- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile, prova a inviare notifiche email e Telegram se configurate e sospende un'attività dopo tre tentativi falliti senza una modifica manuale nel frattempo.
 - Esegue test automatici di sicurezza prima di avviare il ciclo.
 
 ### Configurazione richiesta
