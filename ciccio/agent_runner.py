@@ -116,6 +116,39 @@ def notify_email(subject, message):
         detail = str(exc).encode("ascii", "backslashreplace").decode("ascii")
         print(f"Invio email non riuscito durante {stage} ({type(exc).__name__}): {detail}")
         return False
+def notify_telegram(message):
+    """Send a status alert only when the owner explicitly configured bot credentials."""
+    import urllib.error
+    import urllib.request
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        return False
+    payload = json.dumps({
+        "chat_id": chat_id,
+        "text": str(message or "")[:3500],
+        "disable_web_page_preview": True,
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.telegram.org/bot" + token + "/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        if not result.get("ok"):
+            print("Notifica Telegram non confermata dall'API.")
+            return False
+        print("Notifica Telegram inviata.")
+        return True
+    except (Exception, urllib.error.URLError) as exc:
+        print("Notifica Telegram non riuscita: " + (type(exc).__name__ + ": " + str(exc))[:250])
+        return False
+
+
 def required_env(name):
     value = os.getenv(name, "").strip()
     if not value:
@@ -500,6 +533,7 @@ def main():
         except Exception as exc:
             # Un errore di notifica non annulla il ciclo già salvato.
             print("Invio email non riuscito: " + str(exc)[:250])
+        notify_telegram(notification)
         print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
                           "status": row["status"], "action": row["action"],
                           "result": row["result"]}, ensure_ascii=False, indent=2))
@@ -517,7 +551,11 @@ def main():
                 "Il ciclo non viene ripetuto qui per evitare duplicare azioni."
             )
         except Exception as notify_exc:
-            print("Notifica errore non riuscita: " + str(notify_exc)[:200])
+            print("Notifica email errore non riuscita: " + str(notify_exc)[:200])
+        notify_telegram(
+            "Ciccio — errore nel ciclo autonomo\\nFase: " + stage
+            + "\\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:700]
+        )
         raise
 
 
