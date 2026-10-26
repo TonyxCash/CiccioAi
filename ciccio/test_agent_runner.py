@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry, is_transient_error, record_failure
+from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram
 
 
 def fake_groq_response(text):
@@ -132,6 +132,13 @@ class FailureLoggingTests(unittest.TestCase):
         self.assertTrue(is_transient_error(TimeoutError("timeout")))
         self.assertTrue(is_transient_error(ConnectionError("connection reset")))
         self.assertFalse(is_transient_error(ValueError("invalid input")))
+
+
+
+class TelegramNotificationTests(unittest.TestCase):
+    def test_telegram_is_optional_without_credentials(self):
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""}):
+            self.assertFalse(notify_telegram("test message"))
 
 
 if __name__ == "__main__":
