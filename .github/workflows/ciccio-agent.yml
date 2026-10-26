@@ -45,3 +45,14 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: python ciccio/agent_runner.py
+      - name: Publish cycle status summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Ciccio autonomous cycle"
+            echo "- Workflow result: ${JOB_STATUS}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- The detailed execution log is available in the job output."
+          } >> "${GITHUB_STEP_SUMMARY}"
