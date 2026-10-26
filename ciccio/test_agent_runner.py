@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent, execute_read_with_retry, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram
+from agent_runner import ask_agent, execute_read_with_retry, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram
 
 
 def fake_groq_response(text):
@@ -149,6 +149,40 @@ class FailureLoggingTests(unittest.TestCase):
         self.assertTrue(is_transient_error(ConnectionError("connection reset")))
         self.assertFalse(is_transient_error(ValueError("invalid input")))
 
+
+
+class FailedTaskAttemptTests(unittest.TestCase):
+    def test_counts_only_failures_since_last_task_update(self):
+        task = {
+            "title": "Generare annuncio",
+            "updated_at": "2026-10-26T10:00:00+00:00",
+        }
+        history = [
+            {"created_at": "2026-10-26T09:00:00+00:00", "status": "failed",
+             "action": "execute_task: Generare annuncio"},
+            {"created_at": "2026-10-26T11:00:00+00:00", "status": "blocked",
+             "action": "execute_task: Generare annuncio — output breve"},
+            {"created_at": "2026-10-26T12:00:00+00:00", "status": "failed",
+             "action": "execute_task: Generare annuncio — timeout"},
+            {"created_at": "2026-10-26T13:00:00+00:00", "status": "completed",
+             "action": "execute_task: Generare annuncio"},
+        ]
+        self.assertEqual(failed_task_attempts(task, history), 2)
+
+    def test_manual_task_update_resets_failure_window(self):
+        task = {
+            "title": "Generare annuncio",
+            "updated_at": "2026-10-26T14:00:00+00:00",
+        }
+        history = [
+            {"created_at": "2026-10-26T11:00:00+00:00", "status": "failed",
+             "action": "execute_task: Generare annuncio"},
+            {"created_at": "2026-10-26T12:00:00+00:00", "status": "blocked",
+             "action": "execute_task: Generare annuncio"},
+            {"created_at": "2026-10-26T13:00:00+00:00", "status": "failed",
+             "action": "execute_task: Generare annuncio"},
+        ]
+        self.assertEqual(failed_task_attempts(task, history), 0)
 
 
 class TelegramNotificationTests(unittest.TestCase):
