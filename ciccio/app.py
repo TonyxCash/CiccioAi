@@ -314,50 +314,42 @@ elif section == "Cicli automatici":
         st.warning("Per visualizzare i cicli qui, aggiungi SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nei Secrets di Streamlit. Non inserire mai queste chiavi nel codice GitHub o in chat.")
         st.markdown("[Apri il progetto Supabase](https://supabase.com/dashboard/project/hfwlqkrwiwlthpwuivqg/editor)")
     else:
-        # The service-role key bypasses RLS. Require a separate password gate before using it.
-        app_password = st.secrets.get("CICCIO_APP_PASSWORD", "") if hasattr(st, "secrets") else ""
-        if not app_password:
-            st.error("Accesso non protetto: prima di configurare la chiave service-role, imposta anche CICCIO_APP_PASSWORD nei Secrets di Streamlit.")
-        else:
-            entered = st.text_input("Password di accesso", type="password", key="ciccio_dashboard_password")
-            if entered and entered == app_password:
-                try:
-                    from supabase import create_client
-                    sb = create_client(supabase_url, supabase_key)
-                    runs = (sb.table("ciccio_agent_runs").select(
-                        "id,created_at,goal,action,reason,expected_result,verification,status,result,model"
-                    ).order("created_at", desc=True).limit(50).execute().data or [])
-                    if not runs:
-                        st.info("Nessun ciclo registrato ancora.")
-                    else:
-                        completed = sum(1 for run in runs if run.get("status") == "completed")
-                        planned = sum(1 for run in runs if run.get("status") == "planned")
-                        blocked = sum(1 for run in runs if run.get("status") in ("blocked", "failed"))
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Cicli registrati", len(runs))
-                        m2.metric("Completati", completed)
-                        m3.metric("In attesa", planned)
-                        m4.metric("Bloccati / falliti", blocked)
-                        for run in runs:
-                            created = str(run.get("created_at", ""))[:16].replace("T", " ")
-                            with st.expander(f"{created} · {run.get('status', 'sconosciuto')} · {run.get('goal', 'Senza obiettivo')[:90]}"):
-                                st.markdown("**Azione proposta**")
-                                st.write(run.get("action", ""))
-                                st.markdown("**Perché**")
-                                st.write(run.get("reason", ""))
-                                st.markdown("**Risultato atteso**")
-                                st.write(run.get("expected_result", ""))
-                                st.markdown("**Come verificarla**")
-                                st.write(run.get("verification", ""))
-                                st.markdown("**Esito registrato**")
-                                st.write(run.get("result", "Nessun esito registrato"))
-                                st.caption("Modello: " + str(run.get("model", "non indicato")))
-                        st.caption("Per sicurezza, questa schermata mostra i cicli ma non consente di approvare o eseguire azioni esterne.")
-                except Exception as e:
-                    st.error("Non riesco a leggere i cicli da Supabase. Verifica i Secrets e che la tabella ciccio_agent_runs esista.")
-                    st.caption(str(e)[:250])
-            elif entered:
-                st.error("Password non corretta.")
+        # Authentication has already been checked globally before any page is rendered.
+        try:
+            from supabase import create_client
+            sb = create_client(supabase_url, supabase_key)
+            runs = (sb.table("ciccio_agent_runs").select(
+                "id,created_at,goal,action,reason,expected_result,verification,status,result,model"
+            ).order("created_at", desc=True).limit(50).execute().data or [])
+            if not runs:
+                st.info("Nessun ciclo registrato ancora.")
+            else:
+                completed = sum(1 for run in runs if run.get("status") == "completed")
+                planned = sum(1 for run in runs if run.get("status") == "planned")
+                blocked = sum(1 for run in runs if run.get("status") in ("blocked", "failed"))
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Cicli registrati", len(runs))
+                m2.metric("Completati", completed)
+                m3.metric("In attesa", planned)
+                m4.metric("Bloccati / falliti", blocked)
+                for run in runs:
+                    created = str(run.get("created_at", ""))[:16].replace("T", " ")
+                    with st.expander(f"{created} · {run.get('status', 'sconosciuto')} · {run.get('goal', 'Senza obiettivo')[:90]}"):
+                        st.markdown("**Azione proposta**")
+                        st.write(run.get("action", ""))
+                        st.markdown("**Perché**")
+                        st.write(run.get("reason", ""))
+                        st.markdown("**Risultato atteso**")
+                        st.write(run.get("expected_result", ""))
+                        st.markdown("**Come verificarla**")
+                        st.write(run.get("verification", ""))
+                        st.markdown("**Esito registrato**")
+                        st.write(run.get("result", "Nessun esito registrato"))
+                        st.caption("Modello: " + str(run.get("model", "non indicato")))
+                st.caption("Per sicurezza, questa schermata mostra i cicli ma non consente di approvare o eseguire azioni esterne.")
+        except Exception as e:
+            st.error("Non riesco a leggere i cicli da Supabase. Verifica i Secrets e che la tabella ciccio_agent_runs esista.")
+            st.caption(str(e)[:250])
 
 else:
     st.subheader("Registro economico")
