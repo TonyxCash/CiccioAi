@@ -15,20 +15,36 @@ from supabase import create_client
 MODEL = "openai/gpt-oss-20b"
 
 
+def is_transient_error(exc):
+    status = getattr(exc, "status_code", None)
+    name = type(exc).__name__.lower()
+    return (
+        status in {408, 425, 429}
+        or (isinstance(status, int) and status >= 500)
+        or any(token in name for token in ("timeout", "connection", "temporarilyunavailable"))
+    )
+
+
+def execute_read_with_retry(query, *, attempts=3):
+    """Retry safe, read-only Supabase queries on transient transport/service errors."""
+    for attempt in range(attempts):
+        try:
+            return query.execute()
+        except Exception as exc:
+            if not is_transient_error(exc) or attempt >= attempts - 1:
+                raise
+            delay = min(2 ** attempt, 4)
+            print(f"Errore temporaneo nella lettura Supabase ({type(exc).__name__}); nuovo tentativo tra {delay}s.")
+            time.sleep(delay)
+
+
 def groq_completion_with_retry(groq, *, attempts=3, **kwargs):
     """Retry only transient Groq/API transport failures; never repeat database actions."""
     for attempt in range(attempts):
         try:
             return groq.chat.completions.create(**kwargs)
         except Exception as exc:
-            status = getattr(exc, "status_code", None)
-            name = type(exc).__name__.lower()
-            transient = (
-                status == 429
-                or (isinstance(status, int) and status >= 500)
-                or any(token in name for token in ("timeout", "connection", "temporarilyunavailable"))
-            )
-            if not transient or attempt >= attempts - 1:
+            if not is_transient_error(exc) or attempt >= attempts - 1:
                 raise
             delay = min(2 ** attempt, 4)
             print(f"Errore temporaneo Groq ({type(exc).__name__}); nuovo tentativo tra {delay}s ({attempt + 2}/{attempts}).")
@@ -111,7 +127,7 @@ def rows(db, table, columns, limit, order="created_at", user_id=None):
     query = db.table(table).select(columns)
     if user_id and table in {"ciccio_memories", "ciccio_tasks"}:
         query = query.eq("user_id", user_id)
-    return query.order(order, desc=True).limit(limit).execute().data or []
+    return execute_read_with_retry(query.order(order, desc=True).limit(limit)).data or []
 
 
 def ask_agent(groq, memories, tasks, previous):
@@ -210,7 +226,7 @@ def resolve_user_id(db):
     # Fallback only for installations where an existing row already has an owner.
     for table in ("ciccio_memories", "ciccio_tasks", "ciccio_agent_runs"):
         try:
-            found = db.table(table).select("user_id").not_.is_("user_id", "null").limit(1).execute().data or []
+            found = execute_read_with_retry(db.table(table).select("user_id").not_.is_("user_id", "null").limit(1)).data or []
             if found:
                 value = found[0].get("user_id")
                 if value and str(value).strip():
@@ -269,7 +285,7 @@ def execute_task(db, groq, open_tasks, user_id):
         "notes": new_notes,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", task["id"]).eq("user_id", user_id).execute()
-    check = db.table("ciccio_tasks").select("status").eq("id", task["id"]).eq("user_id", user_id).limit(1).execute().data or []
+    check = execute_read_with_retry(db.table("ciccio_tasks").select("status").eq("id", task["id"]).eq("user_id", user_id).limit(1)).data or []
     if not check or check[0].get("status") != "Completata":
         raise RuntimeError("Il deliverable è salvato, ma la verifica della chiusura attività è fallita.")
     return {"status": "completed", "result": "Deliverable creato e salvato in Memorie; attività completata: " + title + "\n\n" + deliverable}
@@ -340,7 +356,7 @@ def execute_internal_action(db, plan, open_tasks, user_id):
             "status": "Completata", "notes": (str(match.get("notes","")) + "\n" + notes)[:3000],
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", match["id"]).eq("user_id", user_id).execute()
-        check = db.table("ciccio_tasks").select("status").eq("id", match["id"]).eq("user_id", user_id).limit(1).execute().data or []
+        check = execute_read_with_retry(db.table("ciccio_tasks").select("status").eq("id", match["id"]).eq("user_id", user_id).limit(1)).data or []
         if not check or check[0].get("status") != "Completata":
             raise RuntimeError("Verifica del completamento non riuscita.")
         return "completed", "Attività completata e stato verificato nel database."
@@ -389,9 +405,11 @@ def main():
         previous = rows(db, "ciccio_agent_runs",
                         "created_at,status,goal,action,reason,result,verification", 12)
         memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
-        tasks = (db.table("ciccio_tasks").select("id,created_at,title,status,notes")
-                 .eq("user_id", user_id).neq("status", "Completata")
-                 .order("created_at", desc=True).limit(30).execute().data or [])
+        tasks = execute_read_with_retry(
+            db.table("ciccio_tasks").select("id,created_at,title,status,notes")
+            .eq("user_id", user_id).neq("status", "Completata")
+            .order("created_at", desc=True).limit(30)
+        ).data or []
 
         stage = "pianificazione AI"
         plan = ask_agent(groq, memories, tasks, previous)
@@ -474,6 +492,16 @@ def main():
               + (type(exc).__name__ + ": " + str(exc))[:1200])
         if db is not None:
             record_failure(db, stage, exc, plan)
+        try:
+            notify_email(
+                "Ciccio — errore nel ciclo autonomo",
+                "Il ciclo automatico non è riuscito.\\nFase: " + stage
+                + "\\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:900]
+                + "\\nL'errore è stato registrato in Supabase quando possibile.\\n"
+                "Il ciclo non viene ripetuto qui per evitare duplicare azioni."
+            )
+        except Exception as notify_exc:
+            print("Notifica errore non riuscita: " + str(notify_exc)[:200])
         raise
 
 
