@@ -404,26 +404,6 @@ def execute_internal_action(db, plan, open_tasks, user_id):
         if missing:
             return "blocked", report + "\nDa correggere: " + ", ".join(missing)
         return "completed", report + "\nVerifica completata: i file essenziali controllati sono presenti."
-    if kind == "complete_task":
-        match = next((t for t in open_tasks if str(t.get("title","")) == title), None)
-        if not match:
-            return "blocked", "Nessuna attività aperta corrisponde esattamente al titolo indicato."
-        # Completion is only permitted when the plan explains evidence in its notes.
-        evidence = (notes + " " + str(plan["verification"])).lower()
-        if not any(word in evidence for word in ("verificato", "verifica", "risultato", "confermato", "test")):
-            return "blocked", "Completamento bloccato: manca una verifica esplicita."
-        db.table("ciccio_tasks").update({
-            "status": "Completata", "notes": (str(match.get("notes","")) + "\n" + notes)[:3000],
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("id", match["id"]).eq("user_id", user_id).execute()
-        check = execute_read_with_retry(db.table("ciccio_tasks").select("status,notes").eq("id", match["id"]).eq("user_id", user_id).limit(1)).data or []
-        if (
-            not check
-            or check[0].get("status") != "Completata"
-            or notes not in str(check[0].get("notes", ""))
-        ):
-            raise RuntimeError("Verifica del completamento e delle note non riuscita.")
-        return "completed", "Attività completata e stato verificato nel database."
     return "blocked", "Nessuna azione eseguita: l'agente ha scelto no_op."
 
 
