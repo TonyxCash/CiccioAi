@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from agent_runner import ask_agent, execute_read_with_retry, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram
+from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, task_requires_market_evidence, task_search_queries
 
 
 def fake_groq_response(text):
@@ -185,6 +185,43 @@ class FailedTaskAttemptTests(unittest.TestCase):
              "action": "execute_task: Generare annuncio"},
         ]
         self.assertEqual(failed_task_attempts(task, history), 0)
+
+
+class MarketResearchGuardrailTests(unittest.TestCase):
+    def test_market_validation_uses_several_targeted_queries(self):
+        queries = task_search_queries(
+            "Validazione mercato — servizio contenuti LinkedIn",
+            "Verifica domanda, prezzi e concorrenti in Italia",
+        )
+        self.assertGreaterEqual(len(queries), 3)
+        self.assertTrue(any("LinkedIn" in query or "linkedin" in query for query in queries))
+
+    def test_market_validation_requires_evidence(self):
+        self.assertTrue(task_requires_market_evidence(
+            "Validazione mercato — servizio contenuti LinkedIn",
+            "Verifica la domanda e i prezzi pubblici",
+        ))
+        self.assertFalse(task_requires_market_evidence(
+            "Campione vendibile — 5 post LinkedIn",
+            "Scrivi cinque esempi pronti da consegnare",
+        ))
+
+    def test_collect_sources_deduplicates_real_urls(self):
+        from unittest.mock import patch
+        with patch("agent_runner.search_web", side_effect=[
+            [{"title": "Fonte A", "url": "https://example.com/a", "snippet": "Prezzi pubblici"}],
+            [{"title": "Fonte A duplicata", "url": "https://example.com/a", "snippet": "Duplicato"},
+             {"title": "Fonte B", "url": "https://example.com/b", "snippet": "Offerta pubblica"}],
+            [],
+        ]):
+            sources = collect_task_sources(
+                "Validazione mercato — servizio contenuti LinkedIn",
+                "Verifica domanda",
+                max_results=5,
+            )
+        self.assertEqual([item["url"] for item in sources], [
+            "https://example.com/a", "https://example.com/b"
+        ])
 
 
 class TelegramNotificationTests(unittest.TestCase):
