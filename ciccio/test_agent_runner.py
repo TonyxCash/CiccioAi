@@ -3,7 +3,7 @@ import json
 import unittest
 from contextlib import redirect_stdout
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, task_requires_market_evidence, task_search_queries
 
