@@ -219,7 +219,7 @@ class MarketResearchGuardrailTests(unittest.TestCase):
         diagnostic = "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite."
         read_query.execute.return_value = SimpleNamespace(data=[{
             "status": "Da fare",
-            "notes": "Richiesta originale\\n\\n" + diagnostic,
+            "notes": "Richiesta originale\n\n" + diagnostic,
         }])
         table.select.return_value = read_query
 
