@@ -271,6 +271,16 @@ elif section == "Memoria":
             rid, created, k, body = item["id"], str(item.get("created_at", "")), item.get("kind", "Nota"), item.get("content", "")
             with st.expander(f"{k} · {created[:16]}"):
                 st.write(body)
+                if str(k).casefold() in {"deliverable", "audit_progetto"}:
+                    import re
+                    safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(body).splitlines()[0] if body else "ciccio-risultato").strip("-")[:60] or "ciccio-risultato"
+                    st.download_button(
+                        "Scarica risultato (.txt)",
+                        data=str(body),
+                        file_name=f"{safe_name}.txt",
+                        mime="text/plain; charset=utf-8",
+                        key=f"downloadmem{rid}",
+                    )
                 if st.button("Elimina", key=f"delmem{rid}"):
                     if sb_ui:
                         sb_ui.table("ciccio_memories").delete().eq("id", rid).eq("user_id", memory_owner_id).execute()
