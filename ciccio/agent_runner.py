@@ -422,9 +422,13 @@ def next_profit_task(memories, task_history=None):
             review_base,
             "Rileggi i deliverable precedenti e prepara una decisione basata sulle prove raccolte: quale ipotesi è stata verificata, quali dati mancano e qual è il prossimo esperimento gratuito più piccolo. Non dichiarare vendite o clienti senza prova."
         )
-    review_count = sum(1 for title in existing_titles if title.startswith(review_base.casefold()))
+    numbered_reviews = []
+    for existing_title in existing_titles:
+        match = re.match(re.escape(review_base.casefold()) + r"\\s+#(\\d+)$", existing_title)
+        if match:
+            numbered_reviews.append(int(match.group(1)))
     return (
-        f"{review_base} #{review_count + 1}",
+        f"{review_base} #{max(numbered_reviews, default=0) + 1}",
         "Rivedi i risultati disponibili, scegli un esperimento gratuito diverso dai precedenti e definisci una verifica misurabile. Non dichiarare vendite o clienti senza prova."
     )
 
