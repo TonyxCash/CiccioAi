@@ -188,6 +188,39 @@ class FailedTaskAttemptTests(unittest.TestCase):
 
 
 class MarketResearchGuardrailTests(unittest.TestCase):
+    def test_market_validation_is_not_completed_without_sources(self):
+        db = Mock()
+        table = db.table.return_value
+        update_query = Mock()
+        update_query.eq.return_value = update_query
+        update_query.execute.return_value = SimpleNamespace(data=[{"id": "task-1"}])
+        table.update.return_value = update_query
+
+        read_query = Mock()
+        read_query.eq.return_value = read_query
+        read_query.limit.return_value = read_query
+        diagnostic = "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite."
+        read_query.execute.return_value = SimpleNamespace(data=[{
+            "status": "Da fare",
+            "notes": "Richiesta originale\\n\\n" + diagnostic,
+        }])
+        table.select.return_value = read_query
+
+        task = {
+            "id": "task-1",
+            "user_id": "user-1",
+            "created_at": "2026-10-27T10:00:00+00:00",
+            "title": "Validazione mercato — servizio contenuti LinkedIn",
+            "notes": "Verifica la domanda con fonti pubbliche",
+        }
+        with patch("agent_runner.collect_task_sources", return_value=[]):
+            result = execute_task(db, Mock(), [task], "user-1")
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("attività resta aperta", result["result"])
+        self.assertEqual(table.update.call_args.args[0]["status"], "Da fare")
+        self.assertNotIn("updated_at", table.update.call_args.args[0])
+
     def test_market_validation_uses_several_targeted_queries(self):
         queries = task_search_queries(
             "Validazione mercato — servizio contenuti LinkedIn",
