@@ -651,6 +651,17 @@ def main():
             execution_result = task_result["result"] if task_result else "Nessuna attività aperta da eseguire."
         else:
             execution_status, execution_result = execute_internal_action(db, plan, tasks, user_id)
+            if plan.get("action_type") == "create_task" and execution_status == "completed":
+                pending = execute_read_with_retry(
+                    db.table("ciccio_tasks").select("id,created_at,updated_at,title,status,notes")
+                    .eq("user_id", user_id).eq("title", str(plan["action_title"]).strip()[:180])
+                    .eq("status", "Da fare").order("created_at", desc=True).limit(1)
+                ).data or []
+                if pending:
+                    task_result = execute_task(db, groq, pending, user_id)
+                    if task_result:
+                        execution_status = task_result["status"]
+                        execution_result += "\n\n" + task_result["result"]
 
         learning = str(plan["learning"])[:1200]
         next_cycle = str(plan["next_cycle"])[:800]
