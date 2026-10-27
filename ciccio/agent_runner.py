@@ -284,6 +284,12 @@ def task_search_queries(title, notes):
             'piattaforme freelance gestione LinkedIn Italia aziende',
             'LinkedIn content marketing freelance Italia servizio',
         ]
+    if "ricerca clienti" in combined or "potenziali clienti" in combined:
+        return [
+            'aziende italiane pagina LinkedIn sito ufficiale piccole imprese',
+            'studi professionali aziende Italia LinkedIn sito ufficiale',
+            'imprese italiane marketing contenuti LinkedIn contatti aziendali',
+        ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:140]).strip()[:240]]
 
 
@@ -313,8 +319,14 @@ def collect_task_sources(title, notes, *, max_results=5):
 
 
 def task_requires_market_evidence(title, notes):
+    """Require real, cited search results for market claims and prospect lists."""
     text = (str(title or "") + " " + str(notes or "")).casefold()
-    return "validazione mercato" in text or ("verifica" in text and "domanda" in text and "linkedin" in text)
+    return (
+        "validazione mercato" in text
+        or ("verifica" in text and "domanda" in text and "linkedin" in text)
+        or "ricerca clienti" in text
+        or "potenziali clienti" in text
+    )
 
 def required_env(name):
     value = os.getenv(name, "").strip()
