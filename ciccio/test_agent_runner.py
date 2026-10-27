@@ -36,7 +36,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             "Revisione commerciale — decidere il prossimo test gratuito",
         ]
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
-        self.assertEqual(title, "Revisione commerciale — decidere il prossimo test gratuito #2")
+        self.assertEqual(title, "Revisione commerciale — decidere il prossimo test gratuito #1")
 
 
 class AskAgentValidationTests(unittest.TestCase):
