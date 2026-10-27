@@ -379,7 +379,7 @@ def failed_task_attempts(task, previous):
 
 
 def next_profit_task(memories, task_history=None):
-    """Choose the next business stage not already represented by a deliverable or task."""
+    """Explore multiple earning models instead of locking the agent into one niche."""
     history = "\\n".join(
         str(item.get("content", "")) for item in (memories or [])
         if isinstance(item, dict)
@@ -391,45 +391,47 @@ def next_profit_task(memories, task_history=None):
     }
     stages = [
         (
-            "Ricerca profitto — creare un'offerta vendibile a costo zero",
-            "Scegli una sola opportunità realistica senza capitale iniziale né abbonamenti. Prepara cliente ideale, risultato, prezzo iniziale da testare, esempio del lavoro, canali gratuiti e procedura per il primo incasso. Escludi ListingAI, trading e investimenti speculativi."
+            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
+            "Esplora almeno 8 modelli diversi adatti a una persona in Italia che parte da zero e usa solo iPhone/computer: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Non limitarti a LinkedIn o a un'unica idea. Distingui fatti da ipotesi e cita URL reali quando usi dati di mercato. Escludi trading speculativo, truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
         ),
         (
-            "Validazione mercato — servizio contenuti LinkedIn",
-            "Verifica criticamente la domanda per il servizio di piano contenuti LinkedIn per professionisti e piccole imprese in Italia. Cerca fonti web reali: offerte concorrenti, prezzi pubblici, piattaforme dove si richiedono questi servizi e segnali osservabili di domanda. Riporta titolo e URL per ogni fonte effettivamente recuperata, separa fatti da ipotesi, segnala i limiti della ricerca e concludi con una decisione motivata: testare, modificare o scartare l'offerta. Non inventare clienti, prezzi o statistiche e non contattare nessuno."
+            "Classifica opportunità — scegliere i 3 test migliori",
+            "Usa la mappa e le memorie precedenti per confrontare almeno 3 opportunità di guadagno di categorie diverse. Crea una tabella con punteggi motivati per costo zero, domanda verificabile, facilità di avvio, tempo al primo incasso, margine potenziale e compatibilità con iPhone. Non presumere che un'opportunità sia valida solo perché è già stata iniziata. Scegli il test successivo con il miglior rapporto tra prove, velocità e rischio; cita fonti reali per ogni affermazione di mercato."
         ),
         (
-            "Campione vendibile — 5 post LinkedIn per un settore specifico",
-            "Crea un campione professionale di 5 post LinkedIn pronti da consegnare, scegliendo un solo settore italiano adatto a piccoli clienti. Ogni post deve avere obiettivo, testo completo e call-to-action. Includi una breve nota su come personalizzarlo per un cliente; non usare dati o testimonianze inventati."
+            "Valida opportunità — verificare domanda e modalità di incasso",
+            "Valida l'opportunità migliore con fonti pubbliche aggiornate: offerte concorrenti, prezzi pubblici, richieste di clienti o piattaforme affidabili, requisiti di accesso e condizioni reali di pagamento. Cerca anche almeno un'alternativa di categoria diversa. Riporta titolo e URL per ogni fonte recuperata, separa fatti da ipotesi, indica cosa non è verificabile e decidi se testare, modificare o scartare. Non inventare statistiche, clienti o guadagni."
         ),
         (
-            "Ricerca clienti — 10 potenziali clienti pubblici",
-            "Individua fino a 10 potenziali clienti aziendali usando solo risultati web pubblici e verificabili, pertinenti al servizio di contenuti LinkedIn. Per ogni voce includi nome, sito pubblico, motivo concreto di pertinenza e fonte URL. Se non riesci a verificare un elemento, escludilo. Non raccogliere dati personali privati e non inviare messaggi."
+            "Crea prova vendibile — primo prodotto o servizio concreto",
+            "Crea un deliverable finito collegato all'opportunità meglio supportata: ad esempio un campione professionale, un mini-prodotto digitale, un pacchetto di testi, un modello, una scheda servizio o una procedura. Scegli il formato più rapido e utile, non automaticamente post LinkedIn. Deve essere riutilizzabile, presentabile a un potenziale acquirente e senza costi iniziali. Non inventare dati, testimonianze o risultati."
         ),
         (
-            "Kit vendita — proposta e messaggio di primo contatto",
-            "Prepara un kit commerciale pronto all'uso per il servizio validato: proposta breve, messaggio personalizzabile non inviato, descrizione della consegna, prezzo da testare, domande per capire il bisogno e procedura di pagamento da verificare. Non promettere risultati garantiti e non inventare termini di pagamento di piattaforme."
+            "Ricerca clienti — trovare potenziali acquirenti verificabili",
+            "Individua fino a 10 potenziali clienti o canali di vendita pertinenti al deliverable scelto, usando fonti pubbliche verificabili. Includi nome dell'azienda/piattaforma, sito pubblico, motivo concreto di pertinenza e URL della fonte. Se il modello scelto non richiede clienti diretti, trova invece canali di distribuzione o piattaforme idonee e verifica le loro condizioni. Non raccogliere dati privati e non inviare messaggi."
+        ),
+        (
+            "Kit di lancio — preparare offerta e primo test gratuito",
+            "Prepara i materiali necessari per testare l'opportunità: descrizione chiara, prezzo iniziale da sperimentare se appropriato, esempio del risultato, canale gratuito di pubblicazione o contatto, messaggio personalizzabile non inviato, procedura di pagamento verificabile e metrica di successo. Non pubblicare, non contattare nessuno e non aprire account senza approvazione."
         ),
     ]
     for title, notes in stages:
         if title.casefold() not in history and title.casefold() not in existing_titles:
             return title, notes
-    # If all predefined stages have been attempted, generate a distinct review task
-    # instead of repeatedly trying to recreate a blocked/completed title.
-    review_base = "Revisione commerciale — decidere il prossimo test gratuito"
+    review_base = "Revisione opportunità — scegliere un nuovo esperimento gratuito"
     if review_base.casefold() not in history and review_base.casefold() not in existing_titles:
         return (
             review_base,
-            "Rileggi i deliverable precedenti e prepara una decisione basata sulle prove raccolte: quale ipotesi è stata verificata, quali dati mancano e qual è il prossimo esperimento gratuito più piccolo. Non dichiarare vendite o clienti senza prova."
+            "Rivedi i risultati e i deliverable precedenti. Se un'opportunità non ha prove sufficienti o non produce segnali misurabili, non ripeterla automaticamente: confronta alternative appartenenti a categorie diverse e scegli un esperimento gratuito nuovo. Definisci criterio di successo, limite di tempo e prova da raccogliere. Non dichiarare vendite o clienti senza evidenza."
         )
     numbered_reviews = []
     for existing_title in existing_titles:
-        match = re.match(re.escape(review_base.casefold()) + r"\\s+#(\\d+)$", existing_title)
+        match = re.match(re.escape(review_base.casefold()) + r"\s+#(\d+)$", existing_title)
         if match:
             numbered_reviews.append(int(match.group(1)))
     return (
         f"{review_base} #{max(numbered_reviews, default=0) + 1}",
-        "Rivedi i risultati disponibili, scegli un esperimento gratuito diverso dai precedenti e definisci una verifica misurabile. Non dichiarare vendite o clienti senza prova."
+        "Confronta almeno due categorie di guadagno non ancora testate, scegli il prossimo test gratuito con prove migliori e definisci una metrica misurabile. Evita di ricreare compiti bloccati senza cambiare metodo."
     )
 
 
@@ -437,13 +439,13 @@ def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
 ragionamento, decisione, azione consentita, verifica e apprendimento.
-Missione esclusiva: trovare e sviluppare una fonte di profitto concreta per l'utente.
+Missione esclusiva: trovare e sviluppare una o più fonti di profitto concrete per l'utente, esplorando categorie diverse e non fissandosi su una sola idea.
 ListingAI non è una priorità e non deve essere proposto come obiettivo salvo richiesta esplicita.
 Budget iniziale zero o minimo; niente abbonamenti, pubblicità a pagamento o investimenti speculativi.
 Cerca modelli sostenibili come servizi digitali vendibili, prodotti digitali, lavori da remoto/commissioni
 e affiliazioni con condizioni verificabili. Valuta tempo necessario, costi, difficoltà, modalità di pagamento,
 soglia di pagamento e rischi di truffa.
-Ogni ciclo deve produrre un risultato finito e riutilizzabile: analisi comparativa concreta, offerta commerciale,
+Ogni ciclo deve produrre un risultato finito e riutilizzabile: confronto tra più opportunità, verifica di domanda e modalità di incasso, offerta commerciale,
 campione di prodotto/servizio, testo di vendita, procedura per acquisire clienti o attività precisa collegata
 al primo incasso. Non limitarti a rapporti o liste generiche. Non inventare opportunità, programmi, tariffe,
 clienti, ricavi o ricerche web non verificate. Se mancano fonti aggiornate, dichiara il limite e prepara
