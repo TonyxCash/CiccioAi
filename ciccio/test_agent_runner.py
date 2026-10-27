@@ -297,8 +297,9 @@ class MarketResearchGuardrailTests(unittest.TestCase):
             "Validazione mercato — servizio contenuti LinkedIn",
             "Verifica domanda, prezzi e concorrenti in Italia",
         )
-        self.assertGreaterEqual(len(queries), 3)
-        self.assertTrue(any("LinkedIn" in query or "linkedin" in query for query in queries))
+        self.assertGreaterEqual(len(queries), 4)
+        self.assertTrue(any("piattaforme" in query for query in queries))
+        self.assertTrue(any("truffe" in query for query in queries))
 
     def test_market_validation_requires_evidence(self):
         self.assertTrue(task_requires_market_evidence(
