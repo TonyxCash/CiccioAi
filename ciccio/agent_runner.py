@@ -169,8 +169,8 @@ def notify_telegram(message):
 
 
 def search_web(query, *, max_results=5, timeout=12):
-    """Search the public web without a paid API; return only parsed result titles, URLs and snippets."""
-    query = re.sub(r"\\s+", " ", str(query or "")).strip()[:240]
+    """Search the public web without a paid API; return parsed titles, URLs and snippets."""
+    query = re.sub(r"\s+", " ", str(query or "")).strip()[:240]
     if not query:
         return []
     url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
@@ -186,30 +186,25 @@ def search_web(query, *, max_results=5, timeout=12):
         return []
 
     results = []
-    # DuckDuckGo's HTML endpoint exposes result blocks with result__a and result__snippet.
-    blocks = re.findall(r'<div class="result[^"]*"[^>]*>(.*?)</div>\\s*(?=<div class="result|</div>\\s*</div>)', page, re.S)
-    if not blocks:
-        blocks = re.split(r'(?=<div class="result)', page)[1:]
+    # The public HTML page is untrusted input; extract only result metadata.
+    blocks = re.split(r'(?=<div class="result)', page)[1:]
     for block in blocks:
         link = re.search(r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.S)
         if not link:
             continue
         raw_url = html.unescape(link.group(1))
         parsed = urllib.parse.urlparse(raw_url)
-        if "duckduckgo.com" in parsed.netloc:
-            target = urllib.parse.parse_qs(parsed.query).get("uddg", [""])[0]
-        else:
-            target = raw_url
+        target = urllib.parse.parse_qs(parsed.query).get("uddg", [""])[0] if "duckduckgo.com" in parsed.netloc else raw_url
         target = html.unescape(target)
         if not target.startswith(("https://", "http://")):
             continue
         title = re.sub(r"<[^>]+>", " ", link.group(2))
-        title = re.sub(r"\\s+", " ", html.unescape(title)).strip()
+        title = re.sub(r"\s+", " ", html.unescape(title)).strip()
         snippet_match = re.search(r'class="result__snippet"[^>]*>(.*?)</(?:a|div)>', block, re.S)
         snippet = ""
         if snippet_match:
             snippet = re.sub(r"<[^>]+>", " ", snippet_match.group(1))
-            snippet = re.sub(r"\\s+", " ", html.unescape(snippet)).strip()
+            snippet = re.sub(r"\s+", " ", html.unescape(snippet)).strip()
         if title and not any(item["url"] == target for item in results):
             results.append({"title": title[:220], "url": target[:500], "snippet": snippet[:500]})
         if len(results) >= max_results:
