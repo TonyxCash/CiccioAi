@@ -69,6 +69,41 @@ with st.sidebar:
 if section == "Conversazione":
     st.subheader("Parla con Ciccio")
     st.write("Raccontami un obiettivo o un problema. Ciccio può organizzare le idee e trasformarle in azioni.")
+
+    # Stato operativo in chat: dati registrati dal runner, non supposizioni del modello.
+    with st.expander("📡 Cosa sta facendo Ciccio nei cicli automatici", expanded=True):
+        if st.button("Aggiorna stato", key="refresh_ciccio_status"):
+            st.rerun()
+        status_url = st.secrets.get("SUPABASE_URL", "") if hasattr(st, "secrets") else ""
+        status_key = st.secrets.get("SUPABASE_SERVICE_ROLE_KEY", "") if hasattr(st, "secrets") else ""
+        if status_url and status_key:
+            try:
+                from supabase import create_client
+                status_sb = create_client(status_url, status_key)
+                status_runs = (status_sb.table("ciccio_agent_runs").select(
+                    "created_at,goal,action,status,result,verification"
+                ).order("created_at", desc=True).limit(5).execute().data or [])
+                if not status_runs:
+                    st.info("Non ci sono ancora cicli registrati in Supabase.")
+                for item in status_runs:
+                    when = str(item.get("created_at", ""))[:16].replace("T", " ")
+                    with st.container(border=True):
+                        st.markdown(f"**{when} · {item.get('status', 'sconosciuto')}**")
+                        st.write(item.get("goal", "Obiettivo non registrato"))
+                        st.caption("Azione: " + str(item.get("action", "Non specificata"))[:500])
+                        result_text = str(item.get("result", "") or "").strip()
+                        if result_text:
+                            st.write(result_text[:1800])
+                        else:
+                            st.caption("Nessun risultato dettagliato salvato.")
+                        if item.get("verification"):
+                            st.caption("Verifica prevista: " + str(item["verification"])[:500])
+                st.caption("Il completamento tecnico non dimostra che l'opportunità sia redditizia o abbia generato incassi.")
+            except Exception as status_error:
+                st.warning("Non riesco a leggere ora il registro dei cicli da Supabase.")
+                st.caption(str(status_error)[:180])
+        else:
+            st.info("Per vedere i cicli qui, configura SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nei Secrets di Streamlit.")
     if "chat" not in st.session_state:
         st.session_state.chat = []
     for role, msg in st.session_state.chat:
