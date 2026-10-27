@@ -172,7 +172,7 @@ def search_web(query, *, max_results=5, timeout=12):
     """Search the public web without a paid API; parse result links defensively."""
     from html.parser import HTMLParser
 
-    query = re.sub(r"\\s+", " ", str(query or "")).strip()[:240]
+    query = re.sub(r"\s+", " ", str(query or "")).strip()[:240]
     if not query:
         return []
 
@@ -244,13 +244,13 @@ def search_web(query, *, max_results=5, timeout=12):
         candidates = parser.items
         # Some DuckDuckGo layouts change class placement; retain a conservative regex fallback.
         if not candidates:
-            for block in re.split(r'(?=<div[^>]+class=["\'][^"\']*\\bresult\\b)', page, flags=re.I)[1:]:
-                match = re.search(r'<a\\b([^>]*class=["\'][^"\']*\\bresult__a\\b[^"\']*["\'][^>]*)>(.*?)</a>', block, re.I | re.S)
+            for block in re.split(r'(?=<div[^>]+class=["\'][^"\']*\bresult\b)', page, flags=re.I)[1:]:
+                match = re.search(r'<a\b([^>]*class=["\'][^"\']*\bresult__a\b[^"\']*["\'][^>]*)>(.*?)</a>', block, re.I | re.S)
                 if not match:
                     continue
                 href = re.search(r'href=["\']([^"\']+)["\']', match.group(1), re.I)
                 if href:
-                    snippet_match = re.search(r'class=["\'][^"\']*\\bresult__snippet\\b[^"\']*["\'][^>]*>(.*?)</(?:a|div|span)>', block, re.I | re.S)
+                    snippet_match = re.search(r'class=["\'][^"\']*\bresult__snippet\b[^"\']*["\'][^>]*>(.*?)</(?:a|div|span)>', block, re.I | re.S)
                     candidates.append({
                         "url": href.group(1),
                         "title": re.sub(r"<[^>]+>", " ", match.group(2)),
@@ -264,8 +264,8 @@ def search_web(query, *, max_results=5, timeout=12):
             target = html.unescape(target).strip()
             if not target.startswith(("https://", "http://")) or target in seen:
                 continue
-            title = re.sub(r"\\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("title", "")))).strip())
-            snippet = re.sub(r"\\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("snippet", "")))).strip())
+            title = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("title", "")))).strip())
+            snippet = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("snippet", "")))).strip())
             if not title:
                 continue
             seen.add(target)
@@ -284,7 +284,7 @@ def task_search_queries(title, notes):
             'piattaforme freelance gestione LinkedIn Italia aziende',
             'LinkedIn content marketing freelance Italia servizio',
         ]
-    return [re.sub(r"\\s+", " ", str(title or "") + " " + str(notes or "")[:140]).strip()[:240]]
+    return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:140]).strip()[:240]]
 
 
 def collect_task_sources(title, notes, *, max_results=5):
