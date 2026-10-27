@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
-from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries, notify_email
+from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries, next_profit_task, notify_email
 
 
 def fake_groq_response(text):
@@ -14,6 +14,29 @@ def fake_groq_response(text):
         choices=[SimpleNamespace(message=SimpleNamespace(content=text))]
     )
     return client
+
+
+class ProfitTaskSequenceTests(unittest.TestCase):
+    def test_skips_stages_already_present_in_task_history(self):
+        history = [
+            {"title": "Ricerca profitto — creare un'offerta vendibile a costo zero", "status": "Completata"},
+            {"title": "Validazione mercato — servizio contenuti LinkedIn", "status": "Bloccata"},
+        ]
+        title, notes = next_profit_task([], history)
+        self.assertEqual(title, "Campione vendibile — 5 post LinkedIn per un settore specifico")
+        self.assertTrue(notes)
+
+    def test_uses_distinct_review_task_after_all_stages_attempted(self):
+        stage_titles = [
+            "Ricerca profitto — creare un'offerta vendibile a costo zero",
+            "Validazione mercato — servizio contenuti LinkedIn",
+            "Campione vendibile — 5 post LinkedIn per un settore specifico",
+            "Ricerca clienti — 10 potenziali clienti pubblici",
+            "Kit vendita — proposta e messaggio di primo contatto",
+            "Revisione commerciale — decidere il prossimo test gratuito",
+        ]
+        title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
+        self.assertEqual(title, "Revisione commerciale — decidere il prossimo test gratuito #2")
 
 
 class AskAgentValidationTests(unittest.TestCase):
