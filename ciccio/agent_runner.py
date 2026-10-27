@@ -57,10 +57,24 @@ def notify_email(subject, message):
     import unicodedata
     from email.policy import SMTP
 
-    def clean(value):
+    def clean(value, *, preserve_lines=False):
         value = unicodedata.normalize("NFKC", str(value or ""))
-        # NBSP often enters GitHub Secrets through copy/paste; remove it explicitly.
         value = value.replace("\u00a0", " ").replace("\u202f", " ").replace("\u2007", " ")
+        value = value.replace("\r\n", "\n").replace("\r", "\n")
+        if preserve_lines:
+            lines = [re.sub(r"[\\t ]+", " ", line).strip() for line in value.split("\n")]
+            # Keep intentional paragraphs, but remove excessive blank lines.
+            normalized = []
+            blank_pending = False
+            for line in lines:
+                if not line:
+                    if normalized and not blank_pending:
+                        normalized.append("")
+                    blank_pending = True
+                else:
+                    normalized.append(line)
+                    blank_pending = False
+            return "\n".join(normalized).strip()
         value = "".join(
             " " if ch.isspace() or unicodedata.category(ch).startswith("Z") else ch
             for ch in value
@@ -96,9 +110,8 @@ def notify_email(subject, message):
         email["Subject"] = safe_subject
         email["From"] = sender
         email["To"] = recipient
-        # Normalize all body whitespace before MIME encoding; never pass NBSP onward.
-        body = clean(message)
-        body = body.encode("ascii", "backslashreplace").decode("ascii")
+        # Preserve paragraphs and Italian accents; quoted-printable safely encodes UTF-8.
+        body = clean(message, preserve_lines=True)
         email.set_content(body[:12000], charset="utf-8", cte="quoted-printable")
 
         stage = "connessione SMTP"
@@ -577,16 +590,24 @@ def main():
             raise RuntimeError("Supabase non ha confermato il salvataggio dell'apprendimento.")
 
         stage = "notifica email"
+        status_labels = {
+            "completed": "Completato",
+            "blocked": "In pausa",
+            "failed": "Richiede attenzione",
+        }
+        action_title = str(plan.get("action_title") or "Attività del ciclo").strip()
         notification = (
-            "🧠 Ciccio — aggiornamento autonomo\n\n"
-            + "Stato: " + row["status"] + "\n"
-            + "Obiettivo: " + row["goal"] + "\n"
-            + "Azione: " + row["action"] + "\n\n"
-            + "Esito: " + execution_result[:900] + "\n\n"
-            + "Prossimo passo: " + next_cycle
+            "CICCIO | RESOCONTO DEL CICLO\n"
+            "--------------------------------\n\n"
+            + "Stato: " + status_labels.get(row["status"], "Registrato") + "\n"
+            + "Obiettivo\n" + str(row["goal"]).strip() + "\n\n"
+            + "Attività svolta\n" + action_title + "\n\n"
+            + "Risultato\n" + str(execution_result).strip()[:1200] + "\n\n"
+            + "Prossimo passo\n" + str(next_cycle).strip() + "\n\n"
+            + "Il resoconto completo è disponibile nella dashboard di Ciccio."
         )
         try:
-            notify_email("Ciccio — aggiornamento autonomo", notification)
+            notify_email("Ciccio | Resoconto del ciclo", notification)
         except Exception as exc:
             # Un errore di notifica non annulla il ciclo già salvato.
             print("Invio email non riuscito: " + str(exc)[:250])
@@ -601,11 +622,14 @@ def main():
             record_failure(db, stage, exc, plan)
         try:
             notify_email(
-                "Ciccio — errore nel ciclo autonomo",
-                "Il ciclo automatico non è riuscito.\nFase: " + stage
-                + "\nErrore: " + (type(exc).__name__ + ": " + str(exc))[:900]
-                + "\nL'errore è stato registrato in Supabase quando possibile.\n"
-                "Il ciclo non viene ripetuto qui per evitare duplicare azioni."
+                "Ciccio | Ciclo da controllare",
+                "CICCIO | AVVISO DI ESECUZIONE\n"
+                "--------------------------------\n\n"
+                "Il ciclo automatico non si è concluso correttamente.\n\n"
+                "Fase interessata\n" + str(stage) + "\n\n"
+                "Dettaglio tecnico\n" + (type(exc).__name__ + ": " + str(exc))[:900] + "\n\n"
+                "L'errore è stato registrato in Supabase, se il database era disponibile. "
+                "Ciccio non ripete automaticamente questo ciclo per evitare duplicazioni."
             )
         except Exception as notify_exc:
             print("Notifica email errore non riuscita: " + str(notify_exc)[:200])
