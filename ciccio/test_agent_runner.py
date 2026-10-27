@@ -19,8 +19,9 @@ def fake_groq_response(text):
 class ProfitTaskSequenceTests(unittest.TestCase):
     def test_skips_stages_already_present_in_task_history(self):
         history = [
-            {"title": "Ricerca profitto — creare un'offerta vendibile a costo zero", "status": "Completata"},
-            {"title": "Validazione mercato — servizio contenuti LinkedIn", "status": "Bloccata"},
+            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"},
+            {"title": "Classifica opportunità — scegliere i 3 test migliori", "status": "Bloccata"},
+            {"title": "Valida opportunità — verificare domanda e modalità di incasso", "status": "Completata"},
         ]
         title, notes = next_profit_task([], history)
         self.assertEqual(title, "Crea prova vendibile — primo prodotto o servizio concreto")
@@ -37,7 +38,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             "Revisione opportunità — scegliere un nuovo esperimento gratuito",
         ]
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
-        self.assertEqual(title, "Revisione commerciale — decidere il prossimo test gratuito #1")
+        self.assertEqual(title, "Revisione opportunità — scegliere un nuovo esperimento gratuito #1")
 
     def test_first_profit_task_explores_multiple_business_categories(self):
         title, notes = next_profit_task([], [])
