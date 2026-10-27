@@ -187,6 +187,22 @@ class FailedTaskAttemptTests(unittest.TestCase):
         self.assertEqual(failed_task_attempts(task, history), 0)
 
 
+    def test_search_web_parses_duckduckgo_result_and_redirect(self):
+        page = b"""
+        <div class="result">
+          <a class="result__a" href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Foffer">Servizio e prezzi</a>
+          <div class="result__snippet">Prezzi pubblici e offerte</div>
+        </div>
+        """
+        response = MagicMock()
+        response.read.return_value = page
+        with patch("agent_runner.urllib.request.urlopen", return_value=response):
+            results = search_web("test query", max_results=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["url"], "https://example.com/offer")
+        self.assertIn("Servizio e prezzi", results[0]["title"])
+        self.assertIn("Prezzi pubblici", results[0]["snippet"])
+
 class MarketResearchGuardrailTests(unittest.TestCase):
     def test_market_validation_is_not_completed_without_sources(self):
         db = Mock()
