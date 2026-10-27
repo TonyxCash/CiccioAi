@@ -110,7 +110,7 @@ def notify_email(subject, message):
 
         stage = "costruzione messaggio"
         email = EmailMessage(policy=SMTP)
-        safe_subject = clean(subject).encode("ascii", "backslashreplace").decode("ascii")[:180]
+        safe_subject = clean(subject)[:180]  # EmailMessage encodes UTF-8 headers using RFC 2047 under SMTP policy.
         email["Subject"] = safe_subject
         email["From"] = sender
         email["To"] = recipient
