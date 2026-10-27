@@ -300,7 +300,7 @@ class EmailNotificationTests(unittest.TestCase):
 
         sent = smtp.send_message.call_args.args[0]
         wire_message = sent.as_bytes()
-        self.assertIn(b"Subject: =?utf-8?", wire_message.lower())
+        self.assertIn(b"subject: riepilogo =?utf-8?q?attivit=c3=a0?= completata", wire_message.lower())
         self.assertIn(b"charset=\"utf-8\"", wire_message.lower())
         self.assertIn(b"quoted-printable", wire_message.lower())
         self.assertIn(b"attivit=C3=A0", wire_message)
