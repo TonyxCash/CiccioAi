@@ -216,7 +216,11 @@ class MarketResearchGuardrailTests(unittest.TestCase):
         read_query = Mock()
         read_query.eq.return_value = read_query
         read_query.limit.return_value = read_query
-        diagnostic = "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite."
+        diagnostic = (
+            "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite. "
+            "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
+            "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
+        )
         read_query.execute.return_value = SimpleNamespace(data=[{
             "status": "Da fare",
             "notes": "Richiesta originale\n\n" + diagnostic,
