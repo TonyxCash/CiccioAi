@@ -23,20 +23,40 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             {"title": "Validazione mercato — servizio contenuti LinkedIn", "status": "Bloccata"},
         ]
         title, notes = next_profit_task([], history)
-        self.assertEqual(title, "Campione vendibile — 5 post LinkedIn per un settore specifico")
+        self.assertEqual(title, "Crea prova vendibile — primo prodotto o servizio concreto")
         self.assertTrue(notes)
 
     def test_uses_distinct_review_task_after_all_stages_attempted(self):
         stage_titles = [
-            "Ricerca profitto — creare un'offerta vendibile a costo zero",
-            "Validazione mercato — servizio contenuti LinkedIn",
-            "Campione vendibile — 5 post LinkedIn per un settore specifico",
-            "Ricerca clienti — 10 potenziali clienti pubblici",
-            "Kit vendita — proposta e messaggio di primo contatto",
-            "Revisione commerciale — decidere il prossimo test gratuito",
+            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
+            "Classifica opportunità — scegliere i 3 test migliori",
+            "Valida opportunità — verificare domanda e modalità di incasso",
+            "Crea prova vendibile — primo prodotto o servizio concreto",
+            "Ricerca clienti — trovare potenziali acquirenti verificabili",
+            "Kit di lancio — preparare offerta e primo test gratuito",
+            "Revisione opportunità — scegliere un nuovo esperimento gratuito",
         ]
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
         self.assertEqual(title, "Revisione commerciale — decidere il prossimo test gratuito #1")
+
+    def test_first_profit_task_explores_multiple_business_categories(self):
+        title, notes = next_profit_task([], [])
+        self.assertEqual(title, "Mappa opportunità — confrontare almeno 8 modi per guadagnare")
+        for category in ("servizi digitali", "prodotti digitali", "micro-freelance", "affiliazioni"):
+            self.assertIn(category, notes)
+        self.assertNotIn("solo LinkedIn", notes)
+
+    def test_opportunity_mapping_requires_real_market_evidence(self):
+        self.assertTrue(task_requires_market_evidence(
+            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
+            "Confronta categorie diverse e cita fonti",
+        ))
+        queries = task_search_queries(
+            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
+            "Confronta almeno otto modelli",
+        )
+        self.assertGreaterEqual(len(queries), 4)
+        self.assertTrue(any("prodotti digitali" in query for query in queries))
 
 
 class AskAgentValidationTests(unittest.TestCase):
