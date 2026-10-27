@@ -153,6 +153,20 @@ if section == "Conversazione":
                         f"- [{created[:16]}] {kind}: {content[:500]}"
                         for created, kind, content in reversed(memory_rows)
                     )
+                run_context = "(registro dei cicli non disponibile)"
+                if sb is not None:
+                    try:
+                        recent_runs = (sb.table("ciccio_agent_runs").select(
+                            "created_at,goal,action,status,result"
+                        ).order("created_at", desc=True).limit(5).execute().data or [])
+                        run_context = "\\n".join(
+                            f"- {str(item.get('created_at',''))[:16]} | stato={item.get('status','?')} | "
+                            f"obiettivo={item.get('goal','')} | azione={item.get('action','')} | "
+                            f"esito={str(item.get('result',''))[:700]}"
+                            for item in recent_runs
+                        ) or "(nessun ciclo automatico registrato)"
+                    except Exception:
+                        run_context = "(registro dei cicli non leggibile ora)"
                 system_prompt = (
                     "Sei Ciccio: parla come una persona naturale, presente, diretta e collaborativa, "
                     "non come un modulo automatico o un manuale. Puoi fare domande pertinenti, esprimere "
@@ -169,6 +183,8 @@ if section == "Conversazione":
                     "con dettagli proporzionati alla domanda e un prossimo passo utile quando serve."
                     "\\n\\nMEMORIA E CONTESTO PERSISTENTE:\\n"
                     + (memory_context if memory_context else "(nessuna memoria salvata)")
+                    + "\\n\\nREGISTRO DEI CICLI AUTOMATICI (dati salvati; non inventare azioni ulteriori):\\n"
+                    + run_context
                 )
                 history = [{"role": "system", "content": system_prompt}]
                 for role, msg in st.session_state.chat[-12:]:
