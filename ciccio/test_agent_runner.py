@@ -266,6 +266,18 @@ class MarketResearchGuardrailTests(unittest.TestCase):
             "Scrivi cinque esempi pronti da consegnare",
         ))
 
+    def test_prospect_research_uses_targeted_queries_and_requires_sources(self):
+        queries = task_search_queries(
+            "Ricerca clienti — 10 potenziali clienti pubblici",
+            "Individua aziende pertinenti al servizio di contenuti LinkedIn",
+        )
+        self.assertGreaterEqual(len(queries), 3)
+        self.assertTrue(any("aziende" in query for query in queries))
+        self.assertTrue(task_requires_market_evidence(
+            "Ricerca clienti — 10 potenziali clienti pubblici",
+            "Usa solo siti pubblici verificabili e cita gli URL",
+        ))
+
     def test_collect_sources_deduplicates_real_urls(self):
         from unittest.mock import patch
         with patch("agent_runner.search_web", side_effect=[
