@@ -217,10 +217,16 @@ def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
 ragionamento, decisione, azione consentita, verifica e apprendimento.
-Missione pratica: aiutare a migliorare ListingAI e le attività operative di vendita di abbigliamento,
-privilegiando risultati utilizzabili, budget minimo e progressi misurabili. Usa le memorie e le attività
-come fonte primaria del contesto; non inventare dati di mercato, risultati o preferenze.
-Non ripetere un'attività già completata o un piano recente senza una ragione esplicita.
+Missione: aiutare l'utente a ottenere entrate reali con budget zero o minimo, dando priorità
+a rendere ListingAI utilizzabile e validarlo con venditori reali; in parallelo può preparare materiali
+pronti all'uso per la vendita di abbigliamento Jhavè. Ogni ciclo deve produrre progresso concreto,
+non solo rapporti, audit di presenza file o nuove liste generiche.
+Quando non ci sono attività aperte, crea una sola attività piccola che possa produrre un deliverable
+utilizzabile nel ciclo successivo. Dai priorità a: miglioramenti MVP di ListingAI, test pratici,
+messaggi/materiali per trovare i primi utenti, e contenuti di vendita pronti da pubblicare.
+Preferisci risultati che aiutino a ottenere feedback o ricavi senza pubblicità a pagamento.
+Usa le memorie, le attività e il codice del repository disponibile come fonte primaria; non inventare
+dati di mercato, risultati, utenti contattati o preferenze. Non ripetere attività completate senza motivo.
 Hai autorizzazione a operare SOLO nel tuo database: creare una singola attività interna
 oppure salvare una memoria utile. Non dichiarare completata un'attività sulla sola base del piano:
 il runner la completa soltanto dopo aver prodotto e verificato un deliverable salvato.
@@ -337,13 +343,30 @@ def execute_task(db, groq, open_tasks, user_id):
     notes = str(task.get("notes", "")).strip()
     if not title:
         return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    project_context = []
+    for label, path in (
+        ("app.py", root / "app.py"),
+        ("README.md", root / "README.md"),
+        ("requirements.txt", root / "requirements.txt"),
+    ):
+        try:
+            if path.is_file():
+                project_context.append("### " + label + "\\n" + path.read_text(encoding="utf-8")[:4500])
+        except (OSError, UnicodeError):
+            project_context.append("### " + label + "\\nFile presente ma non leggibile.")
+    context_text = "\\n\\n".join(project_context)[:11000]
     prompt = (
-        "Sei Ciccio, assistente operativo per un piccolo venditore di abbigliamento. "
-        "Produci un risultato finito e subito utilizzabile per l'attività indicata, non un piano "
-        "e non una lista di controlli. Se riguarda un annuncio, scrivi titolo, descrizione e parole "
-        "chiave; se riguarda altro, produci il documento o risultato richiesto. Non dichiarare "
-        "azioni esterne mai eseguite. Rispondi in italiano, in testo semplice.\n\n"
-        "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
+        "Sei Ciccio, agente operativo orientato a risultati e ricavi a budget zero. "
+        "Produci un deliverable finito, concreto e immediatamente utilizzabile, non una promessa "
+        "di lavoro futuro. Se l'attività riguarda ListingAI, usa il codice e la documentazione "
+        "qui sotto per essere specifico; non affermare di aver modificato il repository perché "
+        "non hai permessi per farlo. Se riguarda annunci, scrivi testo pronto da usare. "
+        "Se riguarda validazione commerciale, prepara materiali e una procedura pratica, ma non "
+        "dichiarare di aver contattato utenti o ottenuto risposte. Italiano, testo semplice.\\n\\n"
+        "ATTIVITÀ: " + title + "\\nDETTAGLI: " + notes
+        + "\\n\\nCONTESTO REALE DEL REPOSITORY:\\n" + context_text
     )
     response = groq_completion_with_retry(
         groq,
@@ -535,16 +558,21 @@ def main():
             plan["action_type"] = "execute_task"
             plan["action_title"] = str(sorted(tasks, key=lambda t: str(t.get("created_at", "")))[0].get("title", "Attività aperta"))
             plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
-        # Prefer a real repository audit when no audit has been recorded today.
-        recent_audit = any(
-            str(m.get("kind", "")) == "audit_progetto"
-            and str(m.get("created_at", ""))[:10] >= datetime.now(timezone.utc).date().isoformat()
-            for m in memories
-        )
-        if not recent_audit and not any(str(t.get("status", "")) != "Completata" for t in tasks):
-            plan["action_type"] = "audit_project"
-            plan["action_title"] = "Verifica integrità del progetto Ciccio"
-            plan["action_notes"] = "Controlla presenza dei file essenziali del repository e registra l'esito."
+        # Never spend an empty-work cycle on a routine file-presence audit.
+        # If no task is open, require the planner to create a concrete next deliverable.
+        if not tasks and plan.get("action_type") != "create_task":
+            plan["action_type"] = "create_task"
+            plan["goal"] = "Produrre progressi concreti verso le prime entrate senza pubblicità a pagamento"
+            plan["action_title"] = "ListingAI — preparare il prossimo deliverable per validare l'MVP"
+            plan["action_notes"] = (
+                "Esamina il contesto del repository e crea un deliverable concreto e pronto all'uso "
+                "per migliorare ListingAI o validarlo con i primi venditori. Deve essere piccolo, "
+                "misurabile, a costo zero e diverso dai deliverable già presenti nelle memorie. "
+                "Non creare una semplice lista generica di idee."
+            )
+            plan["reason"] = "Non ci sono attività aperte: serve un prossimo passo concreto verso un prodotto utilizzabile e ricavi."
+            plan["expected_result"] = "Una singola attività verificabile con un risultato utilizzabile nel ciclo successivo."
+            plan["verification"] = "Il ciclo successivo deve salvare il deliverable nelle note e nelle memorie di Supabase."
 
         stage = "esecuzione azione"
         if plan.get("action_type") == "execute_task":
