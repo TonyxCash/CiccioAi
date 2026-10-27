@@ -335,7 +335,10 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
             except (json.JSONDecodeError, TypeError):
                 plan = {}
         if not isinstance(plan, dict) or not plan:
-            raise RuntimeError("Il modello non ha restituito JSON valido neppure dopo un tentativo di correzione.")
+            # Non fermare l’intero ciclo se il modello restituisce ancora JSON malformato.
+            # La validazione seguente convertirà il piano vuoto in no_op; main() darà
+            # comunque priorità a un’attività già aperta e proverà a produrre il deliverable.
+            plan = {}
 
     if not isinstance(plan, dict):
         plan = {}
