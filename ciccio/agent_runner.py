@@ -276,22 +276,36 @@ def search_web(query, *, max_results=5, timeout=12):
 
 
 def task_search_queries(title, notes):
-    """Return short, targeted free-web searches for the current business task."""
+    """Return diverse, targeted free-web searches for the current earning opportunity."""
     combined = (str(title or "") + " " + str(notes or "")).casefold()
-    if "validazione mercato" in combined or ("domanda" in combined and "linkedin" in combined):
+    if any(token in combined for token in ("mappa opportunità", "classifica opportunità", "confrontare almeno", "categorie diverse")):
+        return [
+            'lavori freelance online Italia piattaforme commissioni gratuite',
+            'vendere prodotti digitali online Italia costi commissioni piattaforme',
+            'servizi digitali per piccole imprese Italia prezzi freelance',
+            'lavoro remoto microtask Italia condizioni pagamento',
+            'programmi affiliazione Italia requisiti pagamenti ufficiali',
+        ]
+    if any(token in combined for token in ("validazione opportunità", "verifica domanda", "modalità di incasso")):
+        return [
+            'servizi freelance Italia offerte prezzi piattaforme ufficiali',
+            'vendita prodotti digitali piattaforme commissioni condizioni ufficiali',
+            'lavoro remoto online Italia requisiti pagamento piattaforme ufficiali',
+            'opportunità guadagno online senza investimento truffe AGCM',
+        ]
+    if "ricerca clienti" in combined or "potenziali clienti" in combined:
+        return [
+            'aziende italiane sito ufficiale servizi digitali piccole imprese',
+            'piattaforme freelance Italia richieste clienti servizi digitali',
+            'marketplace prodotti digitali Italia condizioni venditori ufficiale',
+        ]
+    if "linkedin" in combined:
         return [
             '"servizi LinkedIn" freelance Italia prezzi',
             'piattaforme freelance gestione LinkedIn Italia aziende',
             'LinkedIn content marketing freelance Italia servizio',
         ]
-    if "ricerca clienti" in combined or "potenziali clienti" in combined:
-        return [
-            'aziende italiane pagina LinkedIn sito ufficiale piccole imprese',
-            'studi professionali aziende Italia LinkedIn sito ufficiale',
-            'imprese italiane marketing contenuti LinkedIn contatti aziendali',
-        ]
-    return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:140]).strip()[:240]]
-
+    return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
 def collect_task_sources(title, notes, *, max_results=5):
     """Run targeted queries and merge only real URLs returned by search_web."""
@@ -319,14 +333,13 @@ def collect_task_sources(title, notes, *, max_results=5):
 
 
 def task_requires_market_evidence(title, notes):
-    """Require real, cited search results for market claims and prospect lists."""
+    """Require real sources for market comparisons and prospect research."""
     text = (str(title or "") + " " + str(notes or "")).casefold()
-    return (
-        "validazione mercato" in text
-        or ("verifica" in text and "domanda" in text and "linkedin" in text)
-        or "ricerca clienti" in text
-        or "potenziali clienti" in text
-    )
+    return any(token in text for token in (
+        "validazione mercato", "validazione opportunità", "verifica domanda",
+        "mappa opportunità", "classifica opportunità", "ricerca clienti",
+        "potenziali clienti", "confrontare almeno 8 modi",
+    ))
 
 def required_env(name):
     value = os.getenv(name, "").strip()
