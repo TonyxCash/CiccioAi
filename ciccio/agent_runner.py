@@ -261,6 +261,43 @@ def failed_task_attempts(task, previous):
     return count
 
 
+def next_profit_task(memories):
+    """Choose the next concrete business-validation stage from persisted deliverables."""
+    history = "\\n".join(
+        str(item.get("content", "")) for item in (memories or [])
+        if isinstance(item, dict)
+    ).casefold()
+    stages = [
+        (
+            "Ricerca profitto — creare un'offerta vendibile a costo zero",
+            "Scegli una sola opportunità realistica senza capitale iniziale né abbonamenti. Prepara cliente ideale, risultato, prezzo iniziale da testare, esempio del lavoro, canali gratuiti e procedura per il primo incasso. Escludi ListingAI, trading e investimenti speculativi."
+        ),
+        (
+            "Validazione mercato — servizio contenuti LinkedIn",
+            "Verifica criticamente la domanda per il servizio di piano contenuti LinkedIn per professionisti e piccole imprese in Italia. Cerca fonti web reali: offerte concorrenti, prezzi pubblici, piattaforme dove si richiedono questi servizi e segnali osservabili di domanda. Riporta titolo e URL per ogni fonte effettivamente recuperata, separa fatti da ipotesi, segnala i limiti della ricerca e concludi con una decisione motivata: testare, modificare o scartare l'offerta. Non inventare clienti, prezzi o statistiche e non contattare nessuno."
+        ),
+        (
+            "Campione vendibile — 5 post LinkedIn per un settore specifico",
+            "Crea un campione professionale di 5 post LinkedIn pronti da consegnare, scegliendo un solo settore italiano adatto a piccoli clienti. Ogni post deve avere obiettivo, testo completo e call-to-action. Includi una breve nota su come personalizzarlo per un cliente; non usare dati o testimonianze inventati."
+        ),
+        (
+            "Ricerca clienti — 10 potenziali clienti pubblici",
+            "Individua fino a 10 potenziali clienti aziendali usando solo risultati web pubblici e verificabili, pertinenti al servizio di contenuti LinkedIn. Per ogni voce includi nome, sito pubblico, motivo concreto di pertinenza e fonte URL. Se non riesci a verificare un elemento, escludilo. Non raccogliere dati personali privati e non inviare messaggi."
+        ),
+        (
+            "Kit vendita — proposta e messaggio di primo contatto",
+            "Prepara un kit commerciale pronto all'uso per il servizio validato: proposta breve, messaggio personalizzabile non inviato, descrizione della consegna, prezzo da testare, domande per capire il bisogno e procedura di pagamento da verificare. Non promettere risultati garantiti e non inventare termini di pagamento di piattaforme."
+        ),
+    ]
+    for title, notes in stages:
+        if title.casefold() not in history:
+            return title, notes
+    return (
+        "Revisione commerciale — decidere il prossimo test gratuito",
+        "Rileggi i deliverable precedenti e prepara una decisione basata sulle prove raccolte: quale ipotesi è stata verificata, quali dati mancano e qual è il prossimo esperimento gratuito più piccolo. Non dichiarare vendite o clienti senza prova."
+    )
+
+
 def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
@@ -629,23 +666,17 @@ def main():
             plan["action_type"] = "execute_task"
             plan["action_title"] = str(sorted(tasks, key=lambda t: str(t.get("created_at", "")))[0].get("title", "Attività aperta"))
             plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
-        # Never spend an empty-work cycle on a routine file-presence audit.
-        # If no task is open, require the planner to create a concrete next deliverable.
-        if not tasks and plan.get("action_type") != "create_task":
+        # Advance through a deterministic sequence instead of repeating a generic offer.
+        # The sequence is inferred from persisted deliverable memories and remains zero-budget.
+        if not tasks:
+            next_title, next_notes = next_profit_task(memories)
             plan["action_type"] = "create_task"
-            plan["goal"] = "Individuare e avviare un'opportunità concreta di profitto a costo zero"
-            plan["action_title"] = "Ricerca profitto — creare un'offerta vendibile a costo zero"
-            plan["action_notes"] = (
-                "Scegli una sola opportunità realistica senza capitale iniziale né abbonamenti. Preferisci "
-                "un servizio digitale semplice consegnabile manualmente a clienti reali. Prepara un'offerta "
-                "specifica con cliente ideale, risultato, prezzo iniziale da testare, esempio del lavoro, "
-                "canali gratuiti per trovare clienti e procedura per il primo incasso. Se scegli affiliazione "
-                "o piattaforme, indica i termini da verificare prima di investirci tempo. Escludi ListingAI, "
-                "trading e investimenti speculativi. Deve essere diverso dai deliverable già salvati in Memorie."
-            )
-            plan["reason"] = "Non ci sono attività aperte: Ciccio deve creare un'offerta concreta orientata al primo incasso."
-            plan["expected_result"] = "Un'offerta testabile e un percorso gratuito per cercare il primo cliente."
-            plan["verification"] = "Nel ciclo successivo salvare un deliverable completo e verificare che non sia un duplicato."
+            plan["goal"] = "Validare e sviluppare una fonte di profitto concreta a costo zero"
+            plan["action_title"] = next_title
+            plan["action_notes"] = next_notes
+            plan["reason"] = "Nessuna attività aperta: avvio della prossima fase verificabile della sequenza commerciale."
+            plan["expected_result"] = "Un deliverable concreto con evidenze, limiti e un prossimo passo operativo."
+            plan["verification"] = "Il runner salva il deliverable nelle note e in Memorie solo dopo aver verificato il record in Supabase."
 
         stage = "esecuzione azione"
         if plan.get("action_type") == "execute_task":
