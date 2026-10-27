@@ -615,6 +615,28 @@ def execute_task(db, groq, open_tasks, user_id):
     deliverable = (response.choices[0].message.content or "").strip()
     if len(deliverable) < 40:
         return {"status": "blocked", "result": "Output troppo breve: attività lasciata aperta."}
+    if task_requires_market_evidence(title, notes):
+        cited_urls = [str(source.get("url", "")).strip() for source in sources if source.get("url")]
+        used_urls = [url for url in cited_urls if url in deliverable]
+        if not used_urls:
+            diagnostic = (
+                "Attività non completata: il testo generato non cita nessuno degli URL realmente "
+                "recuperati. La validazione di mercato resta da fare; non considerare confermati "
+                "domanda, prezzi o concorrenza finché il deliverable non include fonti verificabili."
+            )
+            prior = str(task.get("notes", "")).strip()
+            updated_notes = ((prior[:1600] + "\n\n") if prior else "") + diagnostic
+            db.table("ciccio_tasks").update({
+                "status": "Da fare",
+                "notes": updated_notes[:3000],
+            }).eq("id", task["id"]).eq("user_id", user_id).execute()
+            check = execute_read_with_retry(
+                db.table("ciccio_tasks").select("status,notes")
+                .eq("id", task["id"]).eq("user_id", user_id).limit(1)
+            ).data or []
+            if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
+                raise RuntimeError("La validazione senza citazioni è stata bloccata ma non verificata nel database.")
+            return {"status": "blocked", "result": diagnostic}
     old_notes = str(task.get("notes", "")).strip()
     deliverable_block = "Deliverable creato da Ciccio:\n" + deliverable
     # Keep a short excerpt of the original request while reserving space for the result.
