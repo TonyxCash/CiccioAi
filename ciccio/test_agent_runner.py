@@ -195,6 +195,7 @@ class FailedTaskAttemptTests(unittest.TestCase):
         </div>
         """
         response = MagicMock()
+        response.__enter__.return_value = response
         response.read.return_value = page
         with patch("agent_runner.urllib.request.urlopen", return_value=response):
             results = search_web("test query", max_results=5)
