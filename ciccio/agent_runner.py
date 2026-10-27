@@ -309,12 +309,33 @@ Per audit_project, action_title deve descrivere un controllo concreto del proget
     )
     raw = response.choices[0].message.content or ""
     start, end = raw.find("{"), raw.rfind("}")
-    if start < 0 or end <= start:
-        raise RuntimeError("Il modello non ha restituito JSON valido.")
-    try:
-        plan = json.loads(raw[start:end + 1])
-    except (json.JSONDecodeError, TypeError):
-        plan = {}
+    plan = {}
+    if start >= 0 and end > start:
+        try:
+            plan = json.loads(raw[start:end + 1])
+        except (json.JSONDecodeError, TypeError):
+            plan = {}
+    if not isinstance(plan, dict) or not plan:
+        # One repair attempt prevents a malformed model response from stopping the entire cycle.
+        repair = groq_completion_with_retry(
+            groq,
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "Restituisci esclusivamente un singolo oggetto JSON valido, senza markdown né testo esterno."},
+                {"role": "user", "content": prompt + "\\n\\nLa risposta precedente non era JSON valido. Produci ora tutti i campi richiesti, con action_type consentito."},
+            ],
+            temperature=0,
+            max_completion_tokens=900,
+        )
+        raw = repair.choices[0].message.content or ""
+        start, end = raw.find("{"), raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                plan = json.loads(raw[start:end + 1])
+            except (json.JSONDecodeError, TypeError):
+                plan = {}
+        if not isinstance(plan, dict) or not plan:
+            raise RuntimeError("Il modello non ha restituito JSON valido neppure dopo un tentativo di correzione.")
 
     if not isinstance(plan, dict):
         plan = {}
