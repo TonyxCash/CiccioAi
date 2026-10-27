@@ -284,6 +284,28 @@ class MarketResearchGuardrailTests(unittest.TestCase):
         ])
 
 
+class EmailNotificationTests(unittest.TestCase):
+    def test_unicode_subject_and_body_are_encoded_for_smtp(self):
+        smtp = MagicMock()
+        smtp.__enter__.return_value = smtp
+        with patch.dict("os.environ", {
+            "SMTP_HOST": "smtp.example.com",
+            "SMTP_PORT": "587",
+            "SMTP_USERNAME": "ciccio@example.com",
+            "SMTP_PASSWORD": "test-password",
+            "EMAIL_TO": "owner@example.com",
+            "EMAIL_FROM": "ciccio@example.com",
+        }), patch("agent_runner.smtplib.SMTP", return_value=smtp):
+            self.assertTrue(notify_email("Riepilogo attività completata", "L’attività è stata salvata correttamente."))
+
+        sent = smtp.send_message.call_args.args[0]
+        wire_message = sent.as_bytes()
+        self.assertIn(b"Subject: =?utf-8?", wire_message.lower())
+        self.assertIn(b"charset=\"utf-8\"", wire_message.lower())
+        self.assertIn(b"quoted-printable", wire_message.lower())
+        self.assertIn(b"attivit=C3=A0", wire_message)
+
+
 class TelegramNotificationTests(unittest.TestCase):
     def test_telegram_is_optional_without_credentials(self):
         with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""}):
