@@ -217,16 +217,19 @@ def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
 ragionamento, decisione, azione consentita, verifica e apprendimento.
-Missione: aiutare l'utente a ottenere entrate reali con budget zero o minimo, dando priorità
-a rendere ListingAI utilizzabile e validarlo con venditori reali; in parallelo può preparare materiali
-pronti all'uso per la vendita di abbigliamento Jhavè. Ogni ciclo deve produrre progresso concreto,
-non solo rapporti, audit di presenza file o nuove liste generiche.
-Quando non ci sono attività aperte, crea una sola attività piccola che possa produrre un deliverable
-utilizzabile nel ciclo successivo. Dai priorità a: miglioramenti MVP di ListingAI, test pratici,
-messaggi/materiali per trovare i primi utenti, e contenuti di vendita pronti da pubblicare.
-Preferisci risultati che aiutino a ottenere feedback o ricavi senza pubblicità a pagamento.
-Usa le memorie, le attività e il codice del repository disponibile come fonte primaria; non inventare
-dati di mercato, risultati, utenti contattati o preferenze. Non ripetere attività completate senza motivo.
+Missione esclusiva: trovare e sviluppare una fonte di profitto concreta per l'utente.
+ListingAI non è una priorità e non deve essere proposto come obiettivo salvo richiesta esplicita.
+Budget iniziale zero o minimo; niente abbonamenti, pubblicità a pagamento o investimenti speculativi.
+Cerca modelli sostenibili come servizi digitali vendibili, prodotti digitali, lavori da remoto/commissioni
+e affiliazioni con condizioni verificabili. Valuta tempo necessario, costi, difficoltà, modalità di pagamento,
+soglia di pagamento e rischi di truffa.
+Ogni ciclo deve produrre un risultato finito e riutilizzabile: analisi comparativa concreta, offerta commerciale,
+campione di prodotto/servizio, testo di vendita, procedura per acquisire clienti o attività precisa collegata
+al primo incasso. Non limitarti a rapporti o liste generiche. Non inventare opportunità, programmi, tariffe,
+clienti, ricavi o ricerche web non verificate. Se mancano fonti aggiornate, dichiara il limite e prepara
+un passo di verifica specifico. Non inviare messaggi, non pubblicare, non aprire account e non muovere
+denaro/cripto senza approvazione. Non chiedere mai seed phrase, chiavi private, password, codici OTP
+o credenziali bancarie.
 Hai autorizzazione a operare SOLO nel tuo database: creare una singola attività interna
 oppure salvare una memoria utile. Non dichiarare completata un'attività sulla sola base del piano:
 il runner la completa soltanto dopo aver prodotto e verificato un deliverable salvato.
@@ -343,30 +346,17 @@ def execute_task(db, groq, open_tasks, user_id):
     notes = str(task.get("notes", "")).strip()
     if not title:
         return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[1]
-    project_context = []
-    for label, path in (
-        ("app.py", root / "app.py"),
-        ("README.md", root / "README.md"),
-        ("requirements.txt", root / "requirements.txt"),
-    ):
-        try:
-            if path.is_file():
-                project_context.append("### " + label + "\n" + path.read_text(encoding="utf-8")[:4500])
-        except (OSError, UnicodeError):
-            project_context.append("### " + label + "\nFile presente ma non leggibile.")
-    context_text = "\n\n".join(project_context)[:11000]
+    context_text = ""
     prompt = (
-        "Sei Ciccio, agente operativo orientato a risultati e ricavi a budget zero. "
-        "Produci un deliverable finito, concreto e immediatamente utilizzabile, non una promessa "
-        "di lavoro futuro. Se l'attività riguarda ListingAI, usa il codice e la documentazione "
-        "qui sotto per essere specifico; non affermare di aver modificato il repository perché "
-        "non hai permessi per farlo. Se riguarda annunci, scrivi testo pronto da usare. "
-        "Se riguarda validazione commerciale, prepara materiali e una procedura pratica, ma non "
-        "dichiarare di aver contattato utenti o ottenuto risposte. Italiano, testo semplice.\n\n"
+        "Sei Ciccio, agente operativo orientato a creare entrate reali a budget zero. "
+        "ListingAI non è la missione. Produci un risultato finito e vendibile o un passo operativo "
+        "direttamente collegato al primo incasso: un servizio digitale, un pacchetto di contenuti, "
+        "un'offerta commerciale, un confronto di opportunità con condizioni verificabili o un piano "
+        "concreto per trovare clienti su canali gratuiti. Non inventare fonti consultate, clienti, ricavi "
+        "o programmi di affiliazione. Se non puoi verificare un dato aggiornato, segnala cosa va verificato. "
+        "Non inviare messaggi, pubblicare, aprire account o spostare denaro. Non chiedere segreti o "
+        "credenziali. Italiano, testo semplice.\n\n"
         "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
-        + "\n\nCONTESTO REALE DEL REPOSITORY:\n" + context_text
     )
     response = groq_completion_with_retry(
         groq,
@@ -562,17 +552,19 @@ def main():
         # If no task is open, require the planner to create a concrete next deliverable.
         if not tasks and plan.get("action_type") != "create_task":
             plan["action_type"] = "create_task"
-            plan["goal"] = "Produrre progressi concreti verso le prime entrate senza pubblicità a pagamento"
-            plan["action_title"] = "ListingAI — preparare il prossimo deliverable per validare l'MVP"
+            plan["goal"] = "Individuare e avviare un'opportunità concreta di profitto a costo zero"
+            plan["action_title"] = "Ricerca profitto — creare un'offerta vendibile a costo zero"
             plan["action_notes"] = (
-                "Esamina il contesto del repository e crea un deliverable concreto e pronto all'uso "
-                "per migliorare ListingAI o validarlo con i primi venditori. Deve essere piccolo, "
-                "misurabile, a costo zero e diverso dai deliverable già presenti nelle memorie. "
-                "Non creare una semplice lista generica di idee."
+                "Scegli una sola opportunità realistica senza capitale iniziale né abbonamenti. Preferisci "
+                "un servizio digitale semplice consegnabile manualmente a clienti reali. Prepara un'offerta "
+                "specifica con cliente ideale, risultato, prezzo iniziale da testare, esempio del lavoro, "
+                "canali gratuiti per trovare clienti e procedura per il primo incasso. Se scegli affiliazione "
+                "o piattaforme, indica i termini da verificare prima di investirci tempo. Escludi ListingAI, "
+                "trading e investimenti speculativi. Deve essere diverso dai deliverable già salvati in Memorie."
             )
-            plan["reason"] = "Non ci sono attività aperte: serve un prossimo passo concreto verso un prodotto utilizzabile e ricavi."
-            plan["expected_result"] = "Una singola attività verificabile con un risultato utilizzabile nel ciclo successivo."
-            plan["verification"] = "Il ciclo successivo deve salvare il deliverable nelle note e nelle memorie di Supabase."
+            plan["reason"] = "Non ci sono attività aperte: Ciccio deve creare un'offerta concreta orientata al primo incasso."
+            plan["expected_result"] = "Un'offerta testabile e un percorso gratuito per cercare il primo cliente."
+            plan["verification"] = "Nel ciclo successivo salvare un deliverable completo e verificare che non sia un duplicato."
 
         stage = "esecuzione azione"
         if plan.get("action_type") == "execute_task":
