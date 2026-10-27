@@ -230,7 +230,13 @@ class MarketResearchGuardrailTests(unittest.TestCase):
             "title": "Validazione mercato — servizio contenuti LinkedIn",
             "notes": "Verifica la domanda con fonti pubbliche",
         }
-        with patch("agent_runner.collect_task_sources", return_value=[]):
+        with patch("agent_runner.collect_task_sources", return_value=[]), patch(
+            "agent_runner.execute_read_with_retry",
+            return_value=SimpleNamespace(data=[{
+                "status": "Da fare",
+                "notes": "Richiesta originale\n\n" + diagnostic,
+            }]),
+        ):
             result = execute_task(db, Mock(), [task], "user-1")
 
         self.assertEqual(result["status"], "blocked")
