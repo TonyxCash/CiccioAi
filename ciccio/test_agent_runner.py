@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
-from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries
+from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries, notify_email
 
 
 def fake_groq_response(text):
