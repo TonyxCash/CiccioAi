@@ -353,10 +353,10 @@ def execute_task(db, groq, open_tasks, user_id):
     ):
         try:
             if path.is_file():
-                project_context.append("### " + label + "\\n" + path.read_text(encoding="utf-8")[:4500])
+                project_context.append("### " + label + "\n" + path.read_text(encoding="utf-8")[:4500])
         except (OSError, UnicodeError):
-            project_context.append("### " + label + "\\nFile presente ma non leggibile.")
-    context_text = "\\n\\n".join(project_context)[:11000]
+            project_context.append("### " + label + "\nFile presente ma non leggibile.")
+    context_text = "\n\n".join(project_context)[:11000]
     prompt = (
         "Sei Ciccio, agente operativo orientato a risultati e ricavi a budget zero. "
         "Produci un deliverable finito, concreto e immediatamente utilizzabile, non una promessa "
@@ -364,9 +364,9 @@ def execute_task(db, groq, open_tasks, user_id):
         "qui sotto per essere specifico; non affermare di aver modificato il repository perché "
         "non hai permessi per farlo. Se riguarda annunci, scrivi testo pronto da usare. "
         "Se riguarda validazione commerciale, prepara materiali e una procedura pratica, ma non "
-        "dichiarare di aver contattato utenti o ottenuto risposte. Italiano, testo semplice.\\n\\n"
-        "ATTIVITÀ: " + title + "\\nDETTAGLI: " + notes
-        + "\\n\\nCONTESTO REALE DEL REPOSITORY:\\n" + context_text
+        "dichiarare di aver contattato utenti o ottenuto risposte. Italiano, testo semplice.\n\n"
+        "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
+        + "\n\nCONTESTO REALE DEL REPOSITORY:\n" + context_text
     )
     response = groq_completion_with_retry(
         groq,
