@@ -378,12 +378,17 @@ def failed_task_attempts(task, previous):
     return count
 
 
-def next_profit_task(memories):
-    """Choose the next concrete business-validation stage from persisted deliverables."""
+def next_profit_task(memories, task_history=None):
+    """Choose the next business stage not already represented by a deliverable or task."""
     history = "\\n".join(
         str(item.get("content", "")) for item in (memories or [])
         if isinstance(item, dict)
     ).casefold()
+    existing_titles = {
+        str(item.get("title", "")).strip().casefold()
+        for item in (task_history or [])
+        if isinstance(item, dict) and str(item.get("title", "")).strip()
+    }
     stages = [
         (
             "Ricerca profitto — creare un'offerta vendibile a costo zero",
@@ -407,11 +412,20 @@ def next_profit_task(memories):
         ),
     ]
     for title, notes in stages:
-        if title.casefold() not in history:
+        if title.casefold() not in history and title.casefold() not in existing_titles:
             return title, notes
+    # If all predefined stages have been attempted, generate a distinct review task
+    # instead of repeatedly trying to recreate a blocked/completed title.
+    review_base = "Revisione commerciale — decidere il prossimo test gratuito"
+    if review_base.casefold() not in history and review_base.casefold() not in existing_titles:
+        return (
+            review_base,
+            "Rileggi i deliverable precedenti e prepara una decisione basata sulle prove raccolte: quale ipotesi è stata verificata, quali dati mancano e qual è il prossimo esperimento gratuito più piccolo. Non dichiarare vendite o clienti senza prova."
+        )
+    review_count = sum(1 for title in existing_titles if title.startswith(review_base.casefold()))
     return (
-        "Revisione commerciale — decidere il prossimo test gratuito",
-        "Rileggi i deliverable precedenti e prepara una decisione basata sulle prove raccolte: quale ipotesi è stata verificata, quali dati mancano e qual è il prossimo esperimento gratuito più piccolo. Non dichiarare vendite o clienti senza prova."
+        f"{review_base} #{review_count + 1}",
+        "Rivedi i risultati disponibili, scegli un esperimento gratuito diverso dai precedenti e definisci una verifica misurabile. Non dichiarare vendite o clienti senza prova."
     )
 
 
@@ -791,11 +805,14 @@ def main():
         previous = rows(db, "ciccio_agent_runs",
                         "created_at,status,goal,action,reason,result,verification", 12)
         memories = rows(db, "ciccio_memories", "created_at,kind,content", 30, user_id=user_id)
-        tasks = execute_read_with_retry(
+        task_history = execute_read_with_retry(
             db.table("ciccio_tasks").select("id,created_at,updated_at,title,status,notes")
-            .eq("user_id", user_id).neq("status", "Completata").neq("status", "Bloccata")
-            .order("created_at", desc=True).limit(30)
+            .eq("user_id", user_id).order("created_at", desc=True).limit(100)
         ).data or []
+        tasks = [
+            task for task in task_history
+            if task.get("status") not in {"Completata", "Bloccata"}
+        ]
 
         # Pause a task after three recent failures; a later manual edit resets its retry window.
         active_tasks = []
@@ -829,7 +846,7 @@ def main():
         # Advance through a deterministic sequence instead of repeating a generic offer.
         # The sequence is inferred from persisted deliverable memories and remains zero-budget.
         if not tasks:
-            next_title, next_notes = next_profit_task(memories)
+            next_title, next_notes = next_profit_task(memories, task_history)
             plan["action_type"] = "create_task"
             plan["goal"] = "Validare e sviluppare una fonte di profitto concreta a costo zero"
             plan["action_title"] = next_title
