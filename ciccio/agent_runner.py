@@ -571,7 +571,7 @@ def execute_task(db, groq, open_tasks, user_id):
             "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
         )
         prior = str(task.get("notes", "")).strip()
-        updated_notes = (prior[:1800] + "\\n\\n" + diagnostic)[:3000]
+        updated_notes = (prior[:1800] + "\n\n" + diagnostic)[:3000]
         db.table("ciccio_tasks").update({
             "status": "Da fare",
             "notes": updated_notes,
