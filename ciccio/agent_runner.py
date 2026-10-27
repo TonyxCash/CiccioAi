@@ -169,47 +169,152 @@ def notify_telegram(message):
 
 
 def search_web(query, *, max_results=5, timeout=12):
-    """Search the public web without a paid API; return parsed titles, URLs and snippets."""
-    query = re.sub(r"\s+", " ", str(query or "")).strip()[:240]
+    """Search the public web without a paid API; parse result links defensively."""
+    from html.parser import HTMLParser
+
+    query = re.sub(r"\\s+", " ", str(query or "")).strip()[:240]
     if not query:
         return []
-    url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            page = response.read(1_000_000).decode("utf-8", "replace")
-    except Exception as exc:
-        print("Ricerca web non disponibile (" + type(exc).__name__ + "); nessuna fonte inventata.")
-        return []
 
+    class ResultParser(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.items = []
+            self.current = None
+            self.result_depth = 0
+            self.capture = None
+            self.capture_tag = None
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            classes = set((attrs.get("class") or "").split())
+            if tag == "div" and "result" in classes and self.current is None:
+                self.current = {"title": "", "url": "", "snippet": ""}
+                self.result_depth = 1
+                return
+            if self.current is None:
+                return
+            if tag == "div":
+                self.result_depth += 1
+            if tag == "a" and "result__a" in classes:
+                self.current["url"] = attrs.get("href", "")
+                self.capture, self.capture_tag = "title", tag
+            elif "result__snippet" in classes:
+                self.capture, self.capture_tag = "snippet", tag
+
+        def handle_data(self, data):
+            if self.current is not None and self.capture:
+                self.current[self.capture] += data
+
+        def handle_endtag(self, tag):
+            if self.capture and tag == self.capture_tag:
+                self.capture, self.capture_tag = None, None
+            if self.current is not None and tag == "div":
+                self.result_depth -= 1
+                if self.result_depth <= 0:
+                    self.items.append(self.current)
+                    self.current = None
+                    self.result_depth = 0
+
+    # Use multiple free HTML endpoints/queries; never fabricate a source on failure.
+    endpoints = (
+        "https://html.duckduckgo.com/html/?",
+        "https://lite.duckduckgo.com/lite/?",
+    )
     results = []
-    # The public HTML page is untrusted input; extract only result metadata.
-    blocks = re.split(r'(?=<div class="result)', page)[1:]
-    for block in blocks:
-        link = re.search(r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', block, re.S)
-        if not link:
+    seen = set()
+    for endpoint in endpoints:
+        url = endpoint + urllib.parse.urlencode({"q": query})
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                page = response.read(1_000_000).decode("utf-8", "replace")
+        except Exception as exc:
+            print("Ricerca web non disponibile (" + type(exc).__name__ + "); provo un endpoint gratuito alternativo.")
             continue
-        raw_url = html.unescape(link.group(1))
-        parsed = urllib.parse.urlparse(raw_url)
-        target = urllib.parse.parse_qs(parsed.query).get("uddg", [""])[0] if "duckduckgo.com" in parsed.netloc else raw_url
-        target = html.unescape(target)
-        if not target.startswith(("https://", "http://")):
+
+        parser = ResultParser()
+        try:
+            parser.feed(page)
+        except Exception:
             continue
-        title = re.sub(r"<[^>]+>", " ", link.group(2))
-        title = re.sub(r"\s+", " ", html.unescape(title)).strip()
-        snippet_match = re.search(r'class="result__snippet"[^>]*>(.*?)</(?:a|div)>', block, re.S)
-        snippet = ""
-        if snippet_match:
-            snippet = re.sub(r"<[^>]+>", " ", snippet_match.group(1))
-            snippet = re.sub(r"\s+", " ", html.unescape(snippet)).strip()
-        if title and not any(item["url"] == target for item in results):
+        candidates = parser.items
+        # Some DuckDuckGo layouts change class placement; retain a conservative regex fallback.
+        if not candidates:
+            for block in re.split(r'(?=<div[^>]+class=["\'][^"\']*\\bresult\\b)', page, flags=re.I)[1:]:
+                match = re.search(r'<a\\b([^>]*class=["\'][^"\']*\\bresult__a\\b[^"\']*["\'][^>]*)>(.*?)</a>', block, re.I | re.S)
+                if not match:
+                    continue
+                href = re.search(r'href=["\']([^"\']+)["\']', match.group(1), re.I)
+                if href:
+                    snippet_match = re.search(r'class=["\'][^"\']*\\bresult__snippet\\b[^"\']*["\'][^>]*>(.*?)</(?:a|div|span)>', block, re.I | re.S)
+                    candidates.append({
+                        "url": href.group(1),
+                        "title": re.sub(r"<[^>]+>", " ", match.group(2)),
+                        "snippet": re.sub(r"<[^>]+>", " ", snippet_match.group(1)) if snippet_match else "",
+                    })
+
+        for item in candidates:
+            raw_url = html.unescape(str(item.get("url", "")).strip())
+            parsed = urllib.parse.urlparse(raw_url)
+            target = urllib.parse.parse_qs(parsed.query).get("uddg", [""])[0] if "duckduckgo.com" in parsed.netloc else raw_url
+            target = html.unescape(target).strip()
+            if not target.startswith(("https://", "http://")) or target in seen:
+                continue
+            title = re.sub(r"\\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("title", "")))).strip())
+            snippet = re.sub(r"\\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", str(item.get("snippet", "")))).strip())
+            if not title:
+                continue
+            seen.add(target)
             results.append({"title": title[:220], "url": target[:500], "snippet": snippet[:500]})
-        if len(results) >= max_results:
-            break
+            if len(results) >= max_results:
+                return results
     return results
+
+
+def task_search_queries(title, notes):
+    """Return short, targeted free-web searches for the current business task."""
+    combined = (str(title or "") + " " + str(notes or "")).casefold()
+    if "validazione mercato" in combined or ("domanda" in combined and "linkedin" in combined):
+        return [
+            '"servizi LinkedIn" freelance Italia prezzi',
+            'piattaforme freelance gestione LinkedIn Italia aziende',
+            'LinkedIn content marketing freelance Italia servizio',
+        ]
+    return [re.sub(r"\\s+", " ", str(title or "") + " " + str(notes or "")[:140]).strip()[:240]]
+
+
+def collect_task_sources(title, notes, *, max_results=5):
+    """Run targeted queries and merge only real URLs returned by search_web."""
+    results, seen = [], set()
+    for query in task_search_queries(title, notes):
+        try:
+            found = search_web(query, max_results=max_results, timeout=12)
+        except Exception as exc:
+            print("Ricerca web fallita (" + type(exc).__name__ + "); nessuna fonte inventata.")
+            found = []
+        for item in found or []:
+            url = str(item.get("url", "")).strip()
+            title_text = str(item.get("title", "")).strip()
+            if not url.startswith(("https://", "http://")) or not title_text or url in seen:
+                continue
+            seen.add(url)
+            results.append({
+                "title": title_text[:220],
+                "url": url[:500],
+                "snippet": str(item.get("snippet", ""))[:500],
+            })
+            if len(results) >= max_results:
+                return results
+    return results
+
+
+def task_requires_market_evidence(title, notes):
+    text = (str(title or "") + " " + str(notes or "")).casefold()
+    return "validazione mercato" in text or ("verifica" in text and "domanda" in text and "linkedin" in text)
 
 def required_env(name):
     value = os.getenv(name, "").strip()
@@ -455,8 +560,30 @@ def execute_task(db, groq, open_tasks, user_id):
     notes = str(task.get("notes", "")).strip()
     if not title:
         return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
-    search_query = title + " " + notes[:180]
-    sources = search_web(search_query, max_results=5)
+    sources = collect_task_sources(title, notes, max_results=5)
+    if task_requires_market_evidence(title, notes) and not sources:
+        # A market-validation report without sources is not a valid deliverable.
+        # Keep it open so the next scheduled cycle can retry the search instead of
+        # falsely recording an unsupported conclusion as completed.
+        diagnostic = (
+            "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite. "
+            "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
+            "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
+        )
+        prior = str(task.get("notes", "")).strip()
+        updated_notes = (prior[:1800] + "\\n\\n" + diagnostic)[:3000]
+        db.table("ciccio_tasks").update({
+            "status": "Da fare",
+            "notes": updated_notes,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", task["id"]).eq("user_id", user_id).execute()
+        check = execute_read_with_retry(
+            db.table("ciccio_tasks").select("status,notes")
+            .eq("id", task["id"]).eq("user_id", user_id).limit(1)
+        ).data or []
+        if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
+            raise RuntimeError("Ricerca mercato bloccata ma lo stato aperto dell'attività non è stato verificato.")
+        return {"status": "blocked", "result": diagnostic}
     source_text = json.dumps(sources, ensure_ascii=False)[:4500] if sources else (
         "Nessuna fonte web è stata recuperata in questo ciclo. Non dichiarare di aver svolto "
         "ricerche web; indicare quali dati devono essere verificati manualmente."
