@@ -575,7 +575,6 @@ def execute_task(db, groq, open_tasks, user_id):
         db.table("ciccio_tasks").update({
             "status": "Da fare",
             "notes": updated_notes,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", task["id"]).eq("user_id", user_id).execute()
         check = execute_read_with_retry(
             db.table("ciccio_tasks").select("status,notes")
