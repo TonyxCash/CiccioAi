@@ -62,7 +62,7 @@ def notify_email(subject, message):
         value = value.replace("\u00a0", " ").replace("\u202f", " ").replace("\u2007", " ")
         value = value.replace("\r\n", "\n").replace("\r", "\n")
         if preserve_lines:
-            lines = [re.sub(r"[\\t ]+", " ", line).strip() for line in value.split("\n")]
+            lines = [re.sub(r"[\t ]+", " ", line).strip() for line in value.split("\n")]
             # Keep intentional paragraphs, but remove excessive blank lines.
             normalized = []
             blank_pending = False
