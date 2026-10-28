@@ -30,7 +30,7 @@ class PackageArtifactsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result = package_artifacts(tmp)
             self.assertEqual(result["files"], 0)
-            self.assertIn("nessun deliverable", result["index"].read_text(encoding="utf-8"))
+            self.assertIn("nessun deliverable Markdown", result["index"].read_text(encoding="utf-8"))
             with zipfile.ZipFile(result["zip"]) as bundle:
                 self.assertEqual(set(bundle.namelist()), {"index.html"})
 
