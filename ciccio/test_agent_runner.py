@@ -41,6 +41,14 @@ class ProfitTaskSequenceTests(unittest.TestCase):
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
         self.assertEqual(title, "Revisione opportunità — scegliere un nuovo esperimento gratuito #1")
 
+    def test_moves_from_opportunity_map_to_a_sellable_sample(self):
+        title, notes = next_profit_task([], [
+            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"}
+        ])
+        self.assertEqual(title, "Crea prova vendibile — primo prodotto o servizio concreto")
+        self.assertIn("deliverable finito", notes)
+        self.assertNotEqual(title, "Classifica opportunità — scegliere i 3 test migliori")
+
     def test_first_profit_task_explores_multiple_business_categories(self):
         title, notes = next_profit_task([], [])
         self.assertEqual(title, "Mappa opportunità — confrontare almeno 8 modi per guadagnare")
