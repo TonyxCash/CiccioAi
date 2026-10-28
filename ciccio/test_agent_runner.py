@@ -35,6 +35,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             "Crea prova vendibile — primo prodotto o servizio concreto",
             "Ricerca clienti — trovare potenziali acquirenti verificabili",
             "Kit di lancio — preparare offerta e primo test gratuito",
+            "Distribuzione offerta — attivare il canale gratuito più concreto",
             "Revisione opportunità — scegliere un nuovo esperimento gratuito",
         ]
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
@@ -312,7 +313,7 @@ class MarketResearchGuardrailTests(unittest.TestCase):
         read_query.eq.return_value = read_query
         read_query.limit.return_value = read_query
         diagnostic = (
-            "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite. "
+            "Ultimo tentativo bloccato: nessuna fonte web recuperata dai motori gratuiti DuckDuckGo/Bing RSS. "
             "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
             "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
         )
