@@ -2,6 +2,12 @@ name: Ciccio autonomous agent cycle
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ciccio/agent_runner.py"
+      - "ciccio/offer_page.py"
+      - ".github/workflows/ciccio-agent.yml"
   schedule:
     # Six-hour cycle: continuous operation without exhausting free GitHub Actions minutes.
     - cron: "17 */6 * * *"
