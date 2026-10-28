@@ -657,9 +657,23 @@ def execute_task(db, groq, open_tasks, user_id):
         temperature=0.3,
         max_completion_tokens=1400,
     )
-    deliverable = (response.choices[0].message.content or "").strip()
-    if len(deliverable) < 40:
-        return {"status": "blocked", "result": "Output troppo breve: attività lasciata aperta."}
+    minimum_length = 1200 if task_requires_market_evidence(title, notes) else 250
+    if len(deliverable) < minimum_length:
+        retry_response = groq_completion_with_retry(
+            groq,
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "Produci un risultato operativo completo, strutturato e pronto all'uso. Evita risposte brevi."},
+                {"role": "user", "content": prompt + "\n\nLa risposta precedente era troppo breve. Ripeti il lavoro in modo completo: usa sezioni, confronto concreto, passi pratici e URL reali delle fonti fornite. Non inventare dati. Per una ricerca di mercato, confronta esplicitamente più opzioni e spiega limiti e prossimi passi."},
+            ],
+            temperature=0.2,
+            max_completion_tokens=2400,
+        )
+        retry_text = (retry_response.choices[0].message.content or "").strip()
+        if len(retry_text) > len(deliverable):
+            deliverable = retry_text
+    if len(deliverable) < minimum_length:
+        return {"status": "blocked", "result": "Output AI insufficiente anche dopo il secondo tentativo; attività lasciata aperta."}
     if task_requires_market_evidence(title, notes):
         cited_urls = [str(source.get("url", "")).strip() for source in sources if source.get("url")]
         used_urls = [url for url in cited_urls if url in deliverable]
