@@ -12,6 +12,7 @@ class PackageArtifactsTests(unittest.TestCase):
             root = Path(tmp)
             (root / "offerta-e-prova.md").write_text("# Offerta\n\nContenuto.", encoding="utf-8")
             (root / "secondo.md").write_text("# Secondo\n", encoding="utf-8")
+            (root / "offer-page.html").write_text("<html><body>Offerta</body></html>", encoding="utf-8")
             result = package_artifacts(root)
 
             self.assertEqual(result["files"], 2)
@@ -19,11 +20,12 @@ class PackageArtifactsTests(unittest.TestCase):
             self.assertTrue(result["zip"].is_file())
             page = result["index"].read_text(encoding="utf-8")
             self.assertIn("offerta-e-prova.md", page)
+            self.assertIn("Pagina offerta condivisibile", page)
             self.assertIn("Verifica contenuti e fonti", page)
             with zipfile.ZipFile(result["zip"]) as bundle:
                 self.assertIsNone(bundle.testzip())
                 self.assertEqual(set(bundle.namelist()), {
-                    "index.html", "offerta-e-prova.md", "secondo.md"
+                    "index.html", "offer-page.html", "offerta-e-prova.md", "secondo.md"
                 })
 
     def test_empty_output_still_produces_valid_downloadable_bundle(self):
