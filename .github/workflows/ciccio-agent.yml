@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: ciccio-agent-cycle
@@ -17,6 +19,8 @@ jobs:
   agent:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      offer_page_created: ${{ steps.offer_page.outputs.created }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,6 +49,17 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: python ciccio/agent_runner.py
+      - name: Prepare shareable offer page
+        id: offer_page
+        if: always()
+        shell: bash
+        run: |
+          python ciccio/offer_page.py | tee /tmp/ciccio-offer-page.log
+          if grep -q '^Pagina offerta creata:' /tmp/ciccio-offer-page.log; then
+            echo 'created=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'created=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Package Ciccio work products
         if: always()
         run: python ciccio/package_artifacts.py
@@ -56,6 +71,7 @@ jobs:
           path: |
             ciccio_output/*.md
             ciccio_output/index.html
+            ciccio_output/offer-page.html
             ciccio_output/ciccio-work-products.zip
           if-no-files-found: ignore
           retention-days: 30
@@ -71,3 +87,31 @@ jobs:
             echo "- Download the bundled work products from this run's Artifacts section."
             echo "- The detailed execution log is available in the job output."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  publish_offer:
+    needs: agent
+    if: needs.agent.outputs.offer_page_created == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download generated offer page
+        uses: actions/download-artifact@v4
+        with:
+          name: ciccio-work-products-${{ github.run_number }}
+          path: ciccio_output
+      - name: Prepare Pages site
+        run: |
+          test -s ciccio_output/offer-page.html
+          mkdir -p _site
+          cp ciccio_output/offer-page.html _site/index.html
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy offer page
+        id: deployment
+        uses: actions/deploy-pages@v4
