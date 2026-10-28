@@ -401,3 +401,25 @@ class DownloadableArtifactTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(ValueError):
                 save_deliverable_artifact("Vuoto", "  ", tmp)
+
+
+class AgentUnavailableRecoveryTests(unittest.TestCase):
+    def test_model_api_failure_leaves_task_open_without_unbound_deliverable(self):
+        task = {
+            "id": "task-429",
+            "user_id": "user-1",
+            "created_at": "2026-10-28T10:00:00+00:00",
+            "title": "Crea prova vendibile — campione digitale",
+            "notes": "Crea un campione finito pronto all'uso",
+        }
+        db = Mock()
+        with patch("agent_runner.collect_task_sources", return_value=[]), patch(
+            "agent_runner.groq_completion_with_retry",
+            side_effect=RuntimeError("simulated API rate limit"),
+        ):
+            result = execute_task(db, Mock(), [task], "user-1")
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("attività lasciata aperta", result["result"])
+        self.assertNotIn("deliverable", result["result"].lower())
+        db.table.assert_not_called()
