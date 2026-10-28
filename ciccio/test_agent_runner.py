@@ -381,3 +381,23 @@ class TelegramNotificationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DownloadableArtifactTests(unittest.TestCase):
+    def test_artifact_is_saved_with_safe_filename_and_full_content(self):
+        import tempfile
+        from artifacts import save_deliverable_artifact
+        with tempfile.TemporaryDirectory() as tmp:
+            path = save_deliverable_artifact("Offerta: prova / cliente?", "Contenuto completo con è e dettagli.", tmp)
+            self.assertTrue(path.is_file())
+            self.assertTrue(path.name.endswith("-offerta-prova-cliente.md"))
+            saved = path.read_text(encoding="utf-8")
+            self.assertIn("# Offerta: prova / cliente?", saved)
+            self.assertIn("Contenuto completo con è e dettagli.", saved)
+
+    def test_empty_artifact_is_rejected(self):
+        import tempfile
+        from artifacts import save_deliverable_artifact
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                save_deliverable_artifact("Vuoto", "  ", tmp)

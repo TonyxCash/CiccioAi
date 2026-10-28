@@ -45,6 +45,14 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: python ciccio/agent_runner.py
+      - name: Upload Ciccio work products
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ciccio-work-products-${{ github.run_number }}
+          path: ciccio_output/*.md
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Publish cycle status summary
         if: always()
         env:

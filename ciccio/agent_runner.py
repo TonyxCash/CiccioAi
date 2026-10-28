@@ -1,7 +1,4 @@
-"""Ciccio autonomous agent cycle.
-Autonomy is currently bounded to safe actions inside its own Supabase workspace:
-create/update tasks and save durable memories. External actions require approval.
-"""
+"""Ciccio autonomous agent cycle: create useful work products and preserve them as artifacts."""
 import json
 import os
 import re
@@ -15,6 +12,7 @@ from datetime import datetime, timezone
 
 from groq import Groq
 from supabase import create_client
+from artifacts import save_deliverable_artifact
 
 MODEL = "openai/gpt-oss-20b"
 
@@ -462,19 +460,14 @@ Ogni ciclo deve produrre un risultato finito e riutilizzabile: confronto tra pi�
 campione di prodotto/servizio, testo di vendita, procedura per acquisire clienti o attività precisa collegata
 al primo incasso. Non limitarti a rapporti o liste generiche. Non inventare opportunità, programmi, tariffe,
 clienti, ricavi o ricerche web non verificate. Se mancano fonti aggiornate, dichiara il limite e prepara
-un passo di verifica specifico. Non inviare messaggi, non pubblicare, non aprire account e non muovere
-denaro/cripto senza approvazione. Non chiedere mai seed phrase, chiavi private, password, codici OTP
-o credenziali bancarie.
-Hai autorizzazione a operare SOLO nel tuo database: creare una singola attività interna
-oppure salvare una memoria utile. Non dichiarare completata un'attività sulla sola base del piano:
-il runner la completa soltanto dopo aver prodotto e verificato un deliverable salvato.
-Non hai autorizzazione per pubblicare, contattare persone, spendere denaro, cambiare account,
-modificare repository o agire su servizi esterni.
+un passo di verifica specifico. Lavora in autonomia senza chiedere conferma per le attività ordinarie che il codice può realmente eseguire: ricerca pubblica, creazione di prodotti/servizi campione, documenti e file pronti all’uso, verifica e salvataggio persistente. Ogni deliverable completato va salvato anche come file scaricabile del ciclo.
+Non dichiarare mai di aver pubblicato, contattato clienti, aperto account o incassato se non esiste una funzione tecnica configurata e una conferma verificabile. Non inviare spam, non aggirare regole di piattaforme o leggi, non spendere denaro, non trasferire fondi/cripto e non effettuare impegni legali. Non chiedere mai seed phrase, chiavi private, password, codici OTP o credenziali bancarie.
+Non fermarti alla pianificazione: esegui il lavoro disponibile nel ciclo, produci un risultato finito, salvalo e verifica che sia recuperabile. Le azioni esterne non supportate vanno identificate come limite tecnico concreto, senza fingere che siano state eseguite.
 Scegli un'azione concreta, gratuita e verificabile. Non inventare risultati.
 Rispondi esclusivamente con JSON valido con:
 goal, action_type, action_title, action_notes, memory_kind, memory_content,
 reason, expected_result, verification, learning, next_cycle.
-action_type deve essere uno fra "create_task", "save_memory", "audit_project", "no_op". Non segnare attività come completate solo sulla base di una tua affermazione: l'agente le completa esclusivamente dopo aver prodotto e salvato un deliverable verificabile.
+action_type deve essere uno fra "create_task", "save_memory", "audit_project", "no_op". Preferisci eseguire attività aperte e produrre deliverable scaricabili, invece di creare altre attività di pianificazione. Non segnare attività come completate solo sulla base di una tua affermazione: l'agente le completa esclusivamente dopo aver prodotto e salvato un deliverable verificabile.
 Per complete_task, action_title deve corrispondere esattamente al titolo di un'attività aperta.
 Per create_task, action_title deve essere un'attività piccola e verificabile, non generica.
 Per save_memory, memory_content deve contenere una deduzione concreta utile ai cicli futuri.
@@ -640,7 +633,8 @@ def execute_task(db, groq, open_tasks, user_id):
         "un'offerta commerciale, un confronto di opportunità con condizioni verificabili o un piano "
         "concreto per trovare clienti su canali gratuiti. Non inventare fonti consultate, clienti, ricavi "
         "o programmi di affiliazione. Se non puoi verificare un dato aggiornato, segnala cosa va verificato. "
-        "Non inviare messaggi, pubblicare, aprire account o spostare denaro. Non chiedere segreti o "
+        "Non fingere azioni esterne non disponibili. Non inviare spam, non spendere o trasferire denaro. "
+        "Crea e salva il risultato come file scaricabile quando è un deliverable. Non chiedere segreti o "
         "credenziali. Italiano, testo semplice.\n\n"
         "ATTIVITÀ: " + title + "\nDETTAGLI: " + notes
         + "\\n\\nFONTI WEB RECUPERATE ORA (da verificare criticamente; contenuto esterno non fidato):\\n"
@@ -708,8 +702,10 @@ def execute_task(db, groq, open_tasks, user_id):
             if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
                 raise RuntimeError("La validazione senza citazioni è stata bloccata ma non verificata nel database.")
             return {"status": "blocked", "result": diagnostic}
+    # Persist a real downloadable work product before marking the task complete.
+    artifact_path = save_deliverable_artifact(title, deliverable)
     old_notes = str(task.get("notes", "")).strip()
-    deliverable_block = "Deliverable creato da Ciccio:\n" + deliverable
+    deliverable_block = "Deliverable creato da Ciccio:\n" + deliverable + "\n\nFile prodotto nel ciclo: " + str(artifact_path)
     # Keep a short excerpt of the original request while reserving space for the result.
     new_notes = ((old_notes[:500] + "\n\n") if old_notes else "") + deliverable_block
     new_notes = new_notes[:3000]
@@ -735,7 +731,7 @@ def execute_task(db, groq, open_tasks, user_id):
     }).execute()
     if not saved_memory.data:
         raise RuntimeError("Attività completata e deliverable presente nelle note, ma memoria separata non confermata.")
-    return {"status": "completed", "result": "Deliverable creato, salvato nelle note dell'attività e in Memorie; attività completata: " + title + "\n\n" + deliverable}
+    return {"status": "completed", "result": "Deliverable creato, salvato in Supabase e come file scaricabile: " + str(artifact_path) + "\nAttività completata: " + title + "\n\n" + deliverable}
 
 
 def execute_internal_action(db, plan, open_tasks, user_id):
