@@ -460,6 +460,10 @@ def next_profit_task(memories, task_history=None):
             "Kit di lancio — preparare offerta e primo test gratuito",
             "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Usa automaticamente gli strumenti e le integrazioni già configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna (per esempio pubblicazione su una piattaforma o incasso), non limitarti a chiedere permesso: prepara tutto il materiale necessario e registra il requisito tecnico specifico che blocca l'azione. Non spendere denaro, non assumere impegni legali, non fingere pubblicazioni o vendite e non aggirare le regole del canale."
         ),
+        (
+            "Distribuzione offerta — attivare il canale gratuito più concreto",
+            "Parti dal kit di lancio già creato e porta l'offerta verso un pubblico reale. Confronta canali gratuiti attivabili con gli accessi e gli strumenti disponibili; privilegia un canale con percorso di pagamento verificabile in Italia. Se è possibile pubblicare o distribuire in modo lecito con gli strumenti configurati, esegui l'azione e verifica l'URL o la ricevuta tecnica. Se una piattaforma richiede registrazione, verifica d'identità o configurazione personale del pagamento che non puoi completare, non fingere di averla completata: documenta esattamente il blocco, prepara il materiale richiesto e cerca un'alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro, non creare account falsi e non dichiarare vendite senza prova."
+        ),
     ]
     for title, notes in stages:
         if title.casefold() not in history and title.casefold() not in existing_titles:
@@ -639,7 +643,7 @@ def execute_task(db, groq, open_tasks, user_id):
         # Keep it open so the next scheduled cycle can retry the search instead of
         # falsely recording an unsupported conclusion as completed.
         diagnostic = (
-            "Ultimo tentativo bloccato: nessuna fonte web recuperata da DuckDuckGo HTML/Lite. "
+            "Ultimo tentativo bloccato: nessuna fonte web recuperata dai motori gratuiti DuckDuckGo/Bing RSS. "
             "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
             "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
         )
