@@ -56,6 +56,15 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             self.assertIn(category, notes)
         self.assertNotIn("solo LinkedIn", notes)
 
+    def test_prospect_research_searches_for_small_businesses_and_real_projects(self):
+        queries = task_search_queries(
+            "Ricerca clienti — trovare potenziali acquirenti verificabili",
+            "Individua potenziali clienti per un servizio digitale",
+        )
+        self.assertGreaterEqual(len(queries), 4)
+        self.assertTrue(any("piccole imprese" in query for query in queries))
+        self.assertTrue(any("progetti clienti" in query for query in queries))
+
     def test_opportunity_mapping_requires_real_market_evidence(self):
         self.assertTrue(task_requires_market_evidence(
             "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
