@@ -27,7 +27,7 @@ jobs:
       - name: Install Ciccio dependencies
         run: python -m pip install --disable-pip-version-check "groq>=0.9,<1.0" "supabase>=2.4,<3.0"
       - name: Validate Ciccio Python files
-        run: python -m py_compile ciccio/app.py ciccio/agent_runner.py
+        run: python -m py_compile ciccio/app.py ciccio/agent_runner.py ciccio/artifacts.py ciccio/package_artifacts.py
       - name: Test Ciccio agent safety rules
         run: python -m unittest discover -s ciccio -p "test_*.py" -v
       - name: Run one autonomous Ciccio cycle
@@ -45,12 +45,18 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         run: python ciccio/agent_runner.py
+      - name: Package Ciccio work products
+        if: always()
+        run: python ciccio/package_artifacts.py
       - name: Upload Ciccio work products
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ciccio-work-products-${{ github.run_number }}
-          path: ciccio_output/*.md
+          path: |
+            ciccio_output/*.md
+            ciccio_output/index.html
+            ciccio_output/ciccio-work-products.zip
           if-no-files-found: ignore
           retention-days: 30
       - name: Publish cycle status summary
@@ -62,5 +68,6 @@ jobs:
             echo "## Ciccio autonomous cycle"
             echo "- Workflow result: ${JOB_STATUS}"
             echo "- Commit: ${GITHUB_SHA}"
+            echo "- Download the bundled work products from this run's Artifacts section."
             echo "- The detailed execution log is available in the job output."
           } >> "${GITHUB_STEP_SUMMARY}"
