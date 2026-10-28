@@ -419,11 +419,11 @@ def next_profit_task(memories, task_history=None):
         ),
         (
             "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Individua fino a 10 potenziali clienti o canali di vendita pertinenti al deliverable scelto, usando fonti pubbliche verificabili. Includi nome dell'azienda/piattaforma, sito pubblico, motivo concreto di pertinenza e URL della fonte. Se il modello scelto non richiede clienti diretti, trova invece canali di distribuzione o piattaforme idonee e verifica le loro condizioni. Non raccogliere dati privati e non inviare messaggi."
+            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, prodotto/servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Preferisci piattaforme gratuite con pubblicazione o API ufficiali. Prepara l'azione successiva più concreta che può essere eseguita con gli strumenti e gli accessi già disponibili. Non raccogliere dati personali non necessari, non inviare spam e rispetta legge e regole del canale."
         ),
         (
             "Kit di lancio — preparare offerta e primo test gratuito",
-            "Prepara i materiali necessari per testare l'opportunità: descrizione chiara, prezzo iniziale da sperimentare se appropriato, esempio del risultato, canale gratuito di pubblicazione o contatto, messaggio personalizzabile non inviato, procedura di pagamento verificabile e metrica di successo. Non pubblicare, non contattare nessuno e non aprire account senza approvazione."
+            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Usa automaticamente gli strumenti e le integrazioni già configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna (per esempio pubblicazione su una piattaforma o incasso), non limitarti a chiedere permesso: prepara tutto il materiale necessario e registra il requisito tecnico specifico che blocca l'azione. Non spendere denaro, non assumere impegni legali, non fingere pubblicazioni o vendite e non aggirare le regole del canale."
         ),
     ]
     for title, notes in stages:
