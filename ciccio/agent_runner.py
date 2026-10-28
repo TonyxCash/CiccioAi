@@ -438,31 +438,31 @@ def next_profit_task(memories, task_history=None):
     stages = [
         (
             "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Esplora almeno 8 modelli diversi adatti a una persona in Italia che parte da zero e usa solo iPhone/computer: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Non limitarti a LinkedIn o a un'unica idea. Distingui fatti da ipotesi e cita URL reali quando usi dati di mercato. Escludi trading speculativo, truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
-        ),
-        (
-            "Classifica opportunità — scegliere i 3 test migliori",
-            "Usa la mappa e le memorie precedenti per confrontare almeno 3 opportunità di guadagno di categorie diverse. Crea una tabella con punteggi motivati per costo zero, domanda verificabile, facilità di avvio, tempo al primo incasso, margine potenziale e compatibilità con iPhone. Non presumere che un'opportunità sia valida solo perché è già stata iniziata. Scegli il test successivo con il miglior rapporto tra prove, velocità e rischio; cita fonti reali per ogni affermazione di mercato."
-        ),
-        (
-            "Valida opportunità — verificare domanda e modalità di incasso",
-            "Valida l'opportunità migliore con fonti pubbliche aggiornate: offerte concorrenti, prezzi pubblici, richieste di clienti o piattaforme affidabili, requisiti di accesso e condizioni reali di pagamento. Cerca anche almeno un'alternativa di categoria diversa. Riporta titolo e URL per ogni fonte recuperata, separa fatti da ipotesi, indica cosa non è verificabile e decidi se testare, modificare o scartare. Non inventare statistiche, clienti o guadagni."
+            "Esplora almeno 8 modelli diversi adatti a una persona in Italia che parte da zero e usa solo iPhone/computer: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Distingui fatti da ipotesi e cita URL reali. Escludi truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
         ),
         (
             "Crea prova vendibile — primo prodotto o servizio concreto",
-            "Crea un deliverable finito collegato all'opportunità meglio supportata: ad esempio un campione professionale, un mini-prodotto digitale, un pacchetto di testi, un modello, una scheda servizio o una procedura. Scegli il formato più rapido e utile, non automaticamente post LinkedIn. Deve essere riutilizzabile, presentabile a un potenziale acquirente e senza costi iniziali. Non inventare dati, testimonianze o risultati."
+            "Crea subito un deliverable finito e riutilizzabile collegato all’opportunità più promettente emersa dalla mappa già disponibile. Scegli il formato più rapido da consegnare e vendere senza costi iniziali: campione professionale, mini-prodotto digitale, pacchetto di testi, modello o scheda servizio. Usa le prove già raccolte e produci un campione completo che un potenziale acquirente possa valutare, senza ritardare il lavoro con nuova pianificazione generica. Non inventare dati, testimonianze o risultati."
         ),
         (
             "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, prodotto/servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Preferisci piattaforme gratuite con pubblicazione o API ufficiali. Prepara l'azione successiva più concreta che può essere eseguita con gli strumenti e gli accessi già disponibili. Non raccogliere dati personali non necessari, non inviare spam e rispetta legge e regole del canale."
+            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Preferisci piattaforme gratuite. Prepara l’azione successiva più concreta che può essere eseguita con gli strumenti disponibili. Non raccogliere dati personali non necessari e non inviare spam."
         ),
         (
             "Kit di lancio — preparare offerta e primo test gratuito",
-            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Usa automaticamente gli strumenti e le integrazioni già configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna (per esempio pubblicazione su una piattaforma o incasso), non limitarti a chiedere permesso: prepara tutto il materiale necessario e registra il requisito tecnico specifico che blocca l'azione. Non spendere denaro, non assumere impegni legali, non fingere pubblicazioni o vendite e non aggirare le regole del canale."
+            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Riutilizza il campione e le prove già create, evitando nuova pianificazione generica. Usa gli strumenti configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna, prepara tutto il materiale necessario e registra il requisito specifico che blocca l’azione. Non spendere denaro e non fingere pubblicazioni o vendite."
         ),
         (
             "Distribuzione offerta — attivare il canale gratuito più concreto",
-            "Parti dal kit di lancio già creato e porta l'offerta verso un pubblico reale. Confronta canali gratuiti attivabili con gli accessi e gli strumenti disponibili; privilegia un canale con percorso di pagamento verificabile in Italia. Se è possibile pubblicare o distribuire in modo lecito con gli strumenti configurati, esegui l'azione e verifica l'URL o la ricevuta tecnica. Se una piattaforma richiede registrazione, verifica d'identità o configurazione personale del pagamento che non puoi completare, non fingere di averla completata: documenta esattamente il blocco, prepara il materiale richiesto e cerca un'alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro, non creare account falsi e non dichiarare vendite senza prova."
+            "Parti dal kit di lancio e porta l’offerta verso un pubblico reale. Confronta canali gratuiti attivabili con gli strumenti disponibili e privilegia un canale con percorso di pagamento verificabile in Italia. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una registrazione, verifica d’identità o configurazione personale del pagamento che non puoi completare, documenta il blocco esatto e cerca un’alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro e non dichiarare vendite senza prova."
+        ),
+        (
+            "Classifica opportunità — scegliere i 3 test migliori",
+            "Dopo aver preparato il primo test vendibile, confronta almeno 3 opportunità di categorie diverse per costo zero, domanda verificabile, facilità di avvio, tempo al primo incasso, margine potenziale e compatibilità con iPhone. Usa la mappa e fonti reali; non ritardare la distribuzione dell’offerta per una nuova analisi generica."
+        ),
+        (
+            "Valida opportunità — verificare domanda e modalità di incasso",
+            "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento in Italia. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
         ),
     ]
     for title, notes in stages:
