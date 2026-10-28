@@ -35,6 +35,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
             "Crea prova vendibile — primo prodotto o servizio concreto",
             "Ricerca clienti — trovare potenziali acquirenti verificabili",
             "Kit di lancio — preparare offerta e primo test gratuito",
+            "Distribuzione offerta — attivare il canale gratuito più concreto",
             "Revisione opportunità — scegliere un nuovo esperimento gratuito",
         ]
         title, _ = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
