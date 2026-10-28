@@ -464,6 +464,7 @@ def next_profit_task(memories, task_history=None):
             "Valida opportunità — verificare domanda e modalità di incasso",
             "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento in Italia. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
         ),
+    ]
     for title, notes in stages:
         if title.casefold() not in history and title.casefold() not in existing_titles:
             return title, notes
