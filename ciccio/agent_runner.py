@@ -270,6 +270,41 @@ def search_web(query, *, max_results=5, timeout=12):
             results.append({"title": title[:220], "url": target[:500], "snippet": snippet[:500]})
             if len(results) >= max_results:
                 return results
+    # Fallback gratuito: Bing RSS, indipendente dal markup HTML di DuckDuckGo.
+    # È usato solo se le pagine DuckDuckGo non hanno restituito risultati validi.
+    if len(results) < max_results:
+        rss_url = "https://www.bing.com/search?" + urllib.parse.urlencode({
+            "format": "rss",
+            "q": query,
+        })
+        request = urllib.request.Request(
+            rss_url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                rss_data = response.read(1_000_000)
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(rss_data)
+            for item in root.findall(".//item"):
+                raw_url = (item.findtext("link") or "").strip()
+                parsed = urllib.parse.urlparse(raw_url)
+                if parsed.scheme not in {"http", "https"} or not parsed.netloc or raw_url in seen:
+                    continue
+                title = re.sub(r"\\s+", " ", html.unescape(item.findtext("title") or "")).strip()
+                snippet = re.sub(r"\\s+", " ", html.unescape(item.findtext("description") or "")).strip()
+                if not title:
+                    continue
+                seen.add(raw_url)
+                results.append({
+                    "title": title[:220],
+                    "url": raw_url[:500],
+                    "snippet": re.sub(r"<[^>]+>", " ", snippet)[:500],
+                })
+                if len(results) >= max_results:
+                    break
+        except Exception as exc:
+            print("Ricerca Bing RSS non disponibile (" + type(exc).__name__ + "); nessuna fonte inventata.")
     return results
 
 
