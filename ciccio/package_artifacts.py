@@ -18,6 +18,9 @@ def package_artifacts(output_dir="ciccio_output"):
         links.append(
             '<li><a href="' + escape(quote(name)) + '">' + escape(name) + '</a></li>'
         )
+    offer_page = root / "offer-page.html"
+    if offer_page.is_file():
+        links.append('<li><a href="offer-page.html">Pagina offerta condivisibile (HTML)</a></li>')
     if not links:
         body = "<p>In questo ciclo non sono stati creati deliverable Markdown.</p>"
     else:
@@ -37,6 +40,8 @@ def package_artifacts(output_dir="ciccio_output"):
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         bundle.write(index, arcname="index.html")
+        if offer_page.is_file():
+            bundle.write(offer_page, arcname="offer-page.html")
         for path in files:
             bundle.write(path, arcname=path.name)
     with zipfile.ZipFile(zip_path, "r") as bundle:
