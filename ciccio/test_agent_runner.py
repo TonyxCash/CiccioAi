@@ -248,6 +248,57 @@ class FailedTaskAttemptTests(unittest.TestCase):
         self.assertIn("Servizio e prezzi", results[0]["title"])
         self.assertIn("Prezzi pubblici", results[0]["snippet"])
 
+class BingRssFallbackTests(unittest.TestCase):
+    def test_search_web_uses_bing_rss_when_duckduckgo_has_no_results(self):
+        import urllib.parse
+
+        def fake_response(payload):
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.read.return_value = payload
+            return response
+
+        rss = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <rss><channel><item>
+          <title>Tariffe e condizioni ufficiali</title>
+          <link>https://example.org/fees</link>
+          <description>Prezzi e requisiti per i venditori</description>
+        </item></channel></rss>"""
+
+        def fake_urlopen(request, timeout=12):
+            url = request.full_url
+            if "format=rss" in url:
+                return fake_response(rss)
+            return fake_response(b"<html><body>nessun risultato</body></html>")
+
+        with patch("agent_runner.urllib.request.urlopen", side_effect=fake_urlopen):
+            results = search_web("verifica commissioni piattaforme", max_results=5)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["url"], "https://example.org/fees")
+        self.assertIn("Tariffe", results[0]["title"])
+        self.assertIn("requisiti", results[0]["snippet"])
+
+    def test_search_web_ignores_invalid_bing_rss_links(self):
+        rss = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <rss><channel>
+          <item><title>Bad link</title><link>javascript:alert(1)</link><description>bad</description></item>
+          <item><title>Good link</title><link>https://example.org/good</link><description>ok</description></item>
+        </channel></rss>"""
+        def fake_response(payload):
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.read.return_value = payload
+            return response
+        with patch("agent_runner.urllib.request.urlopen", side_effect=[
+            fake_response(b"<html></html>"),
+            fake_response(b"<html></html>"),
+            fake_response(rss),
+        ]):
+            results = search_web("test query", max_results=5)
+        self.assertEqual([item["url"] for item in results], ["https://example.org/good"])
+
+
 class MarketResearchGuardrailTests(unittest.TestCase):
     def test_market_validation_is_not_completed_without_sources(self):
         db = Mock()
