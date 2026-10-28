@@ -446,15 +446,15 @@ def next_profit_task(memories, task_history=None):
         ),
         (
             "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Preferisci piattaforme gratuite. Prepara l’azione successiva più concreta che può essere eseguita con gli strumenti disponibili. Non raccogliere dati personali non necessari e non inviare spam."
+            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, prodotto/servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Prepara l’azione successiva più concreta possibile con gli strumenti disponibili. Non raccogliere dati personali non necessari e non inviare spam."
         ),
         (
             "Kit di lancio — preparare offerta e primo test gratuito",
-            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Riutilizza il campione e le prove già create, evitando nuova pianificazione generica. Usa gli strumenti configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna, prepara tutto il materiale necessario e registra il requisito specifico che blocca l’azione. Non spendere denaro e non fingere pubblicazioni o vendite."
+            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Riutilizza il campione e le prove già create, evitando nuova pianificazione generica. Usa automaticamente gli strumenti e le integrazioni configurati per azioni lecite e reversibili. Se manca una capacità tecnica esterna, prepara il materiale necessario e registra il requisito specifico che blocca l’azione. Non spendere denaro e non fingere pubblicazioni o vendite."
         ),
         (
             "Distribuzione offerta — attivare il canale gratuito più concreto",
-            "Parti dal kit di lancio e porta l’offerta verso un pubblico reale. Confronta canali gratuiti attivabili con gli strumenti disponibili e privilegia un canale con percorso di pagamento verificabile in Italia. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una registrazione, verifica d’identità o configurazione personale del pagamento che non puoi completare, documenta il blocco esatto e cerca un’alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro e non dichiarare vendite senza prova."
+            "Parti dal kit di lancio già creato e porta l’offerta verso un pubblico reale. Confronta canali gratuiti attivabili con gli strumenti disponibili e privilegia un percorso di pagamento verificabile in Italia. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una verifica personale o configurazione del pagamento che non puoi completare, documenta il blocco e cerca un’alternativa gratuita più autonoma. Non inviare spam, non spendere denaro e non dichiarare vendite senza prova."
         ),
         (
             "Classifica opportunità — scegliere i 3 test migliori",
