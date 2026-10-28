@@ -386,7 +386,7 @@ class MarketResearchGuardrailTests(unittest.TestCase):
             "Individua aziende pertinenti al servizio di contenuti LinkedIn",
         )
         self.assertGreaterEqual(len(queries), 3)
-        self.assertTrue(any("aziende" in query for query in queries))
+        self.assertTrue(any("piccole imprese" in query for query in queries))
         self.assertTrue(task_requires_market_evidence(
             "Ricerca clienti — 10 potenziali clienti pubblici",
             "Usa solo siti pubblici verificabili e cita gli URL",
