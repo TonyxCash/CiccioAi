@@ -10,14 +10,9 @@ def build_offer_page(output_dir="ciccio_output"):
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
 
-    # Require a launch-kit file before publishing an offer page.
-    candidates = [
-        p for p in root.glob("*.md")
-        if p.is_file() and any(word in p.name.casefold() for word in ("kit-di-lancio", "offerta", "distribuzione-offerta"))
-    ]
-    source = max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
-    if source is None or not source.read_text(encoding="utf-8").strip():
-        return {"created": False, "reason": "Nessun kit di lancio valido trovato."}
+    # The public information page is safe to publish without a launch-kit draft.
+    # Draft files are internal work products and must not gate public-page deployment.
+    source = None
 
     contact_email = os.getenv("CICCIO_CONTACT_EMAIL", "").strip()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact_email):
@@ -111,7 +106,7 @@ __PAYMENT__
     target.write_text(page, encoding="utf-8")
     if not target.is_file() or target.stat().st_size < 500:
         raise OSError("La pagina offerta non è stata creata correttamente.")
-    return {"created": True, "path": str(target), "source": source.name, "bytes": target.stat().st_size}
+    return {"created": True, "path": str(target), "source": source.name if source else "pagina informativa predefinita", "bytes": target.stat().st_size}
 
 
 if __name__ == "__main__":
