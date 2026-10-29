@@ -491,22 +491,30 @@ def next_profit_task(memories, task_history=None):
         if match:
             numbered_reviews.append(int(match.group(1)))
     next_review = max(numbered_reviews, default=0) + 1
-    # Dopo aver esaurito la sequenza iniziale, passare dalla pianificazione alla
-    # ricerca di acquirenti per l'offerta concreta già pubblicata da Ciccio.
+    # Dopo la sequenza iniziale, alternare acquisizione clienti e miglioramento del prodotto.
+    # Così Ciccio non ripete all'infinito ricerche generiche: ogni ciclo commerciale deve
+    # cercare acquirenti oppure migliorare il servizio sulla base di prove e limiti osservati.
     prospect_base = "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci"
+    improvement_base = "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione"
     prospect_numbers = []
+    improvement_numbers = []
     for existing_title in existing_titles:
         match = re.match(re.escape(prospect_base.casefold()) + r"\s+#(\d+)$", existing_title)
         if match:
             prospect_numbers.append(int(match.group(1)))
-    if prospect_base.casefold() not in existing_titles or prospect_numbers:
+        match = re.match(re.escape(improvement_base.casefold()) + r"\s+#(\d+)$", existing_title)
+        if match:
+            improvement_numbers.append(int(match.group(1)))
+
+    # Avvia con la ricerca clienti. Poi alterna ricerca e miglioramento.
+    if len(prospect_numbers) <= len(improvement_numbers):
         return (
             f"{prospect_base} #{max(prospect_numbers, default=0) + 1}",
-            "Trova potenziali acquirenti per il servizio già pubblicato: 5 annunci ottimizzati per 15 euro. Cerca venditori di abbigliamento online, piccoli e-commerce e richieste freelance pertinenti. Usa soltanto pagine pubbliche con URL reali; per ogni candidato riporta fonte, motivo concreto di pertinenza e canale pubblico di contatto verificabile. Verifica anche le regole del canale prima di proporre la pubblicazione. Prepara un messaggio breve e personalizzabile, ma non inviarlo automaticamente e non inventare contatti. Obiettivo misurabile: almeno 3 opportunità pertinenti con fonti specifiche; se le fonti gratuite non funzionano, registra il blocco senza fingere risultati."
+            "Cerca fino a 10 potenziali acquirenti reali per il pacchetto di 5 annunci a 15 euro. Privilegia venditori con annunci pubblici specifici e migliorabili, piccoli e-commerce o richieste di lavoro pertinenti. Per ogni candidato servono URL della pagina concreta, difetto o bisogno osservabile, miglioramento che Ciccio può dimostrare con un esempio e canale pubblico appropriato. Escludi directory generiche, grandi portali istituzionali e aziende senza un bisogno osservabile. Prepara al massimo 3 messaggi personalizzati, non inviarli automaticamente. Obiettivo: almeno 3 candidati verificabili; se non sono disponibili fonti adeguate, dichiara il blocco senza inventare contatti."
         )
     return (
-        f"{review_base} #{next_review}",
-        "Rivedi i test commerciali già eseguiti. Confronta risultati misurabili (fonti valide, opportunità pertinenti, visite o richieste realmente osservate), interrompi i metodi bloccati e scegli una modifica concreta al canale o all'offerta. Non dichiarare vendite o clienti senza prova."
+        f"{improvement_base} #{max(improvement_numbers, default=0) + 1}",
+        "Esegui un miglioramento concreto del servizio Ciccio basandoti sulle prove raccolte nei cicli precedenti. Crea un mini-audit dimostrativo prima/dopo su un annuncio pubblico o su un esempio chiaramente dichiarato come sintetico; analizza titolo, chiarezza, informazioni mancanti, parole chiave pertinenti e fiducia dell'acquirente. Progetta una consegna più utile del semplice testo: diagnosi breve, riscrittura motivata e checklist specifica. Confronta il pacchetto attuale da 15 euro con almeno una variante, definisci un test misurabile e salva il deliverable. Non affermare di aver migliorato vendite o conversioni senza dati reali; non copiare contenuti in modo esteso e non contattare persone."
     )
 
 
