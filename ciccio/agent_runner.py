@@ -15,6 +15,7 @@ from supabase import create_client
 from artifacts import save_deliverable_artifact
 
 MODEL = "openai/gpt-oss-20b"
+# Ciclo aggiornato: dopo i test iniziali, privilegia la ricerca di acquirenti verificabili.
 
 
 def is_transient_error(exc):
