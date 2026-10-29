@@ -42,6 +42,33 @@ class ProfitTaskSequenceTests(unittest.TestCase):
         self.assertEqual(title, "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1")
         self.assertIn("Obiettivo misurabile", _notes)
 
+    def test_alternates_customer_research_with_product_improvement(self):
+        history = [
+            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"},
+            {"title": "Classifica opportunità — scegliere i 3 test migliori", "status": "Completata"},
+            {"title": "Valida opportunità — verificare domanda e modalità di incasso", "status": "Completata"},
+            {"title": "Crea prova vendibile — primo prodotto o servizio concreto", "status": "Completata"},
+            {"title": "Ricerca clienti — trovare potenziali acquirenti verificabili", "status": "Completata"},
+            {"title": "Kit di lancio — preparare offerta e primo test gratuito", "status": "Completata"},
+            {"title": "Distribuzione offerta — attivare il canale gratuito più concreto", "status": "Completata"},
+            {"title": "Revisione opportunità — scegliere un nuovo esperimento gratuito", "status": "Completata"},
+            {"title": "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1", "status": "Completata"},
+        ]
+        title, notes = next_profit_task([], history)
+        self.assertEqual(title, "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione #1")
+        self.assertIn("mini-audit", notes)
+        self.assertIn("Non affermare", notes)
+
+    def test_returns_to_customer_research_after_growth_lab(self):
+        history = [
+            {"title": "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1", "status": "Completata"},
+            {"title": "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione #1", "status": "Completata"},
+        ]
+        title, notes = next_profit_task([], history)
+        self.assertEqual(title, "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #2")
+        self.assertIn("bisogno osservabile", notes)
+        self.assertIn("Escludi directory generiche", notes)
+
     def test_moves_from_opportunity_map_to_a_sellable_sample(self):
         title, notes = next_profit_task([], [
             {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"}
