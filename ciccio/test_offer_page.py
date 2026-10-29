@@ -16,7 +16,8 @@ class OfferPageTests(unittest.TestCase):
             page = (root / "offer-page.html").read_text(encoding="utf-8")
             self.assertIn("5 annunci ottimizzati per la vendita online", page)
             self.assertIn("Pacchetto pilota · 5 annunci · 15 €", page)
-            self.assertIn("Contatto non ancora configurato", page)
+            self.assertIn("mailto:ciccio.servizi@proton.me", page)
+            self.assertNotIn("Contatto non ancora configurato", page)
             self.assertNotIn("example.org/pay", page)
             self.assertNotIn("Acquista", page)
 
