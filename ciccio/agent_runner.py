@@ -314,32 +314,32 @@ def task_search_queries(title, notes):
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     if any(token in combined for token in ("mappa opportunità", "classifica opportunità", "confrontare almeno", "categorie diverse")):
         return [
-            'lavori freelance online Italia piattaforme commissioni gratuite',
-            'vendere prodotti digitali online Italia costi commissioni piattaforme',
-            'servizi digitali per piccole imprese Italia prezzi freelance',
-            'lavoro remoto microtask Italia condizioni pagamento',
-            'programmi affiliazione Italia requisiti pagamenti ufficiali',
+            'freelance platforms worldwide free to join fees payout countries official terms',
+            'sell digital products worldwide free platforms fees payout official terms',
+            'small business digital services freelance international pricing demand',
+            'remote microtask jobs worldwide eligibility payment terms official',
+            'international affiliate programs eligibility payout thresholds official terms',
         ]
     if any(token in combined for token in ("validazione opportunità", "verifica domanda", "modalità di incasso")):
         return [
-            'servizi freelance Italia offerte prezzi piattaforme ufficiali',
-            'vendita prodotti digitali piattaforme commissioni condizioni ufficiali',
-            'lavoro remoto online Italia requisiti pagamento piattaforme ufficiali',
-            'opportunità guadagno online senza investimento truffe AGCM',
+            'freelance services worldwide platforms pricing official payment terms',
+            'digital product platforms international fees official terms payout countries',
+            'remote online work international eligibility payout official terms',
+            'legitimate zero-cost online income opportunities worldwide scam warnings official',
         ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
         return [
-            'piccole imprese Italia sito ufficiale pagina contatti attività locale',
-            'annunci richieste freelance Italia copywriting social media grafica progetto',
-            'piattaforme freelance Italia progetti clienti condizioni ufficiali pagamento',
-            'associazioni commercianti locali elenco imprese sito ufficiale Italia',
-            'marketplace servizi freelance Italia pubblicare offerta condizioni ufficiali',
+            'small online sellers ecommerce public product listings contact page worldwide',
+            'public freelance job requests product listing copywriting ecommerce worldwide',
+            'freelance marketplaces worldwide client projects official payment terms',
+            'small ecommerce stores independent online sellers public websites international',
+            'freelance service marketplaces worldwide seller fees official terms',
         ]
     if "linkedin" in combined:
         return [
-            '"servizi LinkedIn" freelance Italia prezzi',
-            'piattaforme freelance gestione LinkedIn Italia aziende',
-            'LinkedIn content marketing freelance Italia servizio',
+            'LinkedIn freelance content services international pricing',
+            'freelance platforms LinkedIn content management international clients',
+            'LinkedIn content marketing freelance services worldwide clients',
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
@@ -449,7 +449,7 @@ def next_profit_task(memories, task_history=None):
     stages = [
         (
             "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Esplora almeno 8 modelli diversi adatti a una persona in Italia che parte da zero e usa solo iPhone/computer: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Distingui fatti da ipotesi e cita URL reali. Escludi truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
+            "Esplora almeno 8 modelli diversi adatti a una persona che parte da zero e usa solo iPhone/computer, cercando opportunità in tutto il mondo. Confronta Italia, Europa, Regno Unito, Stati Uniti e altri mercati senza dare priorità automatica a un Paese: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Distingui fatti da ipotesi e cita URL reali. Escludi truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
         ),
         (
             "Crea prova vendibile — primo prodotto o servizio concreto",
@@ -465,7 +465,7 @@ def next_profit_task(memories, task_history=None):
         ),
         (
             "Distribuzione offerta — attivare il canale gratuito più concreto",
-            "Parti dal kit di lancio e porta l’offerta verso un pubblico reale. Prima di raccomandare qualsiasi canale, verifica le regole ufficiali aggiornate e i requisiti per l’Italia; cita l’URL della policy. Non proporre Facebook Marketplace per vendere servizi, e-book, template o altri prodotti digitali: le regole commerciali Meta vietano servizi e contenuti digitali su Marketplace. Non affermare che un canale integra pagamenti se non è verificato: indica metodo, commissioni/requisiti e percorso effettivo d’incasso con fonti ufficiali. Preferisci canali gratuiti realmente compatibili con l’offerta e gli strumenti disponibili. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una registrazione, verifica d’identità o configurazione personale del pagamento che non puoi completare, documenta il blocco esatto e cerca un’alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro e non dichiarare vendite senza prova."
+            "Parti dal kit di lancio e porta l’offerta verso un pubblico reale. Prima di raccomandare qualsiasi canale, verifica le regole ufficiali aggiornate e i requisiti nei Paesi interessati, distinguendo le regole globali da quelle specifiche per Paese; cita gli URL delle policy ufficiali. Non proporre Facebook Marketplace per vendere servizi, e-book, template o altri prodotti digitali: le regole commerciali Meta vietano servizi e contenuti digitali su Marketplace. Non affermare che un canale integra pagamenti se non è verificato: indica metodo, commissioni/requisiti e percorso effettivo d’incasso con fonti ufficiali. Preferisci canali gratuiti realmente compatibili con l’offerta e gli strumenti disponibili. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una registrazione, verifica d’identità o configurazione personale del pagamento che non puoi completare, documenta il blocco esatto e cerca un’alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro e non dichiarare vendite senza prova."
         ),
         (
             "Classifica opportunità — scegliere i 3 test migliori",
@@ -473,7 +473,7 @@ def next_profit_task(memories, task_history=None):
         ),
         (
             "Valida opportunità — verificare domanda e modalità di incasso",
-            "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento in Italia. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
+            "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento nei mercati pertinenti, verificando l’idoneità per un venditore residente in Italia e le restrizioni per Paese. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
         ),
     ]
     for title, notes in stages:
@@ -510,7 +510,7 @@ def next_profit_task(memories, task_history=None):
     if len(prospect_numbers) <= len(improvement_numbers):
         return (
             f"{prospect_base} #{max(prospect_numbers, default=0) + 1}",
-            "Cerca fino a 10 potenziali acquirenti reali per il pacchetto di 5 annunci a 15 euro. Privilegia venditori con annunci pubblici specifici e migliorabili, piccoli e-commerce o richieste di lavoro pertinenti. Per ogni candidato servono URL della pagina concreta, difetto o bisogno osservabile, miglioramento che Ciccio può dimostrare con un esempio e canale pubblico appropriato. Escludi directory generiche, grandi portali istituzionali e aziende senza un bisogno osservabile. Prepara al massimo 3 messaggi personalizzati, non inviarli automaticamente. Obiettivo: almeno 3 candidati verificabili; se non sono disponibili fonti adeguate, dichiara il blocco senza inventare contatti."
+            "Cerca fino a 10 potenziali acquirenti reali in mercati internazionali per il pacchetto di 5 annunci a 15 euro. Cerca annunci in italiano e inglese e, quando utile, altre lingue. Privilegia venditori con annunci pubblici specifici e migliorabili, piccoli e-commerce o richieste di lavoro pertinenti; verifica che il canale accetti un fornitore residente in Italia. Per ogni candidato servono URL della pagina concreta, difetto o bisogno osservabile, miglioramento che Ciccio può dimostrare con un esempio e canale pubblico appropriato. Escludi directory generiche, grandi portali istituzionali e aziende senza un bisogno osservabile. Prepara al massimo 3 messaggi personalizzati, non inviarli automaticamente. Obiettivo: almeno 3 candidati verificabili; se non sono disponibili fonti adeguate, dichiara il blocco senza inventare contatti."
         )
     return (
         f"{improvement_base} #{max(improvement_numbers, default=0) + 1}",
