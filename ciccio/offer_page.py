@@ -26,7 +26,7 @@ def build_offer_page(output_dir="ciccio_output"):
     if contact_email:
         contact = (
             '<a class="button" href="mailto:' + escape(contact_email, quote=True)
-            + '?subject=Richiesta%20mini-audit%20SEO">Richiedi il controllo gratuito</a>'
+            + '?subject=Richiesta%20mini-audit%20SEO">Richiedi informazioni sul servizio</a>'
         )
     else:
         contact = (
