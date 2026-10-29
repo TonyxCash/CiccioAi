@@ -26,7 +26,7 @@ def build_offer_page(output_dir="ciccio_output"):
     if contact_email:
         contact = (
             '<a class="button" href="mailto:' + escape(contact_email, quote=True)
-            + '?subject=Richiesta%20mini-audit%20SEO">Richiedi informazioni sul servizio</a>'
+            + '?subject=Richiesta%20pacchetto%20cinque%20annunci">Richiedi informazioni sul servizio</a>'
         )
     else:
         contact = (
@@ -45,8 +45,8 @@ def build_offer_page(output_dir="ciccio_output"):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Un controllo SEO preliminare e gratuito per individuare le prime opportunità di miglioramento del tuo sito.">
-<title>Mini-audit SEO gratuito | Ciccio</title>
+<meta name="description" content="Cinque annunci di prodotti riscritti per presentare meglio i tuoi articoli e venderli online.">
+<title>5 annunci ottimizzati per la vendita online | Ciccio</title>
 <style>
 :root{color-scheme:light;--ink:#172033;--blue:#2857d5;--muted:#5d687d;--paper:#f4f7fc}
 *{box-sizing:border-box}
@@ -72,34 +72,34 @@ footer{font-size:.85rem;color:var(--muted);padding:20px 4px}
 <body><main>
 <header class="hero">
 <div class="eyebrow">Ciccio · Supporto digitale per piccole attività</div>
-<h1>Scopri cosa puoi migliorare nel tuo sito</h1>
-<p>Un mini-audit SEO preliminare per individuare alcune opportunità concrete di miglioramento della visibilità online, con spiegazioni semplici e priorità chiare.</p>
-<span class="pill">Gratuito per i primi 5 progetti pilota</span>
+<h1>5 annunci più chiari, pronti per la vendita online</h1>
+<p>Invia le informazioni reali dei tuoi prodotti e ricevi cinque annunci con titoli più efficaci, descrizioni ordinate e parole chiave pertinenti. Pensato per chi vende abbigliamento e altri prodotti online.</p>
+<span class="pill">Pacchetto pilota · 5 annunci · 15 €</span>
 </header>
 <section>
-<h2>Cosa ricevi</h2>
+<h2>Cosa ricevi per 15 €</h2>
 <ul>
-<li>Controllo preliminare di titoli e descrizioni delle pagine.</li>
-<li>Verifica dei principali elementi visibili da una navigazione pubblica, quando accessibili.</li>
-<li>Una breve lista di priorità e suggerimenti pratici, spiegati senza tecnicismi inutili.</li>
+<li>5 titoli chiari e pertinenti per i tuoi prodotti.</li>
+<li>5 descrizioni riscritte usando solo le informazioni e le caratteristiche che ci fornisci.</li>
+<li>Parole chiave pertinenti per aiutare gli acquirenti a trovare gli annunci.</li>
 </ul>
-<p class="small">Il controllo dipende dal sito e dai dati pubblicamente verificabili. Non promette posizionamenti, traffico o risultati specifici. Non vengono dichiarati numeri prima di aver analizzato il sito reale.</p>
+<p class="small">Non sono garantite vendite o risultati specifici. Non inventiamo materiali, taglie, condizioni o caratteristiche: il lavoro si basa sui dati e sulle foto forniti dal cliente.</p>
 </section>
 <section>
 <h2>Come funziona</h2>
 <div class="steps">
-<div class="step"><strong>1. Invia il sito</strong><p>Indica l’indirizzo pubblico della tua attività.</p></div>
-<div class="step"><strong>2. Analisi preliminare</strong><p>Esamino gli elementi verificabili e distinguo i problemi reali dai semplici suggerimenti.</p></div>
-<div class="step"><strong>3. Ricevi le priorità</strong><p>Ottieni un riepilogo chiaro delle prime azioni consigliate.</p></div>
+<div class="step"><strong>1. Invia i dettagli</strong><p>Condividi foto e informazioni dei cinque prodotti.</p></div>
+<div class="step"><strong>2. Prepariamo gli annunci</strong><p>Organizziamo titoli, descrizioni e parole chiave senza aggiungere dettagli inventati.</p></div>
+<div class="step"><strong>3. Ricevi il testo pronto</strong><p>Ricevi i cinque annunci da copiare e pubblicare sulla piattaforma che preferisci.</p></div>
 </div>
 </section>
 <section>
-<h2>Richiedi il mini-audit gratuito</h2>
-<p>Il progetto pilota è gratuito per un massimo di cinque attività. Prima di qualsiasi eventuale lavoro aggiuntivo, prezzo e condizioni saranno concordati chiaramente.</p>
+<h2>Richiedi il pacchetto di 5 annunci</h2>
+<p>Prezzo del pacchetto: <strong>15 € per cinque annunci</strong>. Prima di iniziare, confermeremo via email i dettagli e le informazioni necessarie.</p>
 __CONTACT__
 __PAYMENT__
 </section>
-<footer>Pagina informativa di Ciccio. Il servizio non garantisce risultati SEO specifici. Le analisi e le raccomandazioni devono essere basate su verifiche effettive del sito del richiedente.</footer>
+<footer>Servizio di ottimizzazione testi per annunci di vendita online. Non sono garantite vendite o risultati specifici.</footer>
 </main></body></html>"""
     page = page.replace("__CONTACT__", contact).replace("__PAYMENT__", payment)
     target = root / "offer-page.html"
