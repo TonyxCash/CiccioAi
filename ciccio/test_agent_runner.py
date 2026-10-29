@@ -5,7 +5,7 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
-from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries, next_profit_task, notify_email
+from agent_runner import ask_agent, collect_task_sources, execute_read_with_retry, execute_task, failed_task_attempts, should_pause_task, groq_completion_with_retry, is_transient_error, record_failure, notify_telegram, search_web, task_requires_market_evidence, task_search_queries, next_profit_task, notify_email
 
 
 def fake_groq_response(text):
@@ -216,6 +216,32 @@ class FailureLoggingTests(unittest.TestCase):
 
 
 class FailedTaskAttemptTests(unittest.TestCase):
+    def test_pauses_source_blocked_research_after_one_attempt(self):
+        task = {
+            "title": "Classifica opportunità — scegliere i 3 test migliori",
+            "updated_at": "2026-10-29T05:00:00+00:00",
+            "notes": "Attività non completata: il testo cita 0 URL recuperati.",
+        }
+        history = [{
+            "created_at": "2026-10-29T06:00:00+00:00",
+            "status": "blocked",
+            "action": "execute_task: Classifica opportunità — scegliere i 3 test migliori",
+        }]
+        self.assertTrue(should_pause_task(task, history))
+
+    def test_does_not_pause_normal_task_after_one_failure(self):
+        task = {
+            "title": "Crea prova vendibile",
+            "updated_at": "2026-10-29T05:00:00+00:00",
+            "notes": "Crea un campione digitale finito.",
+        }
+        history = [{
+            "created_at": "2026-10-29T06:00:00+00:00",
+            "status": "failed",
+            "action": "execute_task: Crea prova vendibile",
+        }]
+        self.assertFalse(should_pause_task(task, history))
+
     def test_counts_only_failures_since_last_task_update(self):
         task = {
             "title": "Generare annuncio",
