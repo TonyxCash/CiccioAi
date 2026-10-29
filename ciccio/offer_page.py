@@ -14,7 +14,8 @@ def build_offer_page(output_dir="ciccio_output"):
     # Draft files are internal work products and must not gate public-page deployment.
     source = None
 
-    contact_email = os.getenv("CICCIO_CONTACT_EMAIL", "").strip()
+    # Public contact address approved for the offer page; environment secret may override it.
+    contact_email = os.getenv("CICCIO_CONTACT_EMAIL", "ciccio.servizi@proton.me").strip()
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact_email):
         contact_email = ""
 
