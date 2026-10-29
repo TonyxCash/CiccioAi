@@ -481,7 +481,14 @@ def next_profit_task(memories, task_history=None):
             "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento nei mercati pertinenti, verificando l’idoneità per un venditore residente in Italia e le restrizioni per Paese. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
         ),
     ]
+    commercial_started = any(
+        existing_title.startswith("ricerca clienti — trovare acquirenti per il pacchetto 5 annunci")
+        or existing_title.startswith("ciccio growth lab — migliorare il servizio e il tasso di conversione")
+        for existing_title in existing_titles
+    )
     for title, notes in stages:
+        if commercial_started:
+            break
         if title.casefold() not in history and title.casefold() not in existing_titles:
             return title, notes
     # Dopo le fasi iniziali, la priorità è alternare ricerca clienti e miglioramento
