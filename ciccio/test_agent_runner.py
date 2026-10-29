@@ -40,7 +40,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
         ]
         title, _notes = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
         self.assertEqual(title, "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1")
-        self.assertIn("Obiettivo misurabile", _notes)
+        self.assertIn("Obiettivo:", _notes)
 
     def test_alternates_customer_research_with_product_improvement(self):
         history = [
