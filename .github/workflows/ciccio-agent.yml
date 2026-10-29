@@ -10,6 +10,7 @@ on:
       - ".github/workflows/ciccio-agent.yml"
   schedule:
     # Six-hour cycle: continuous operation without exhausting free GitHub Actions minutes.
+    # Public offer page is generated from safe defaults if no internal draft exists.
     - cron: "17 */6 * * *"
 
 permissions:
