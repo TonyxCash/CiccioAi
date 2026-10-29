@@ -41,6 +41,7 @@ def build_offer_page(output_dir="ciccio_output"):
         if payment_url else ""
     )
 
+    # Public offer: five optimized listings for €15; keep copy aligned with tests.
     page = """<!doctype html>
 <html lang="it">
 <head>
