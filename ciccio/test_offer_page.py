@@ -7,26 +7,18 @@ from offer_page import build_offer_page
 
 
 class OfferPageTests(unittest.TestCase):
-    def test_builds_page_from_launch_kit_without_faking_checkout(self):
+    def test_builds_clean_public_page_without_faking_checkout(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            kit = root / "20261028-kit-di-lancio-offerta.md"
-            kit.write_text(
-                "# Servizio di prova\n\nUna **proposta** concreta.\n\n"
-                "- Primo risultato\n- Secondo risultato\n\n"
-                "Fonte: https://example.org/info",
-                encoding="utf-8",
-            )
             with patch.dict("os.environ", {}, clear=True):
                 result = build_offer_page(root)
             self.assertTrue(result["created"])
             page = (root / "offer-page.html").read_text(encoding="utf-8")
-            self.assertIn("Servizio di prova", page)
-            self.assertIn("<strong>proposta</strong>", page)
-            self.assertIn("<li>Primo risultato</li>", page)
-            self.assertIn("https://example.org/info", page)
-            self.assertIn("serve configurare un contatto pubblico o un checkout verificato", page)
-            self.assertNotIn("href=\"https://example.org/info\" rel=\"nofollow noopener\">Acquista", page)
+            self.assertIn("Mini-audit SEO gratuito", page)
+            self.assertIn("Gratuito per i primi 5 progetti pilota", page)
+            self.assertIn("Contatto non ancora configurato", page)
+            self.assertNotIn("example.org/pay", page)
+            self.assertNotIn("Acquista", page)
 
     def test_adds_contact_and_payment_actions_only_for_valid_values(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -42,7 +34,7 @@ class OfferPageTests(unittest.TestCase):
             page = (root / "offer-page.html").read_text(encoding="utf-8")
             self.assertIn("mailto:hello@example.org", page)
             self.assertIn('href="https://checkout.example.org/pay"', page)
-            self.assertIn("Acquista", page)
+            self.assertIn("Vai al pagamento", page)
 
     def test_ignores_invalid_payment_url_and_contact_email(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -57,13 +49,13 @@ class OfferPageTests(unittest.TestCase):
             page = (root / "offer-page.html").read_text(encoding="utf-8")
             self.assertNotIn("mailto:", page)
             self.assertNotIn("javascript:", page)
-            self.assertIn("checkout verificato", page)
+            self.assertIn("Contatto non ancora configurato", page)
 
-    def test_does_not_create_a_page_without_launch_kit(self):
+    def test_creates_default_page_without_launch_kit(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = build_offer_page(tmp)
-            self.assertFalse(result["created"])
-            self.assertFalse((Path(tmp) / "offer-page.html").exists())
+            self.assertTrue(result["created"])
+            self.assertTrue((Path(tmp) / "offer-page.html").is_file())
 
 
 if __name__ == "__main__":
