@@ -376,6 +376,14 @@ def task_requires_market_evidence(title, notes):
         "potenziali clienti", "confrontare almeno 8 modi",
     ))
 
+def should_pause_task(task, previous):
+    """Avoid spending three cycles retrying research when the free search providers return no sources."""
+    attempts = failed_task_attempts(task, previous)
+    notes = str(task.get("notes", "")).casefold()
+    no_sources = "0 url recuperati" in notes or "nessuna fonte web recuperata" in notes
+    return attempts >= 3 or (attempts >= 1 and no_sources)
+
+
 def required_env(name):
     value = os.getenv(name, "").strip()
     if not value:
@@ -900,11 +908,20 @@ def main():
             if task.get("status") not in {"Completata", "Bloccata"}
         ]
 
-        # Pause a task after three recent failures; a later manual edit resets its retry window.
+        # Pause repeated failures; if free web search returned no URLs, pause after the first
+        # blocked cycle so Ciccio can continue with a different useful task instead of looping.
         active_tasks = []
         for task in tasks:
-            if failed_task_attempts(task, previous) >= 3:
-                pause_note = "Ciccio: attività sospesa automaticamente dopo 3 tentativi falliti. Correggi le note e reimposta lo stato per riprovare."
+            attempts = failed_task_attempts(task, previous)
+            if should_pause_task(task, previous):
+                reason = (
+                    "I motori di ricerca gratuiti non hanno restituito fonti verificabili"
+                    if attempts < 3 else "sono stati raggiunti 3 tentativi falliti"
+                )
+                pause_note = (
+                    "Ciccio: attività sospesa automaticamente perché " + reason +
+                    ". L'attività non è stata convalidata. Correggi le note o riprova più avanti."
+                )
                 updated_notes = (str(task.get("notes", "")).strip()[:1500] + "\n\n" + pause_note).strip()[:3000]
                 db.table("ciccio_tasks").update({
                     "status": "Bloccata",
