@@ -18,7 +18,7 @@ def build_offer_page(output_dir="ciccio_output"):
     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact_email):
         contact_email = ""
 
-    payment_url = os.getenv("CICCIO_PAYMENT_URL", "").strip()
+    payment_url = os.getenv("CICCIO_PAYMENT_URL", "https://www.paypal.com/ncp/payment/XEKWURGB47CZW").strip()
     parsed = urlparse(payment_url)
     if parsed.scheme != "https" or not parsed.netloc:
         payment_url = ""
