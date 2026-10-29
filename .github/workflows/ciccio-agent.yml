@@ -59,6 +59,8 @@ jobs:
       - name: Prepare shareable offer page
         id: offer_page
         if: always()
+        env:
+          CICCIO_CONTACT_EMAIL: ${{ secrets.CICCIO_CONTACT_EMAIL }}
         shell: bash
         run: |
           python ciccio/offer_page.py | tee /tmp/ciccio-offer-page.log
