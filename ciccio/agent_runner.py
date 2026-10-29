@@ -314,14 +314,17 @@ def task_search_queries(title, notes):
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     if any(token in combined for token in ("mappa opportunità", "classifica opportunità", "confrontare almeno", "categorie diverse")):
         return [
+            'prodotti digitali piattaforme gratuite costi commissioni modalità pagamento ufficiali',
             'freelance platforms worldwide free to join fees payout countries official terms',
             'sell digital products worldwide free platforms fees payout official terms',
             'small business digital services freelance international pricing demand',
             'remote microtask jobs worldwide eligibility payment terms official',
             'international affiliate programs eligibility payout thresholds official terms',
         ]
-    if any(token in combined for token in ("validazione opportunità", "verifica domanda", "modalità di incasso")):
+    if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
         return [
+            'piattaforme freelance prezzi commissioni pagamenti e requisiti ufficiali',
+            'opportunità online legittime senza costi iniziali truffe segnali ufficiali',
             'freelance services worldwide platforms pricing official payment terms',
             'digital product platforms international fees official terms payout countries',
             'remote online work international eligibility payout official terms',
@@ -329,6 +332,8 @@ def task_search_queries(title, notes):
         ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
         return [
+            'piccole imprese venditori online annunci prodotti pubblici sito contatti',
+            'progetti clienti copywriting annunci ecommerce richieste freelance pubbliche',
             'small online sellers ecommerce public product listings contact page worldwide',
             'public freelance job requests product listing copywriting ecommerce worldwide',
             'freelance marketplaces worldwide client projects official payment terms',
@@ -479,18 +484,8 @@ def next_profit_task(memories, task_history=None):
     for title, notes in stages:
         if title.casefold() not in history and title.casefold() not in existing_titles:
             return title, notes
-    review_base = "Revisione opportunità — scegliere un nuovo esperimento gratuito"
-    if review_base.casefold() not in history and review_base.casefold() not in existing_titles:
-        return (
-            review_base,
-            "Rivedi i risultati e i deliverable precedenti. Se un'opportunità non ha prove sufficienti o non produce segnali misurabili, non ripeterla automaticamente: confronta alternative appartenenti a categorie diverse e scegli un esperimento gratuito nuovo. Definisci criterio di successo, limite di tempo e prova da raccogliere. Non dichiarare vendite o clienti senza evidenza."
-        )
-    numbered_reviews = []
-    for existing_title in existing_titles:
-        match = re.match(re.escape(review_base.casefold()) + r"\s+#(\d+)$", existing_title)
-        if match:
-            numbered_reviews.append(int(match.group(1)))
-    next_review = max(numbered_reviews, default=0) + 1
+    # Dopo le fasi iniziali, la priorità è alternare ricerca clienti e miglioramento
+    # dell'offerta. Una revisione generica non deve interrompere questo ciclo operativo.
     # Dopo la sequenza iniziale, alternare acquisizione clienti e miglioramento del prodotto.
     # Così Ciccio non ripete all'infinito ricerche generiche: ogni ciclo commerciale deve
     # cercare acquirenti oppure migliorare il servizio sulla base di prove e limiti osservati.
