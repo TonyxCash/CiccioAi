@@ -489,9 +489,23 @@ def next_profit_task(memories, task_history=None):
         match = re.match(re.escape(review_base.casefold()) + r"\s+#(\d+)$", existing_title)
         if match:
             numbered_reviews.append(int(match.group(1)))
+    next_review = max(numbered_reviews, default=0) + 1
+    # Dopo aver esaurito la sequenza iniziale, passare dalla pianificazione alla
+    # ricerca di acquirenti per l'offerta concreta già pubblicata da Ciccio.
+    prospect_base = "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci"
+    prospect_numbers = []
+    for existing_title in existing_titles:
+        match = re.match(re.escape(prospect_base.casefold()) + r"\s+#(\d+)$", existing_title)
+        if match:
+            prospect_numbers.append(int(match.group(1)))
+    if prospect_base.casefold() not in existing_titles or prospect_numbers:
+        return (
+            f"{prospect_base} #{max(prospect_numbers, default=0) + 1}",
+            "Trova potenziali acquirenti per il servizio già pubblicato: 5 annunci ottimizzati per 15 euro. Cerca venditori di abbigliamento online, piccoli e-commerce e richieste freelance pertinenti. Usa soltanto pagine pubbliche con URL reali; per ogni candidato riporta fonte, motivo concreto di pertinenza e canale pubblico di contatto verificabile. Verifica anche le regole del canale prima di proporre la pubblicazione. Prepara un messaggio breve e personalizzabile, ma non inviarlo automaticamente e non inventare contatti. Obiettivo misurabile: almeno 3 opportunità pertinenti con fonti specifiche; se le fonti gratuite non funzionano, registra il blocco senza fingere risultati."
+        )
     return (
-        f"{review_base} #{max(numbered_reviews, default=0) + 1}",
-        "Confronta almeno due categorie di guadagno non ancora testate, scegli il prossimo test gratuito con prove migliori e definisci una metrica misurabile. Evita di ricreare compiti bloccati senza cambiare metodo."
+        f"{review_base} #{next_review}",
+        "Rivedi i test commerciali già eseguiti. Confronta risultati misurabili (fonti valide, opportunità pertinenti, visite o richieste realmente osservate), interrompi i metodi bloccati e scegli una modifica concreta al canale o all'offerta. Non dichiarare vendite o clienti senza prova."
     )
 
 
