@@ -23,11 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout trusted main branch
+      - name: Checkout trusted main branch without persisted credentials
         uses: actions/checkout@v4
         with:
           ref: main
-          persist-credentials: true
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -41,7 +41,7 @@ jobs:
           CICCIO_FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python ciccio/self_repair.py
-      - name: Open draft pull request when a repair passed tests
+      - name: Publish the already-tested proposal as a draft PR
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,7 +49,9 @@ jobs:
         shell: bash
         run: |
           branch="ciccio/repair-${CICCIO_FAILED_RUN_ID}"
-          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+          if git show-ref --verify --quiet "refs/heads/${branch}"; then
+            gh auth setup-git
+            git push origin "${branch}"
             gh pr create --draft --base main --head "${branch}" --title "Ciccio: riparazione controllata run ${CICCIO_FAILED_RUN_ID}" --body-file /tmp/ciccio-pr-body.md || echo "PR già esistente o non creabile; verificare il branch."
           else
             echo "Nessuna patch sicura ha superato i test; nessuna PR creata."
