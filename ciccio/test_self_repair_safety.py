@@ -1,6 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ciccio.self_repair import (
     ALLOWED_WORKFLOWS,
@@ -9,6 +11,7 @@ from ciccio.self_repair import (
     sanitize_logs,
     validate_changes,
     validate_run_metadata,
+    run,
 )
 
 
@@ -75,6 +78,18 @@ class SelfRepairSafetyTests(unittest.TestCase):
         for data in variants:
             with self.subTest(data=data), self.assertRaises(RuntimeError):
                 validate_run_metadata(data, "TonyxCash/CiccioAi")
+
+    def test_repair_subprocess_never_receives_secrets(self):
+        secret_names = ("GITHUB_TOKEN", "GROQ_API_KEY", "GH_TOKEN", "SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY")
+        with patch.dict(os.environ, {name: "test-secret" for name in secret_names}, clear=False):
+            with patch("ciccio.self_repair.subprocess.run") as mocked:
+                mocked.return_value.returncode = 0
+                mocked.return_value.stdout = "ok"
+                mocked.return_value.stderr = ""
+                self.assertEqual(run(["python", "-c", "pass"]), "ok")
+                child_env = mocked.call_args.kwargs["env"]
+                for name in secret_names:
+                    self.assertNotIn(name, child_env)
 
     def test_sanitizes_common_secret_values_and_environment_lines(self):
         raw = (
