@@ -9,9 +9,9 @@ on:
       - "ciccio/offer_page.py"
       - ".github/workflows/ciccio-agent.yml"
   schedule:
-    # Six-hour cycle: continuous operation without exhausting free GitHub Actions minutes.
-    # Public offer page is generated from safe defaults if no internal draft exists.
-    - cron: "17 */6 * * *"
+    # Frequent autonomous polling. GitHub scheduled events can be delayed;
+    # this is recurring execution, not a permanently running 24/7 server.
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ concurrency:
 jobs:
   agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     outputs:
       offer_page_created: ${{ steps.offer_page.outputs.created }}
     steps:

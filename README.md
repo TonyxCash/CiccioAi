@@ -44,7 +44,7 @@ streamlit run app.py
 
 ## Ciccio — agente autonomo
 
-Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito da GitHub Actions ogni sei ore e può essere avviato manualmente dalla scheda **Actions**.
+Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito da GitHub Actions ogni 15 minuti e può essere avviato manualmente dalla scheda **Actions**. Le esecuzioni programmate sono ricorrenti ma non equivalgono a un processo server 24/7: GitHub può ritardare gli eventi pianificati e ogni ciclo termina al completamento.
 
 ### Funzioni implementate
 
