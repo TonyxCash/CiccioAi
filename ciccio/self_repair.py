@@ -98,7 +98,10 @@ def sanitize_logs(raw):
 
 
 def run(command):
-    result = subprocess.run(command, text=True, capture_output=True)
+    safe_env = os.environ.copy()
+    for secret_name in ("GITHUB_TOKEN", "GROQ_API_KEY", "GH_TOKEN", "SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY"):
+        safe_env.pop(secret_name, None)
+    result = subprocess.run(command, text=True, capture_output=True, env=safe_env)
     if result.returncode:
         raise RuntimeError(
             "Comando fallito: " + " ".join(command) + "\n"
@@ -215,7 +218,6 @@ def main():
     run(["git", "checkout", "-b", branch])
     run(["git", "add", "--", *changed])
     run(["git", "commit", "-m", f"Propose safe Ciccio repair for run {RUN_ID}"])
-    run(["git", "push", "origin", branch])
     summary = str(proposal.get("summary", "Correzione proposta da Ciccio"))[:500]
     body = (
         "## Riparazione proposta da Ciccio\n\n"
