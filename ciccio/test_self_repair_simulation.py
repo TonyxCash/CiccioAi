@@ -1,7 +1,4 @@
-"""Offline end-to-end simulation of Ciccio's guarded repair path.
-
-No real GitHub API, Groq request, push, or pull request is performed.
-"""
+"""Offline end-to-end simulation of Ciccio's guarded repair path."""
 import json
 import os
 import tempfile
@@ -19,10 +16,7 @@ class FakeGroq:
         response.choices = [MagicMock()]
         response.choices[0].message.content = json.dumps({
             "summary": "Simulated minimal correction",
-            "changes": [{
-                "path": "ciccio/app.py",
-                "content": "SIMULATED_REPAIR = True\n",
-            }],
+            "changes": [{"path": "ciccio/app.py", "content": "SIMULATED_REPAIR = True\\n"}],
         })
         self.chat.completions.create.return_value = response
 
@@ -39,29 +33,26 @@ class SelfRepairSimulationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "ciccio").mkdir()
-            (root / "ciccio" / "app.py").write_text("ORIGINAL = True\n", encoding="utf-8")
-            with patch.dict(os.environ, {
-                "GITHUB_REPOSITORY": "TonyxCash/CiccioAi",
-                "CICCIO_FAILED_RUN_ID": "123456",
-                "GITHUB_TOKEN": "fake-github-token",
-                "GROQ_API_KEY": "fake-groq-key",
-            }, clear=False), patch.object(repair, "github_api_json", return_value=metadata), \
-                 patch.object(repair, "fetch_logs", return_value="AssertionError: simulated failure"), \
-                 patch.object(repair, "complete_sources", return_value={"ciccio/app.py": "ORIGINAL = True\n"}), \
-                 patch.object(repair, "Groq", FakeGroq), \
-                 patch.object(repair, "run", return_value="diff --git a/ciccio/app.py b/ciccio/app.py\n") as mocked_run, \
-                 patch.object(repair.Path, "write_text", autospec=True, side_effect=Path.write_text) as write_text, \
-                 patch("os.chdir"):
-                # Run from a temporary working directory without touching the real repository.
-                original_cwd = Path.cwd()
-                try:
-                    os.chdir(root)
+            target = root / "ciccio" / "app.py"
+            target.write_text("ORIGINAL = True\\n", encoding="utf-8")
+            original_cwd = Path.cwd()
+            try:
+                os.chdir(root)
+                with patch.dict(os.environ, {
+                    "GITHUB_REPOSITORY": "TonyxCash/CiccioAi",
+                    "CICCIO_FAILED_RUN_ID": "123456",
+                    "GITHUB_TOKEN": "fake-github-token",
+                    "GROQ_API_KEY": "fake-groq-key",
+                }, clear=False), patch.object(repair, "github_api_json", return_value=metadata), \\
+                     patch.object(repair, "fetch_logs", return_value="AssertionError: simulated failure"), \\
+                     patch.object(repair, "complete_sources", return_value={"ciccio/app.py": "ORIGINAL = True\\n"}), \\
+                     patch.object(repair, "Groq", FakeGroq), \\
+                     patch.object(repair, "run", return_value="diff --git a/ciccio/app.py b/ciccio/app.py\\n") as mocked_run:
                     repair.main()
-                finally:
-                    os.chdir(original_cwd)
+            finally:
+                os.chdir(original_cwd)
 
-            changed = (root / "ciccio" / "app.py").read_text(encoding="utf-8")
-            self.assertEqual(changed, "SIMULATED_REPAIR = True\n")
+            self.assertEqual(target.read_text(encoding="utf-8"), "SIMULATED_REPAIR = True\\n")
             commands = [call.args[0] for call in mocked_run.call_args_list]
             self.assertTrue(any(command[:3] == ["git", "checkout", "-b"] for command in commands))
             self.assertTrue(any(command[:2] == ["git", "commit"] for command in commands))
