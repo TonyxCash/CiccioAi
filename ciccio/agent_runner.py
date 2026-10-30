@@ -331,14 +331,29 @@ def task_search_queries(title, notes):
             'legitimate zero-cost online income opportunities worldwide scam warnings official',
         ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
+        # Ricerca mondiale e multilingue: non limitare Ciccio a Italia, a un settore
+        # o a una sola piattaforma. Le query ruotano tra segnali di acquisto e bisogni concreti.
         return [
-            'piccole imprese venditori online annunci prodotti pubblici sito contatti',
-            'progetti clienti copywriting annunci ecommerce richieste freelance pubbliche',
-            'small online sellers ecommerce public product listings contact page worldwide',
-            'public freelance job requests product listing copywriting ecommerce worldwide',
-            'freelance marketplaces worldwide client projects official payment terms',
-            'small ecommerce stores independent online sellers public websites international',
-            'freelance service marketplaces worldwide seller fees official terms',
+            'small business owner looking for product listing writer ecommerce job',
+            'hire product description writer ecommerce freelance project',
+            'seller needs help improve product listings marketplace freelance',
+            'looking for copywriter product descriptions online store job',
+            'site:upwork.com/jobs product listing description ecommerce',
+            'site:freelancer.com/projects product description ecommerce writing',
+            'site:contra.com freelance ecommerce copywriter project',
+            'site:peopleperhour.com freelance product descriptions ecommerce',
+            'busco redactor fichas de producto tienda online freelance trabajo',
+            'se busca copywriter descripciones productos ecommerce proyecto',
+            'recherche rédacteur fiches produits boutique en ligne freelance mission',
+            'cherche copywriter descriptions produits ecommerce freelance',
+            'suche Texter Produktbeschreibungen Onlineshop Freelancer Auftrag',
+            'freelancer gesucht Produkttexte Onlineshop Stellenangebot',
+            'cerco copywriter schede prodotto ecommerce freelance lavoro',
+            'annunci venditori online descrizioni prodotti richiesta copywriter',
+            '求人 EC 商品説明 ライター フリーランス',
+            '求 product description writer ecommerce freelance job',
+            'global ecommerce seller community looking for listing optimization help',
+            'independent online shop contact about product content services',
         ]
     if "linkedin" in combined:
         return [
@@ -348,7 +363,7 @@ def task_search_queries(title, notes):
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
-def collect_task_sources(title, notes, *, max_results=5):
+def collect_task_sources(title, notes, *, max_results=20):
     """Run targeted queries and merge only real URLs returned by search_web."""
     results, seen = [], set()
     for query in task_search_queries(title, notes):
@@ -512,7 +527,7 @@ def next_profit_task(memories, task_history=None):
     if len(prospect_numbers) <= len(improvement_numbers):
         return (
             f"{prospect_base} #{max(prospect_numbers, default=0) + 1}",
-            "Cerca fino a 10 potenziali acquirenti reali in mercati internazionali per il pacchetto di 5 annunci a 15 euro. Cerca annunci in italiano e inglese e, quando utile, altre lingue. Privilegia venditori con annunci pubblici specifici e migliorabili, piccoli e-commerce o richieste di lavoro pertinenti; verifica che il canale accetti un fornitore residente in Italia. Per ogni candidato servono URL della pagina concreta, difetto o bisogno osservabile, miglioramento che Ciccio può dimostrare con un esempio e canale pubblico appropriato. Escludi directory generiche, grandi portali istituzionali e aziende senza un bisogno osservabile. Prepara al massimo 3 messaggi personalizzati, non inviarli automaticamente. Obiettivo: almeno 3 candidati verificabili; se non sono disponibili fonti adeguate, dichiara il blocco senza inventare contatti."
+            "Ricerca clienti CONTINUA E MONDIALE: non limitarti a Italia, Europa, Stati Uniti, a una lingua, categoria merceologica, piattaforma o dimensione aziendale. A ogni ciclo esplora mercati e lingue differenti (almeno italiano, inglese, spagnolo, francese, tedesco e, quando utile, portoghese, olandese, polacco, arabo, hindi, giapponese e cinese), alternando Paesi e settori. Cerca segnali concreti e recenti di domanda: richieste pubbliche di preventivo o freelance, annunci di lavoro/progetto, venditori con schede prodotto incomplete o poco chiare, nuovi negozi online, richieste di aiuto nelle community e aziende con un problema che Ciccio può risolvere. Non limitarti al pacchetto attuale da 5 annunci: trova clienti per qualsiasi servizio o prodotto digitale legittimo che Ciccio possa consegnare davvero, a costo iniziale zero e compatibile con un fornitore residente in Italia. Cerca almeno 20 opportunità/candidati per ciclo, se le fonti lo consentono, e conserva solo URL pubblici reali e pertinenti. Per ciascuno registra Paese/lingua, settore, fonte e URL della pagina concreta, data o indizio di attualità se disponibile, bisogno osservabile, offerta adatta, canale pubblico appropriato e requisiti per incassare. Distingui domanda esplicita da semplice potenziale cliente; non trasformare directory o siti generici in lead qualificati. Deduplica i candidati già raccolti e amplia continuamente il database senza tetto geografico. Prepara messaggi personalizzati e brevi per i migliori contatti, ma non inviarli automaticamente, non fare spam e non raccogliere dati personali non necessari. Se una fonte o un mercato non restituisce risultati, passa a query, lingue e settori diversi invece di dichiarare conclusa la ricerca. Non inventare contatti, richieste, bisogni o statistiche."
         )
     return (
         f"{improvement_base} #{max(improvement_numbers, default=0) + 1}",
