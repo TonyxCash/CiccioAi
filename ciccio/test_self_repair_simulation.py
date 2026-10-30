@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -38,16 +39,20 @@ class SelfRepairSimulationTests(unittest.TestCase):
             original_cwd = Path.cwd()
             try:
                 os.chdir(root)
-                with patch.dict(os.environ, {
-                    "GITHUB_REPOSITORY": "TonyxCash/CiccioAi",
-                    "CICCIO_FAILED_RUN_ID": "123456",
-                    "GITHUB_TOKEN": "fake-github-token",
-                    "GROQ_API_KEY": "fake-groq-key",
-                }, clear=False), patch.object(repair, "github_api_json", return_value=metadata), \\
-                     patch.object(repair, "fetch_logs", return_value="AssertionError: simulated failure"), \\
-                     patch.object(repair, "complete_sources", return_value={"ciccio/app.py": "ORIGINAL = True\\n"}), \\
-                     patch.object(repair, "Groq", FakeGroq), \\
-                     patch.object(repair, "run", return_value="diff --git a/ciccio/app.py b/ciccio/app.py\\n") as mocked_run:
+                with ExitStack() as stack:
+                    stack.enter_context(patch.dict(os.environ, {
+                        "GITHUB_REPOSITORY": "TonyxCash/CiccioAi",
+                        "CICCIO_FAILED_RUN_ID": "123456",
+                        "GITHUB_TOKEN": "fake-github-token",
+                        "GROQ_API_KEY": "fake-groq-key",
+                    }, clear=False))
+                    stack.enter_context(patch.object(repair, "github_api_json", return_value=metadata))
+                    stack.enter_context(patch.object(repair, "fetch_logs", return_value="AssertionError: simulated failure"))
+                    stack.enter_context(patch.object(repair, "complete_sources", return_value={"ciccio/app.py": "ORIGINAL = True\\n"}))
+                    stack.enter_context(patch.object(repair, "Groq", FakeGroq))
+                    mocked_run = stack.enter_context(patch.object(
+                        repair, "run", return_value="diff --git a/ciccio/app.py b/ciccio/app.py\\n"
+                    ))
                     repair.main()
             finally:
                 os.chdir(original_cwd)
