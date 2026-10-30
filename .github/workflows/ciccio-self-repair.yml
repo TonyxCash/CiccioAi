@@ -37,14 +37,14 @@ jobs:
       - name: Generate and validate one bounded repair
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           CICCIO_FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python ciccio/self_repair.py
       - name: Open draft pull request when a repair passed tests
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           CICCIO_FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
