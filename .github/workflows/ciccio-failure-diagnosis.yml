@@ -74,6 +74,5 @@ jobs:
               repo: context.repo.repo,
               title,
               body,
-              labels: ["bug"]
             });
             core.info("Segnalazione diagnostica creata.");
