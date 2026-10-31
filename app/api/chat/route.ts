@@ -224,8 +224,24 @@ export async function POST(req: NextRequest) {
       });
       const data = await response.json();
       if (response.status === 429) {
-        const retry = response.headers.get("retry-after") || "10";
-        return NextResponse.json({ error: "Ciccio è momentaneamente occupato. Riprova tra " + retry + " secondi." }, { status: 429, headers: { "Retry-After": retry } });
+        const providerMessage = String(data?.error?.message || "");
+        const providerCode = String(data?.error?.code || data?.error?.type || "").toLowerCase();
+        const detail = (providerCode + " " + providerMessage).toLowerCase();
+        const retryHeader = response.headers.get("retry-after");
+        const retrySeconds = retryHeader && /^\\d+$/.test(retryHeader) ? Math.max(1, Number(retryHeader)) : null;
+        let userMessage: string;
+        if (/insufficient_quota|billing|credits|quota_exceeded|daily.*limit|tokens per day|tpm.*day/.test(detail)) {
+          userMessage = "Il credito o il limite giornaliero del servizio AI è esaurito. Aspettare qualche secondo non risolve: bisogna ripristinare la quota oppure passare a un modello/servizio con disponibilità.";
+        } else if (/rate_limit|tokens per minute|requests per minute|tpm|rpm/.test(detail)) {
+          userMessage = retrySeconds
+            ? "Il servizio AI ha raggiunto il limite temporaneo di richieste. Riprova tra circa " + retrySeconds + " secondi."
+            : "Il servizio AI ha raggiunto il limite temporaneo di richieste. Attendi un minuto e riprova.";
+        } else {
+          userMessage = retrySeconds
+            ? "Il servizio AI ha rifiutato la richiesta per un limite di utilizzo. Riprova tra circa " + retrySeconds + " secondi."
+            : "Il servizio AI ha rifiutato la richiesta per un limite di utilizzo. Non è un blocco della chat: controllare la quota del provider.";
+        }
+        return NextResponse.json({ error: userMessage, provider_code: providerCode || undefined }, { status: 429, headers: retrySeconds ? { "Retry-After": String(retrySeconds) } : {} });
       }
       if (response.status >= 500) return NextResponse.json({ error: "Il servizio AI è momentaneamente non disponibile. Riprova tra poco." }, { status: 503 });
       if (!response.ok) throw new Error("Modello AI non disponibile (" + response.status + "): " + String(data?.error?.message || "errore provider").slice(0, 220));
