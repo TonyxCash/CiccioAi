@@ -1,0 +1,33 @@
+name: Ciccio web build
+on:
+  push:
+    branches: [main, feature/vercel-conversational-ciccio]
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "package.json"
+      - "tsconfig.json"
+      - "next.config.ts"
+      - ".github/workflows/ciccio-web-build.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - "lib/**"
+      - "package.json"
+      - "tsconfig.json"
+      - "next.config.ts"
+      - ".github/workflows/ciccio-web-build.yml"
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
