@@ -728,12 +728,19 @@ def execute_task(db, groq, open_tasks, user_id):
         # A market-validation report without enough relevant sources is not a valid deliverable.
         # Keep it open so the next scheduled cycle can retry the search instead of
         # falsely recording an unsupported conclusion as completed.
-        diagnostic = (
-            "Ultimo tentativo bloccato: recuperate " + str(len(sources)) + " fonti pertinenti; ne servono almeno "
-            + str(minimum_source_count) + ". Le fonti fuori settore o fuori Campania sono state scartate. "
-            "L'attività resta aperta; nessun cliente, bisogno o recapito è stato convalidato. "
-            "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
-        )
+        if not sources:
+            diagnostic = (
+                "Ultimo tentativo bloccato: nessuna fonte web recuperata dai motori gratuiti DuckDuckGo/Bing RSS. "
+                "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
+                "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
+            )
+        else:
+            diagnostic = (
+                "Ultimo tentativo bloccato: recuperate " + str(len(sources)) + " fonti pertinenti; ne servono almeno "
+                + str(minimum_source_count) + ". Le fonti fuori settore o fuori Campania sono state scartate. "
+                "L'attività resta aperta; nessun cliente, bisogno o recapito è stato convalidato. "
+                "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
+            )
         prior = str(task.get("notes", "")).strip()
         updated_notes = (prior[:1800] + "\n\n" + diagnostic)[:3000]
         db.table("ciccio_tasks").update({
