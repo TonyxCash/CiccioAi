@@ -1,56 +1,269 @@
-import { NextRequest,NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/session";
-export const runtime="nodejs";export const dynamic="force-dynamic";
-function config(){const base=(process.env.SUPABASE_URL||"").replace(/\/$/,"");const key=process.env.SUPABASE_SERVICE_ROLE_KEY||"";const user=process.env.CICCIO_USER_ID||"";const groq=process.env.GROQ_API_KEY||"";if(!base||!key||!user||!groq)throw new Error("Mancano SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CICCIO_USER_ID o GROQ_API_KEY nelle variabili Vercel.");return {base,key,user,groq};}
-function authHeaders(c:ReturnType<typeof config>){return {"apikey":c.key,"Authorization":"Bearer "+c.key};}
-async function memory(c:ReturnType<typeof config>){const url=c.base+"/rest/v1/ciccio_memories?select=created_at,kind,content&user_id=eq."+encodeURIComponent(c.user)+"&order=created_at.desc&limit=30";const r=await fetch(url,{headers:authHeaders(c),cache:"no-store"});if(!r.ok)throw new Error("Non riesco a leggere la memoria Supabase ("+r.status+").");return await r.json() as Array<{created_at:string;kind:string;content:string}>;}
-async function save(c:ReturnType<typeof config>,items:Array<{kind:string;content:string}>){const r=await fetch(c.base+"/rest/v1/ciccio_memories",{method:"POST",headers:{...authHeaders(c),"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify(items.map(x=>({...x,user_id:c.user})))});if(!r.ok)throw new Error("Non riesco a salvare la conversazione in Supabase ("+r.status+").");}
-export async function GET(){if(!await isAuthenticated())return NextResponse.json({error:"Non autorizzato"},{status:401});try{const c=config();const rows=(await memory(c)).reverse();const messages=rows.filter(x=>["conversazione","risposta_assistente"].includes(x.kind)).map(x=>({role:x.kind==="conversazione"?"user":"assistant",content:x.content.replace(/^Utente: /,"")}));return NextResponse.json({messages:messages.slice(-60)});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Errore memoria"},{status:500});}}
-export async function POST(req:NextRequest){if(!await isAuthenticated())return NextResponse.json({error:"Non autorizzato"},{status:401});try{const c=config();const body=await req.json();const message=String(body.message||"").trim();if(!message||message.length>8000)return NextResponse.json({error:"Il messaggio è vuoto o troppo lungo."},{status:400});const rows=(await memory(c)).reverse();const durable=rows.filter(x=>!["conversazione","risposta_assistente"].includes(x.kind)).slice(-4);let context=durable.map(x=>"- ["+x.kind+"] "+String(x.content).slice(0,220)).join("\n").slice(-1200);if(!context)context="(nessuna memoria salvata)";const recent=rows.filter(x=>["conversazione","risposta_assistente"].includes(x.kind)).slice(-4).map(x=>({role:x.kind==="conversazione"?"user":"assistant",content:String(x.content).replace(/^Utente: /,"").slice(-350)}));const systemPrompt = [
-"Sei Ciccio, un agente operativo personale che lavora per l'utente. Non sei un chatbot informativo, un consulente che si limita a dare consigli o un generatore di idee.",
-"MISSIONE: trasformare gli obiettivi assegnati in lavoro concreto, portarlo avanti usando i processi e gli strumenti realmente disponibili nel progetto, conservare i risultati e riferire ciò che hai effettivamente fatto.",
-"",
-"COMPORTAMENTO OPERATIVO:",
-"- Quando l'utente assegna un'attività, considerala un incarico: non chiedere se vuole che tu lo aiuti, non proporre di scrivere un modello perché lo faccia lui e non scaricare su di lui la ricerca, la preparazione o l'organizzazione che puoi svolgere.",
-"- Non rispondere con formule come 'vuoi che ti aiuti?', 'puoi fare così', 'ti consiglio di', 'ecco i passaggi che dovresti seguire' quando l'utente ti ha chiesto di eseguire il lavoro.",
-"- Scomponi l'incarico in risultati verificabili, usa la coda attività condivisa e il ciclo autonomo programmato per eseguirlo. Dai priorità alle attività aperte già assegnate dall'utente; non creare duplicati.",
-"- Lavora in autonomia sui compiti reversibili e a basso rischio: ricerca, verifica fonti, analisi, creazione di documenti, portfolio, pagine demo, bozze commerciali, organizzazione lead e report.",
-"- Se un'attività richiede un servizio esterno, credenziali non configurate, una decisione commerciale o un'azione irreversibile, completa tutto ciò che puoi e chiedi soltanto l'autorizzazione o il dato strettamente necessario per il passaggio bloccato.",
-"- Non inviare email, DM o messaggi a potenziali clienti, non pubblicare, non spendere denaro e non assumere impegni a nome dell'utente senza autorizzazione esplicita. Puoi però preparare i messaggi e la lista destinatari.",
-"- Non dichiarare di aver avviato, completato o verificato un'attività se non è realmente accaduto. Distingui sempre tra fatto, tentativo e prossimo passo.",
-"- Se il lavoro è in coda o verrà svolto dal ciclo automatico, dillo chiaramente e indica quale attività è stata presa in carico; non fingere che sia già completata.",
-"- Quando il lavoro è finito, consegna il risultato in chat/dashboard e usa la notifica email configurata. Se è parziale, mostra ciò che è stato verificato e continua senza inventare dati.",
-"",
-"STILE:",
-"- Italiano naturale, diretto e collaborativo, come un dipendente competente che aggiorna il proprio responsabile.",
-"- Breve nelle conversazioni normali; dettagliato quando consegni un lavoro.",
-"- Non fare domande inutili e non chiedere all'utente di ripetere informazioni già disponibili.",
-"- Esprimi giudizi sinceri e segnala rischi o limiti senza abbandonare l'incarico.",
-"- Non promettere guadagni o risultati certi.",
-"",
-"MEMORIA DISPONIBILE:",
-context||"(nessuna memoria salvata)"
-].join("\n");
-const actionable = /\b(trova|cerca|ricerca|prepara|crea|realizza|costruisci|sviluppa|analizza|verifica|organizza|avvia|procedi|occupati|fai|genera|scrivi|progetta|individua)\b/i.test(message) && message.length >= 18;
-let queuedTask: {id:string;title:string}|null = null;
-if (actionable) {
-  const taskTitle = message.replace(/\s+/g," ").trim().slice(0,180);
-  const taskUrl = c.base + "/rest/v1/ciccio_tasks?select=id,title,status,notes&user_id=eq." + encodeURIComponent(c.user) + "&status=in.(Da%20fare,In%20corso)&order=created_at.desc&limit=20";
-  const openResponse = await fetch(taskUrl,{headers:authHeaders(c),cache:"no-store"});
-  if (!openResponse.ok) throw new Error("Non riesco a controllare la coda attività ("+openResponse.status+").");
-  const openTasks = await openResponse.json() as Array<{id:string;title:string;status:string;notes:string}>;
-  const normalized = taskTitle.toLocaleLowerCase("it-IT").replace(/[^a-z0-9àèéìòù]+/g," ").trim();
-  const existing = openTasks.find(t => {
-    const prior = String(t.title||"").toLocaleLowerCase("it-IT").replace(/[^a-z0-9àèéìòù]+/g," ").trim();
-    return prior === normalized || (prior.length > 35 && normalized.length > 35 && (prior.includes(normalized.slice(0,65)) || normalized.includes(prior.slice(0,65))));
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Config = { base: string; key: string; user: string; groq: string };
+type MemoryRow = { created_at: string; kind: string; content: string };
+type TaskRow = { id: string; title: string; status: string; notes: string; created_at?: string; updated_at?: string };
+
+function config(): Config {
+  const base = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const user = process.env.CICCIO_USER_ID || "";
+  const groq = process.env.GROQ_API_KEY || "";
+  if (!base || !key || !user || !groq) throw new Error("Configurazione server incompleta: controlla le variabili di Ciccio su Vercel.");
+  return { base, key, user, groq };
+}
+
+function headers(c: Config) {
+  return { apikey: c.key, Authorization: "Bearer " + c.key };
+}
+
+async function readMemory(c: Config): Promise<MemoryRow[]> {
+  const url = c.base + "/rest/v1/ciccio_memories?select=created_at,kind,content&user_id=eq." + encodeURIComponent(c.user) + "&order=created_at.desc&limit=30";
+  const r = await fetch(url, { headers: headers(c), cache: "no-store" });
+  if (!r.ok) throw new Error("Lettura memoria non riuscita (" + r.status + ").");
+  return await r.json() as MemoryRow[];
+}
+
+async function saveRows(c: Config, items: Array<{ kind: string; content: string }>) {
+  const r = await fetch(c.base + "/rest/v1/ciccio_memories", {
+    method: "POST",
+    headers: { ...headers(c), "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(items.map(x => ({ ...x, user_id: c.user })))
   });
-  if (existing) queuedTask = {id:existing.id,title:existing.title};
-  else {
-    const createResponse = await fetch(c.base + "/rest/v1/ciccio_tasks",{method:"POST",headers:{...authHeaders(c),"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify({user_id:c.user,title:taskTitle,status:"Da fare",notes:"Incarico assegnato dalla chat Ciccio.\nRichiesta originale: "+message+"\nEseguire in autonomia tutte le attività reversibili e verificabili. Non contattare terzi, pubblicare o spendere denaro senza autorizzazione esplicita."})});
-    if (!createResponse.ok) throw new Error("Non riesco ad aggiungere l'incarico alla coda Ciccio ("+createResponse.status+").");
-    const created = await createResponse.json() as Array<{id:string;title:string}>;
-    if (created[0]) queuedTask = {id:created[0].id,title:created[0].title};
+  if (!r.ok) throw new Error("Salvataggio conversazione non riuscito (" + r.status + ").");
+}
+
+function cleanText(value: unknown, max = 3000): string {
+  return String(value ?? "").replace(/\u0000/g, "").trim().slice(0, max);
+}
+
+function xmlText(value: string): string {
+  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim();
+}
+
+async function searchWeb(query: string) {
+  const q = cleanText(query, 220);
+  if (!q) return { results: [], note: "Query vuota." };
+  const url = "https://www.bing.com/search?" + new URLSearchParams({ format: "rss", q });
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)" },
+    signal: AbortSignal.timeout(12000),
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("Ricerca web non disponibile (" + response.status + ").");
+  const xml = await response.text();
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 7);
+  const results = items.map(match => {
+    const block = match[1];
+    const title = xmlText((block.match(/<title>([\s\S]*?)<\/title>/i) || [,""])[1]);
+    const link = xmlText((block.match(/<link>([\s\S]*?)<\/link>/i) || [,""])[1]);
+    const snippet = xmlText((block.match(/<description>([\s\S]*?)<\/description>/i) || [,""])[1]).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return { title, url: link, snippet };
+  }).filter(x => x.title && /^https?:\/\//i.test(x.url));
+  return { query: q, results, note: results.length ? "Risultati di ricerca: verifica le pagine originali prima di presentare dati come certi." : "Il motore non ha restituito risultati leggibili." };
+}
+
+async function listTasks(c: Config, status?: string) {
+  const params = new URLSearchParams({ select: "id,title,status,notes,created_at,updated_at", user_id: "eq." + c.user, order: "created_at.desc", limit: "15" });
+  if (status && ["Da fare", "In corso", "Completata", "Bloccata"].includes(status)) params.set("status", "eq." + status);
+  const r = await fetch(c.base + "/rest/v1/ciccio_tasks?" + params.toString(), { headers: headers(c), cache: "no-store" });
+  if (!r.ok) throw new Error("Lettura attività non riuscita (" + r.status + ").");
+  return await r.json() as TaskRow[];
+}
+
+async function createTask(c: Config, title: string, notes: string) {
+  const safeTitle = cleanText(title, 180);
+  if (!safeTitle) throw new Error("Titolo attività obbligatorio.");
+  const open = await listTasks(c);
+  const norm = (s: string) => s.toLocaleLowerCase("it-IT").replace(/[^a-z0-9àèéìòù]+/g, " ").trim();
+  const duplicate = open.find(t => t.status !== "Completata" && t.status !== "Bloccata" && norm(t.title) === norm(safeTitle));
+  if (duplicate) return { created: false, duplicate: true, task: duplicate, message: "Esiste già un incarico aperto equivalente." };
+  const r = await fetch(c.base + "/rest/v1/ciccio_tasks", {
+    method: "POST",
+    headers: { ...headers(c), "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({
+      user_id: c.user, title: safeTitle, status: "Da fare",
+      notes: cleanText(notes || "Incarico assegnato dalla chat. Eseguire le attività reversibili; nessun contatto esterno, pubblicazione o spesa senza approvazione.", 2800)
+    })
+  });
+  if (!r.ok) throw new Error("Creazione attività non riuscita (" + r.status + ").");
+  const rows = await r.json() as TaskRow[];
+  if (!rows[0]) throw new Error("Supabase non ha confermato la creazione dell'attività.");
+  return { created: true, task: rows[0], message: "Attività creata e verificata nel database." };
+}
+
+async function getTask(c: Config, id: string) {
+  const params = new URLSearchParams({ select: "id,title,status,notes,created_at,updated_at", id: "eq." + cleanText(id, 80), user_id: "eq." + c.user, limit: "1" });
+  const r = await fetch(c.base + "/rest/v1/ciccio_tasks?" + params.toString(), { headers: headers(c), cache: "no-store" });
+  if (!r.ok) throw new Error("Lettura incarico non riuscita (" + r.status + ").");
+  const rows = await r.json() as TaskRow[];
+  return rows[0] || null;
+}
+
+async function appendTaskNotes(c: Config, id: string, update: string) {
+  const task = await getTask(c, id);
+  if (!task) throw new Error("Incarico non trovato per questo utente.");
+  const addition = cleanText(update, 1800);
+  if (!addition) throw new Error("Aggiornamento vuoto.");
+  const next = ((task.notes || "") + "\n\n" + addition).slice(-3000);
+  const r = await fetch(c.base + "/rest/v1/ciccio_tasks?id=eq." + encodeURIComponent(id) + "&user_id=eq." + encodeURIComponent(c.user), {
+    method: "PATCH",
+    headers: { ...headers(c), "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ notes: next, updated_at: new Date().toISOString() })
+  });
+  if (!r.ok) throw new Error("Aggiornamento incarico non riuscito (" + r.status + ").");
+  const rows = await r.json() as TaskRow[];
+  if (!rows[0]) throw new Error("Aggiornamento non confermato.");
+  return { updated: true, task: rows[0] };
+}
+
+async function listActivity(c: Config) {
+  const params = new URLSearchParams({ select: "created_at,goal,action,status,result,verification", order: "created_at.desc", limit: "8" });
+  const r = await fetch(c.base + "/rest/v1/ciccio_agent_runs?" + params.toString(), { headers: headers(c), cache: "no-store" });
+  if (!r.ok) throw new Error("Lettura registro attività non riuscita (" + r.status + ").");
+  return await r.json();
+}
+
+async function saveMemory(c: Config, content: string, kind: string) {
+  const value = cleanText(content, 1000);
+  if (!value) throw new Error("Contenuto memoria vuoto.");
+  await saveRows(c, [{ kind: cleanText(kind || "nota_utente", 40), content: value }]);
+  return { saved: true, content: value };
+}
+
+const tools = [
+  { type: "function", function: { name: "search_web", description: "Cerca sul web informazioni pubbliche e restituisce titolo, URL e snippet. Usa questa funzione per ricerche attuali; non inventare risultati.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false } } },
+  { type: "function", function: { name: "list_tasks", description: "Legge gli incarichi dell'utente nella coda Ciccio.", parameters: { type: "object", properties: { status: { type: "string", enum: ["Da fare", "In corso", "Completata", "Bloccata"] } }, additionalProperties: false } } },
+  { type: "function", function: { name: "create_task", description: "Crea un incarico che il runner autonomo di Ciccio elaborerà nei suoi cicli.", parameters: { type: "object", properties: { title: { type: "string" }, notes: { type: "string" } }, required: ["title", "notes"], additionalProperties: false } } },
+  { type: "function", function: { name: "get_task", description: "Legge un incarico specifico, incluso il suo stato e i risultati salvati.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } } },
+  { type: "function", function: { name: "append_task_update", description: "Aggiunge un risultato o una nota verificata a un incarico senza dichiararlo completato.", parameters: { type: "object", properties: { id: { type: "string" }, update: { type: "string" } }, required: ["id", "update"], additionalProperties: false } } },
+  { type: "function", function: { name: "list_activity", description: "Legge gli ultimi cicli di lavoro registrati dall'agente Ciccio.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
+  { type: "function", function: { name: "save_memory", description: "Salva una preferenza o decisione durevole comunicata dall'utente.", parameters: { type: "object", properties: { content: { type: "string" }, kind: { type: "string" } }, required: ["content"], additionalProperties: false } } }
+] as const;
+
+async function executeTool(c: Config, name: string, args: Record<string, unknown>) {
+  switch (name) {
+    case "search_web": return await searchWeb(String(args.query || ""));
+    case "list_tasks": return await listTasks(c, args.status ? String(args.status) : undefined);
+    case "create_task": return await createTask(c, String(args.title || ""), String(args.notes || ""));
+    case "get_task": return await getTask(c, String(args.id || ""));
+    case "append_task_update": return await appendTaskNotes(c, String(args.id || ""), String(args.update || ""));
+    case "list_activity": return await listActivity(c);
+    case "save_memory": return await saveMemory(c, String(args.content || ""), String(args.kind || "nota_utente"));
+    default: throw new Error("Strumento non riconosciuto.");
   }
 }
-const taskInstruction = queuedTask ? "INCARICO REGISTRATO NELLA CODA CON ID "+queuedTask.id+" E TITOLO: "+queuedTask.title+". La coda è elaborata dal runner automatico. Conferma solo che è stato preso in carico, non dire che il lavoro è già stato svolto." : "";
-const messages=[{role:"system",content:systemPrompt+"\n\n"+taskInstruction},...recent,{role:"user",content:message}];const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+c.groq,"Content-Type":"application/json"},body:JSON.stringify({model:"openai/gpt-oss-20b",messages,temperature:0.6,max_completion_tokens:550})});const data=await response.json();if(response.status===429){const rawRetry=response.headers.get("retry-after")||"10";const retrySeconds=/^\\d+$/.test(rawRetry)?rawRetry:"10";return NextResponse.json({error:"Ciccio è momentaneamente occupato. Riprova tra "+retrySeconds+" secondi."},{status:429,headers:{"Retry-After":retrySeconds}});}if(response.status>=500){return NextResponse.json({error:"Il servizio AI è momentaneamente non disponibile. Riprova tra poco."},{status:503});}if(!response.ok)throw new Error("Il modello AI non è disponibile ("+response.status+"): "+String(data?.error?.message||"errore provider").slice(0,220));const reply=String(data?.choices?.[0]?.message?.content||"Non sono riuscito a formulare una risposta.");await save(c,[{kind:"conversazione",content:"Utente: "+message},{kind:"risposta_assistente",content:reply}]);return NextResponse.json({reply});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Errore durante la conversazione."},{status:500});}}
+
+const systemBase = [
+  "Sei Ciccio, agente operativo personale dell'utente. Ragioni con lui in italiano naturale e lavori davvero usando gli strumenti disponibili.",
+  "Non limitarti a dare istruzioni: quando serve informazione attuale usa search_web; per incarichi che richiedono lavoro successivo usa create_task; per aggiornamenti consulta list_tasks/get_task/list_activity; conserva risultati verificati con append_task_update.",
+  "Per una richiesta semplice rispondi direttamente. Per una richiesta di ricerca immediata esegui le ricerche prima di rispondere. Per un progetto che richiede più tempo crea un incarico e spiega che sarà elaborato dal runner automatico; non fingere che sia già finito.",
+  "Non inventare fonti, aziende, recapiti, verifiche o progressi. Distingui fatti verificati, snippet di ricerca e ipotesi; quando possibile cita gli URL restituiti dagli strumenti.",
+  "Puoi svolgere autonomamente ricerca, analisi, organizzazione, preparazione di documenti e bozze. Non inviare email o messaggi a terzi, non pubblicare, non spendere denaro e non assumere impegni senza approvazione esplicita.",
+  "Non creare incarichi duplicati. Prima di creare un incarico verifica la coda con list_tasks.",
+  "Quando l'utente chiede cosa stai facendo o cosa hai fatto, controlla i dati reali tramite gli strumenti. Non dichiarare completato un incarico solo perché è stato creato.",
+  "Non chiedere 'vuoi che ti aiuti?' quando l'utente ha già dato un incarico. Se un dato essenziale manca, fai una sola domanda mirata.",
+  "Memoria utente: "
+].join("\n");
+
+export async function GET() {
+  if (!await isAuthenticated()) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+  try {
+    const c = config();
+    const rows = (await readMemory(c)).reverse();
+    const messages = rows.filter(x => ["conversazione", "risposta_assistente"].includes(x.kind))
+      .map(x => ({ role: x.kind === "conversazione" ? "user" : "assistant", content: x.content.replace(/^Utente: /, "") }));
+    return NextResponse.json({ messages: messages.slice(-60) });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Errore memoria" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  if (!await isAuthenticated()) return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+  try {
+    const c = config();
+    const body = await req.json();
+    const message = cleanText(body.message, 8000);
+    if (!message) return NextResponse.json({ error: "Il messaggio è vuoto." }, { status: 400 });
+
+    const rows = (await readMemory(c)).reverse();
+    const durable = rows.filter(x => !["conversazione", "risposta_assistente"].includes(x.kind)).slice(-8);
+    const memoryContext = durable.map(x => "- [" + x.kind + "] " + x.content.slice(0, 260)).join("\n").slice(-2200) || "(nessuna memoria salvata)";
+    const recent = rows.filter(x => ["conversazione", "risposta_assistente"].includes(x.kind)).slice(-6)
+      .map(x => ({ role: x.kind === "conversazione" ? "user" : "assistant", content: x.content.replace(/^Utente: /, "").slice(-900) }));
+
+    const messages: Array<Record<string, unknown>> = [
+      { role: "system", content: systemBase + memoryContext },
+      ...recent,
+      { role: "user", content: message }
+    ];
+
+    let finalReply = "";
+    let toolCount = 0;
+    for (let round = 0; round < 5; round++) {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + c.groq, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages,
+          tools,
+          tool_choice: "auto",
+          parallel_tool_calls: false,
+          temperature: 0.4,
+          max_completion_tokens: 1000
+        }),
+        signal: AbortSignal.timeout(45000)
+      });
+      const data = await response.json();
+      if (response.status === 429) {
+        const retry = response.headers.get("retry-after") || "10";
+        return NextResponse.json({ error: "Ciccio è momentaneamente occupato. Riprova tra " + retry + " secondi." }, { status: 429, headers: { "Retry-After": retry } });
+      }
+      if (response.status >= 500) return NextResponse.json({ error: "Il servizio AI è momentaneamente non disponibile. Riprova tra poco." }, { status: 503 });
+      if (!response.ok) throw new Error("Modello AI non disponibile (" + response.status + "): " + String(data?.error?.message || "errore provider").slice(0, 220));
+
+      const assistantMessage = data?.choices?.[0]?.message;
+      if (!assistantMessage) throw new Error("Il modello non ha restituito una risposta valida.");
+      const calls = Array.isArray(assistantMessage.tool_calls) ? assistantMessage.tool_calls : [];
+      if (!calls.length) {
+        finalReply = String(assistantMessage.content || "").trim();
+        break;
+      }
+
+      messages.push({ role: "assistant", content: assistantMessage.content || null, tool_calls: calls });
+      for (const call of calls) {
+        if (toolCount >= 8) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ error: "Limite strumenti per messaggio raggiunto." }) });
+          continue;
+        }
+        toolCount++;
+        const name = String(call.function?.name || "");
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(String(call.function?.arguments || "{}"));
+          const result = await executeTool(c, name, args);
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
+        } catch (error) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ error: error instanceof Error ? error.message : "Errore esecuzione strumento" }) });
+        }
+      }
+    }
+
+    if (!finalReply) finalReply = "Ho eseguito gli strumenti disponibili, ma non sono riuscito a comporre la risposta finale. Controlla la coda attività per vedere gli eventuali risultati salvati.";
+    await saveRows(c, [
+      { kind: "conversazione", content: "Utente: " + message },
+      { kind: "risposta_assistente", content: finalReply }
+    ]);
+    return NextResponse.json({ reply: finalReply, tools_used: toolCount });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Errore durante la conversazione." }, { status: 500 });
+  }
+}
