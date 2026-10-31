@@ -21,7 +21,7 @@ class ProfitTaskSequenceTests(unittest.TestCase):
         title, notes = next_profit_task([], [])
         self.assertTrue(title.startswith("Opportunity Lab — 01"))
         self.assertIn("Esperimento 1/10", notes)
-        self.assertIn("non inviare messaggi", notes)
+        self.assertIn("Non inviare messaggi", notes)
 
     def test_rotates_through_ten_distinct_models(self):
         history = []
