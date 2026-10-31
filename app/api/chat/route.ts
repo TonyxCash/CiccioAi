@@ -31,4 +31,26 @@ export async function POST(req:NextRequest){if(!await isAuthenticated())return N
 "MEMORIA DISPONIBILE:",
 context||"(nessuna memoria salvata)"
 ].join("\n");
-const messages=[{role:"system",content:systemPrompt},...recent,{role:"user",content:message}];const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+c.groq,"Content-Type":"application/json"},body:JSON.stringify({model:"openai/gpt-oss-20b",messages,temperature:0.6,max_completion_tokens:550})});const data=await response.json();if(response.status===429){const rawRetry=response.headers.get("retry-after")||"10";const retrySeconds=/^\\d+$/.test(rawRetry)?rawRetry:"10";return NextResponse.json({error:"Ciccio è momentaneamente occupato. Riprova tra "+retrySeconds+" secondi."},{status:429,headers:{"Retry-After":retrySeconds}});}if(response.status>=500){return NextResponse.json({error:"Il servizio AI è momentaneamente non disponibile. Riprova tra poco."},{status:503});}if(!response.ok)throw new Error("Il modello AI non è disponibile ("+response.status+"): "+String(data?.error?.message||"errore provider").slice(0,220));const reply=String(data?.choices?.[0]?.message?.content||"Non sono riuscito a formulare una risposta.");await save(c,[{kind:"conversazione",content:"Utente: "+message},{kind:"risposta_assistente",content:reply}]);return NextResponse.json({reply});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Errore durante la conversazione."},{status:500});}}
+const actionable = /\\b(trova|cerca|ricerca|prepara|crea|realizza|costruisci|sviluppa|analizza|verifica|organizza|avvia|procedi|occupati|fai|genera|scrivi|progetta|individua)\\b/i.test(message) && message.length >= 18;
+let queuedTask: {id:string;title:string}|null = null;
+if (actionable) {
+  const taskTitle = message.replace(/\\s+/g," ").trim().slice(0,180);
+  const taskUrl = c.base + "/rest/v1/ciccio_tasks?select=id,title,status,notes&user_id=eq." + encodeURIComponent(c.user) + "&status=in.(Da%20fare,In%20corso)&order=created_at.desc&limit=20";
+  const openResponse = await fetch(taskUrl,{headers:authHeaders(c),cache:"no-store"});
+  if (!openResponse.ok) throw new Error("Non riesco a controllare la coda attività ("+openResponse.status+").");
+  const openTasks = await openResponse.json() as Array<{id:string;title:string;status:string;notes:string}>;
+  const normalized = taskTitle.toLocaleLowerCase("it-IT").replace(/[^a-z0-9àèéìòù]+/g," ").trim();
+  const existing = openTasks.find(t => {
+    const prior = String(t.title||"").toLocaleLowerCase("it-IT").replace(/[^a-z0-9àèéìòù]+/g," ").trim();
+    return prior === normalized || (prior.length > 35 && normalized.length > 35 && (prior.includes(normalized.slice(0,65)) || normalized.includes(prior.slice(0,65))));
+  });
+  if (existing) queuedTask = {id:existing.id,title:existing.title};
+  else {
+    const createResponse = await fetch(c.base + "/rest/v1/ciccio_tasks",{method:"POST",headers:{...authHeaders(c),"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify({user_id:c.user,title:taskTitle,status:"Da fare",notes:"Incarico assegnato dalla chat Ciccio.\nRichiesta originale: "+message+"\nEseguire in autonomia tutte le attività reversibili e verificabili. Non contattare terzi, pubblicare o spendere denaro senza autorizzazione esplicita."})});
+    if (!createResponse.ok) throw new Error("Non riesco ad aggiungere l'incarico alla coda Ciccio ("+createResponse.status+").");
+    const created = await createResponse.json() as Array<{id:string;title:string}>;
+    if (created[0]) queuedTask = {id:created[0].id,title:created[0].title};
+  }
+}
+const taskInstruction = queuedTask ? "INCARICO REGISTRATO NELLA CODA CON ID "+queuedTask.id+" E TITOLO: "+queuedTask.title+". La coda è elaborata dal runner automatico. Conferma solo che è stato preso in carico, non dire che il lavoro è già stato svolto." : "";
+const messages=[{role:"system",content:systemPrompt+"\\n\\n"+taskInstruction},...recent,{role:"user",content:message}];const response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+c.groq,"Content-Type":"application/json"},body:JSON.stringify({model:"openai/gpt-oss-20b",messages,temperature:0.6,max_completion_tokens:550})});const data=await response.json();if(response.status===429){const rawRetry=response.headers.get("retry-after")||"10";const retrySeconds=/^\\d+$/.test(rawRetry)?rawRetry:"10";return NextResponse.json({error:"Ciccio è momentaneamente occupato. Riprova tra "+retrySeconds+" secondi."},{status:429,headers:{"Retry-After":retrySeconds}});}if(response.status>=500){return NextResponse.json({error:"Il servizio AI è momentaneamente non disponibile. Riprova tra poco."},{status:503});}if(!response.ok)throw new Error("Il modello AI non è disponibile ("+response.status+"): "+String(data?.error?.message||"errore provider").slice(0,220));const reply=String(data?.choices?.[0]?.message?.content||"Non sono riuscito a formulare una risposta.");await save(c,[{kind:"conversazione",content:"Utente: "+message},{kind:"risposta_assistente",content:reply}]);return NextResponse.json({reply});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Errore durante la conversazione."},{status:500});}}
