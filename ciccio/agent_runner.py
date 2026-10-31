@@ -396,6 +396,48 @@ def task_search_queries(title, notes):
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
+def fetch_public_page_text(url, *, timeout=8):
+    """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
+    from html.parser import HTMLParser
+
+    class VisibleTextParser(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.parts = []
+            self.skip_depth = 0
+
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() in {"script", "style", "noscript", "svg", "template"}:
+                self.skip_depth += 1
+
+        def handle_endtag(self, tag):
+            if tag.lower() in {"script", "style", "noscript", "svg", "template"} and self.skip_depth:
+                self.skip_depth -= 1
+
+        def handle_data(self, data):
+            if not self.skip_depth:
+                text = re.sub(r"\\s+", " ", str(data or "")).strip()
+                if text:
+                    self.parts.append(text)
+
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)"},
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            content_type = str(response.headers.get("Content-Type", "")).casefold()
+            if "html" not in content_type and "text/plain" not in content_type:
+                return ""
+            raw = response.read(500_000).decode("utf-8", "replace")
+        parser = VisibleTextParser()
+        parser.feed(raw)
+        return re.sub(r"\\s+", " ", " ".join(parser.parts)).strip()[:5000]
+    except Exception as exc:
+        print("Pagina non verificabile direttamente (" + type(exc).__name__ + "): " + str(url)[:160])
+        return ""
+
+
 def collect_task_sources(title, notes, *, max_results=20):
     """Collect real URLs and reject off-topic results before they reach the AI."""
     results, seen = [], set()
@@ -422,17 +464,22 @@ def collect_task_sources(title, notes, *, max_results=20):
             snippet = str(item.get("snippet", "")).strip()
             if not url.startswith(("https://", "http://")) or not title_text or url in seen:
                 continue
-            evidence_text = title_text + " " + snippet + " " + url
+            page_text = fetch_public_page_text(url) if local_website_task else ""
+            evidence_text = title_text + " " + snippet + " " + url + " " + page_text
             if local_website_task and (
-                not geo_pattern.search(evidence_text) or not business_pattern.search(evidence_text)
+                not page_text
+                or not geo_pattern.search(evidence_text)
+                or not business_pattern.search(evidence_text)
             ):
-                print("Fonte scartata: non dimostra settore e località Campania: " + url[:180])
+                print("Fonte scartata: pagina non accessibile o non prova settore e località Campania: " + url[:180])
                 continue
             seen.add(url)
             results.append({
                 "title": title_text[:220],
                 "url": url[:500],
                 "snippet": snippet[:500],
+                "page_verified": bool(page_text),
+                "page_excerpt": page_text[:1800],
             })
             if len(results) >= max_results:
                 return results
@@ -794,6 +841,23 @@ def execute_task(db, groq, open_tasks, user_id):
         }
 
     deliverable = (response.choices[0].message.content or "").strip()
+    if local_website_task:
+        # A site is never "DA MIGLIORARE" merely because the model imagines a possible improvement.
+        page_evidence = " ".join(str(source.get("page_excerpt", "")) for source in sources)
+        concrete_defect = re.search(
+            r"\\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
+            r"link non funzionante|modulo non funzionante|menu non disponibile|"
+            r"prenotazione non disponibile|errore tecnico|certificato non valido)\\b",
+            page_evidence,
+            re.I,
+        )
+        if not concrete_defect:
+            deliverable = re.sub(
+                r"DA\\s+MIGLIORARE(?:\\s*\\([^\\n)]*\\))?",
+                "NON VERIFICATO (nessun difetto concreto documentato)",
+                deliverable,
+                flags=re.I,
+            )
     if len(deliverable) < minimum_length:
         try:
             retry_response = groq_completion_with_retry(
