@@ -858,6 +858,52 @@ def execute_task(db, groq, open_tasks, user_id):
                 deliverable,
                 flags=re.I,
             )
+        explicit_no_site = re.search(
+            r"\\b(nessun sito web|sito web assente|non dispone di un sito|non ha un sito ufficiale|"
+            r"no official website|website not available)\\b",
+            page_evidence,
+            re.I,
+        )
+        if not explicit_no_site:
+            deliverable = re.sub(
+                r"\\bASSENTE\\b",
+                "NON VERIFICATO (assenza del sito non dimostrata)",
+                deliverable,
+                flags=re.I,
+            )
+        # A client is counted only when a candidate row has a qualifying site status
+        # and cites one of the pages actually fetched and verified in this cycle.
+        verified_urls = [
+            str(source.get("url", "")).strip()
+            for source in sources
+            if source.get("page_verified") and source.get("url")
+        ]
+        qualified_rows = []
+        for line in deliverable.splitlines():
+            if re.search(r"\\|\\s*(?:ASSENTE|DA\\s+MIGLIORARE)\\s*\\|", line, re.I):
+                if any(url in line for url in verified_urls):
+                    qualified_rows.append(line)
+        if len(qualified_rows) < 10:
+            diagnostic = (
+                "Ricerca non completata: " + str(len(qualified_rows))
+                + " potenziali clienti hanno una pagina verificata e uno stato del sito dimostrato; "
+                "ne servono 10. I candidati con sito esistente o stato non verificato non vengono conteggiati. "
+                "L'attività resta aperta e nessun contatto viene inviato."
+            )
+            prior = str(task.get("notes", "")).strip()
+            updated_notes = (prior[:1800] + "\\n\\n" + diagnostic)[:3000]
+            db.table("ciccio_tasks").update({
+                "status": "Da fare",
+                "notes": updated_notes,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", task["id"]).eq("user_id", user_id).execute()
+            check = execute_read_with_retry(
+                db.table("ciccio_tasks").select("status,notes")
+                .eq("id", task["id"]).eq("user_id", user_id).limit(1)
+            ).data or []
+            if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
+                raise RuntimeError("La ricerca clienti insufficiente non è rimasta aperta in Supabase.")
+            return {"status": "blocked", "result": diagnostic}
     if len(deliverable) < minimum_length:
         try:
             retry_response = groq_completion_with_retry(
