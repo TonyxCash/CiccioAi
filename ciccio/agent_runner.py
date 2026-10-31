@@ -410,7 +410,7 @@ def fetch_public_page_text(url, *, timeout=6):
 
         def handle_data(self, data):
             if not self.skip_depth:
-                text = re.sub(r"\\s+", " ", str(data or "")).strip()
+                text = re.sub(r"\s+", " ", str(data or "")).strip()
                 if text:
                     self.parts.append(text)
 
@@ -426,7 +426,7 @@ def fetch_public_page_text(url, *, timeout=6):
             raw = response.read(500_000).decode("utf-8", "replace")
         parser = VisibleTextParser()
         parser.feed(raw)
-        return re.sub(r"\\s+", " ", " ".join(parser.parts)).strip()[:5000]
+        return re.sub(r"\s+", " ", " ".join(parser.parts)).strip()[:5000]
     except Exception as exc:
         print("Pagina non verificabile direttamente (" + type(exc).__name__ + "): " + str(url)[:160])
         return ""
@@ -843,28 +843,28 @@ def execute_task(db, groq, open_tasks, user_id):
         # A site is never "DA MIGLIORARE" merely because the model imagines a possible improvement.
         page_evidence = " ".join(str(source.get("page_excerpt", "")) for source in sources)
         concrete_defect = re.search(
-            r"\\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
+            r"\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
             r"link non funzionante|modulo non funzionante|menu non disponibile|"
-            r"prenotazione non disponibile|errore tecnico|certificato non valido)\\b",
+            r"prenotazione non disponibile|errore tecnico|certificato non valido)\b",
             page_evidence,
             re.I,
         )
         if not concrete_defect:
             deliverable = re.sub(
-                r"DA\\s+MIGLIORARE(?:\\s*\\([^\\n)]*\\))?",
+                r"DA\s+MIGLIORARE(?:\s*\([^\n)]*\))?",
                 "NON VERIFICATO (nessun difetto concreto documentato)",
                 deliverable,
                 flags=re.I,
             )
         explicit_no_site = re.search(
-            r"\\b(nessun sito web|sito web assente|non dispone di un sito|non ha un sito ufficiale|"
-            r"no official website|website not available)\\b",
+            r"\b(nessun sito web|sito web assente|non dispone di un sito|non ha un sito ufficiale|"
+            r"no official website|website not available)\b",
             page_evidence,
             re.I,
         )
         if not explicit_no_site:
             deliverable = re.sub(
-                r"\\bASSENTE\\b",
+                r"\bASSENTE\b",
                 "NON VERIFICATO (assenza del sito non dimostrata)",
                 deliverable,
                 flags=re.I,
@@ -878,7 +878,7 @@ def execute_task(db, groq, open_tasks, user_id):
         ]
         qualified_rows = []
         for line in deliverable.splitlines():
-            if re.search(r"\\|\\s*(?:ASSENTE|DA\\s+MIGLIORARE)\\s*\\|", line, re.I):
+            if re.search(r"\|\s*(?:ASSENTE|DA\s+MIGLIORARE)\s*\|", line, re.I):
                 if any(url in line for url in verified_urls):
                     qualified_rows.append(line)
         if len(qualified_rows) < 10:
@@ -889,7 +889,7 @@ def execute_task(db, groq, open_tasks, user_id):
                 "L'attività resta aperta e nessun contatto viene inviato."
             )
             prior = str(task.get("notes", "")).strip()
-            updated_notes = (prior[:1800] + "\\n\\n" + diagnostic)[:3000]
+            updated_notes = (prior[:1800] + "\n\n" + diagnostic)[:3000]
             db.table("ciccio_tasks").update({
                 "status": "Da fare",
                 "notes": updated_notes,
