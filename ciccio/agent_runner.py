@@ -490,7 +490,7 @@ def next_profit_task(memories, task_history=None):
     completed = set()
     for item in task_history or []:
         title = str(item.get("title", "")).strip()
-        match = re.match(r"Opportunity Lab — (\\d{2})", title, re.I)
+        match = re.match(r"Opportunity Lab — (\d{2})", title, re.I)
         if match:
             number = int(match.group(1))
             existing[number] = title
