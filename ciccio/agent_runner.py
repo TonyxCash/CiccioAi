@@ -330,6 +330,21 @@ def task_search_queries(title, notes):
             'remote online work international eligibility payout official terms',
             'legitimate zero-cost online income opportunities worldwide scam warnings official',
         ]
+    if "opportunity lab" in combined:
+        return [
+            'small business hiring virtual assistant appointment setter lead generation freelance project',
+            'business request supplier sourcing market research price monitoring freelance',
+            'digital product template spreadsheet checklist creator demand marketplace fees payout Italy',
+            'remote ecommerce operations product catalog data entry freelance job',
+            'business tender grant monitoring research service freelance demand',
+            'affiliate programs Italy publisher payout threshold official terms no fee',
+            'richiesta assistente virtuale appuntamenti ricerca fornitori freelance aziende',
+            'richiesta monitoraggio prezzi ricerca bandi supporto ecommerce freelance',
+            'site:upwork.com/jobs virtual assistant lead generation appointment setter',
+            'site:freelancer.com/projects market research supplier sourcing virtual assistant',
+            'site:contra.com freelance market research virtual assistant project',
+            'digital services freelance projects clients request budget recent',
+        ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
         # Ricerca mondiale e multilingue: non limitare Ciccio a Italia, a un settore
         # o a una sola piattaforma. Le query ruotano tra segnali di acquisto e bisogni concreti.
@@ -395,7 +410,7 @@ def task_requires_market_evidence(title, notes):
     text = (str(title or "") + " " + str(notes or "")).casefold()
     return any(token in text for token in (
         "validazione mercato", "validazione opportunità", "verifica domanda",
-        "mappa opportunità", "classifica opportunità", "ricerca clienti",
+        "mappa opportunità", "classifica opportunità", "opportunity lab", "ricerca clienti",
         "potenziali clienti", "confrontare almeno 8 modi",
     ))
 
@@ -458,82 +473,54 @@ def failed_task_attempts(task, previous):
 
 
 def next_profit_task(memories, task_history=None):
-    """Explore multiple earning models instead of locking the agent into one niche."""
-    history = "\\n".join(
-        str(item.get("content", "")) for item in (memories or [])
-        if isinstance(item, dict)
-    ).casefold()
-    existing_titles = {
-        str(item.get("title", "")).strip().casefold()
-        for item in (task_history or [])
-        if isinstance(item, dict) and str(item.get("title", "")).strip()
-    }
-    stages = [
-        (
-            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Esplora almeno 8 modelli diversi adatti a una persona che parte da zero e usa solo iPhone/computer, cercando opportunità in tutto il mondo. Confronta Italia, Europa, Regno Unito, Stati Uniti e altri mercati senza dare priorità automatica a un Paese: servizi digitali, prodotti digitali, micro-freelance, assistenza alle attività locali, contenuti, rivendita senza acquistare stock, affiliazioni gratuite, lavori/commissioni da remoto e altre alternative legittime. Per ciascuno valuta costi iniziali, tempo al primo possibile incasso, competenze richieste, difficoltà, canali gratuiti, rischi e prove disponibili. Distingui fatti da ipotesi e cita URL reali. Escludi truffe, schemi piramidali e attività che richiedono pagamenti anticipati."
-        ),
-        (
-            "Crea prova vendibile — primo prodotto o servizio concreto",
-            "Crea subito un deliverable finito e riutilizzabile collegato all’opportunità più promettente emersa dalla mappa già disponibile. Scegli il formato più rapido da consegnare e vendere senza costi iniziali: campione professionale, mini-prodotto digitale, pacchetto di testi, modello o scheda servizio. Usa le prove già raccolte e produci un campione completo che un potenziale acquirente possa valutare, senza ritardare il lavoro con nuova pianificazione generica. Non inventare dati, testimonianze o risultati."
-        ),
-        (
-            "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Individua fino a 10 potenziali clienti aziendali o canali di vendita pertinenti al deliverable, usando fonti pubbliche verificabili. Includi sito ufficiale, bisogno osservabile, servizio adatto, modalità pubblica e appropriata per proporlo e URL della fonte. Preferisci piattaforme gratuite. Prepara l’azione successiva più concreta che può essere eseguita con gli strumenti disponibili. Non raccogliere dati personali non necessari e non inviare spam."
-        ),
-        (
-            "Kit di lancio — preparare offerta e primo test gratuito",
-            "Completa un pacchetto pronto al lancio: offerta, prezzo di test motivato, campione finito, pagina di presentazione, istruzioni per consegna e metodo di pagamento compatibile con il canale. Riutilizza il campione e le prove già create, evitando nuova pianificazione generica. Usa gli strumenti configurati per le azioni lecite e reversibili. Se manca una capacità tecnica esterna, prepara tutto il materiale necessario e registra il requisito specifico che blocca l’azione. Non spendere denaro e non fingere pubblicazioni o vendite."
-        ),
-        (
-            "Distribuzione offerta — attivare il canale gratuito più concreto",
-            "Parti dal kit di lancio e porta l’offerta verso un pubblico reale. Prima di raccomandare qualsiasi canale, verifica le regole ufficiali aggiornate e i requisiti nei Paesi interessati, distinguendo le regole globali da quelle specifiche per Paese; cita gli URL delle policy ufficiali. Non proporre Facebook Marketplace per vendere servizi, e-book, template o altri prodotti digitali: le regole commerciali Meta vietano servizi e contenuti digitali su Marketplace. Non affermare che un canale integra pagamenti se non è verificato: indica metodo, commissioni/requisiti e percorso effettivo d’incasso con fonti ufficiali. Preferisci canali gratuiti realmente compatibili con l’offerta e gli strumenti disponibili. Se puoi pubblicare o distribuire legalmente, esegui l’azione e verifica l’URL o la ricevuta tecnica. Se serve una registrazione, verifica d’identità o configurazione personale del pagamento che non puoi completare, documenta il blocco esatto e cerca un’alternativa gratuita più autonoma. Non inviare messaggi massivi, non spendere denaro e non dichiarare vendite senza prova."
-        ),
-        (
-            "Classifica opportunità — scegliere i 3 test migliori",
-            "Dopo aver preparato il primo test vendibile, confronta almeno 3 opportunità di categorie diverse per costo zero, domanda verificabile, facilità di avvio, tempo al primo incasso, margine potenziale e compatibilità con iPhone. Usa la mappa e fonti reali; non ritardare la distribuzione dell’offerta per una nuova analisi generica."
-        ),
-        (
-            "Valida opportunità — verificare domanda e modalità di incasso",
-            "Verifica con fonti pubbliche aggiornate l’opportunità o il canale che Ciccio sta effettivamente testando: prezzi pubblici, richieste, requisiti d’accesso e condizioni di pagamento nei mercati pertinenti, verificando l’idoneità per un venditore residente in Italia e le restrizioni per Paese. Riporta titolo e URL reali, separa fatti da ipotesi e decidi se modificare o scartare. Non inventare statistiche, clienti o guadagni."
-        ),
+    """Rotate through ten independent, zero-budget business models and validate demand."""
+    models = [
+        ("Servizi di ricerca clienti B2B", "Trova imprese che chiedono pubblicamente supporto commerciale o lead generation. Cerca domanda esplicita, requisiti, budget indicato e canali ufficiali. Definisci un servizio pilota consegnabile senza spese e prepara 5 prospect verificabili."),
+        ("Assistente virtuale per piccole imprese", "Verifica richieste reali di assistenza amministrativa leggera, gestione email, cataloghi e organizzazione. Escludi attività regolamentate e accessi a dati sensibili. Crea un'offerta pilota con limiti e prezzo confrontato con fonti."),
+        ("Fissazione appuntamenti", "Cerca aziende che assumono o acquistano appointment setting e verifica modalità di remunerazione, requisiti e Paesi ammessi. Non contattare prospect. Prepara una procedura dimostrativa e una lista di opportunità con fonti."),
+        ("Ricerca fornitori e sourcing", "Individua richieste reali di ricerca fornitori, preventivi o sourcing. Verifica se il servizio può essere fornito da remoto, come si paga e quali rischi legali/logistici esistono. Crea un campione di report comparativo."),
+        ("Contenuti e microservizi digitali", "Confronta richieste recenti per microservizi digitali (testi, schede, traduzioni non certificate, presentazioni, formattazione). Seleziona un servizio con domanda osservabile, crea un campione originale e un'offerta chiara."),
+        ("Prodotti digitali scaricabili", "Indaga categorie di template, fogli di calcolo, checklist e guide con segnali pubblici di domanda. Verifica piattaforme, commissioni, requisiti e pagamenti disponibili per residente in Italia. Crea un prototipo utile e originale."),
+        ("Ricerca e monitoraggio prezzi", "Cerca imprese che richiedono monitoraggio prezzi, cataloghi o analisi competitive. Verifica esempi di acquisto del servizio e crea un report dimostrativo con fonti pubbliche, senza scraping vietato o dati personali."),
+        ("Supporto e-commerce operativo", "Esamina richieste pubbliche per inserimento cataloghi, controllo qualità schede, organizzazione feed e assistenza negozi online. Crea un servizio pilota misurabile senza riutilizzare progetti precedenti dell'utente."),
+        ("Ricerca bandi e opportunità per imprese", "Verifica se microimprese pagano per monitoraggio bandi, gare o opportunità pubbliche. Usa fonti istituzionali, chiarisci che non offri consulenza legale/fiscale e crea un esempio di alert verificato."),
+        ("Affiliazioni e partnership senza investimento", "Confronta programmi ufficiali che accettano publisher residenti in Italia, soglie e tempi di pagamento, requisiti di traffico e regole promozionali. Scarta programmi con fee, promesse irrealistiche o condizioni non verificabili."),
     ]
-    commercial_started = any(
-        existing_title.startswith("ricerca clienti — trovare acquirenti per il pacchetto 5 annunci")
-        or existing_title.startswith("ciccio growth lab — migliorare il servizio e il tasso di conversione")
-        for existing_title in existing_titles
-    )
-    for title, notes in stages:
-        if commercial_started:
-            break
-        if title.casefold() not in history and title.casefold() not in existing_titles:
-            return title, notes
-    # Dopo le fasi iniziali, la priorità è alternare ricerca clienti e miglioramento
-    # dell'offerta. Una revisione generica non deve interrompere questo ciclo operativo.
-    # Dopo la sequenza iniziale, alternare acquisizione clienti e miglioramento del prodotto.
-    # Così Ciccio non ripete all'infinito ricerche generiche: ogni ciclo commerciale deve
-    # cercare acquirenti oppure migliorare il servizio sulla base di prove e limiti osservati.
-    prospect_base = "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci"
-    improvement_base = "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione"
-    prospect_numbers = []
-    improvement_numbers = []
-    for existing_title in existing_titles:
-        match = re.match(re.escape(prospect_base.casefold()) + r"\s+#(\d+)$", existing_title)
+    existing = {}
+    completed = set()
+    for item in task_history or []:
+        title = str(item.get("title", "")).strip()
+        match = re.match(r"Opportunity Lab — (\d{2})", title, re.I)
         if match:
-            prospect_numbers.append(int(match.group(1)))
-        match = re.match(re.escape(improvement_base.casefold()) + r"\s+#(\d+)$", existing_title)
-        if match:
-            improvement_numbers.append(int(match.group(1)))
-
-    # Avvia con la ricerca clienti. Poi alterna ricerca e miglioramento.
-    if len(prospect_numbers) <= len(improvement_numbers):
-        return (
-            f"{prospect_base} #{max(prospect_numbers, default=0) + 1}",
-            "Obiettivo: trovare clienti paganti in tutto il mondo e opportunità verificabili. Escludi directory generiche come prova di domanda. Ricerca clienti CONTINUA E MONDIALE: non limitarti a Italia, Europa, Stati Uniti, a una lingua, categoria merceologica, piattaforma o dimensione aziendale. A ogni ciclo esplora mercati e lingue differenti (almeno italiano, inglese, spagnolo, francese, tedesco e, quando utile, portoghese, olandese, polacco, arabo, hindi, giapponese e cinese), alternando Paesi e settori. Cerca segnali concreti e recenti di domanda: richieste pubbliche di preventivo o freelance, annunci di lavoro/progetto, venditori con schede prodotto incomplete o poco chiare, nuovi negozi online, richieste di aiuto nelle community e aziende con un problema che Ciccio può risolvere. Non limitarti al pacchetto attuale da 5 annunci: trova clienti per qualsiasi servizio o prodotto digitale legittimo che Ciccio possa consegnare davvero, a costo iniziale zero e compatibile con un fornitore residente in Italia. Cerca almeno 20 opportunità/candidati per ciclo, se le fonti lo consentono, e conserva solo URL pubblici reali e pertinenti. Per ciascuno registra Paese/lingua, settore, fonte e URL della pagina concreta, data o indizio di attualità se disponibile, bisogno osservabile, offerta adatta, canale pubblico appropriato e requisiti per incassare. Distingui domanda esplicita da semplice potenziale cliente; non trasformare directory o siti generici in lead qualificati. Deduplica i candidati già raccolti e amplia continuamente il database senza tetto geografico. Prepara messaggi personalizzati e brevi per i migliori contatti, ma non inviarli automaticamente, non fare spam e non raccogliere dati personali non necessari. Se una fonte o un mercato non restituisce risultati, passa a query, lingue e settori diversi invece di dichiarare conclusa la ricerca. Non inventare contatti, richieste, bisogni o statistiche."
+            number = int(match.group(1))
+            existing[number] = title
+            if item.get("status") == "Completata":
+                completed.add(number)
+    for index, (name, brief) in enumerate(models, start=1):
+        if index in completed or index in existing:
+            continue
+        title = f"Opportunity Lab — {index:02d} {name}"
+        notes = (
+            f"Esperimento {index}/10. Modello: {name}. {brief} "
+            "Confronta domanda osservabile, concorrenza, prezzo realmente pubblicato, "
+            "tempo al primo incasso, costi iniziali (obiettivo zero), competenze, "
+            "canali gratuiti, requisiti per un residente in Italia, modalità e soglie "
+            "di pagamento, rischi e prova di acquisto. Cerca almeno 5 fonti concrete, "
+            "privilegiando richieste di lavoro/servizio e pagine ufficiali. "
+            "Elenca fino a 5 potenziali acquirenti solo se esistono fonti pubbliche "
+            "specifiche e un bisogno osservabile. Distingui lead verificati da ipotesi. "
+            "Crea un campione vendibile e un messaggio personalizzato come bozza. "
+            "Non inviare messaggi, non fare scraping aggressivo, non spendere, "
+            "non aprire account e non dichiarare clienti o ricavi senza conferma."
         )
+        return title, notes
     return (
-        f"{improvement_base} #{max(improvement_numbers, default=0) + 1}",
-        "Esegui un miglioramento concreto del servizio Ciccio basandoti sulle prove raccolte nei cicli precedenti. Crea un mini-audit dimostrativo prima/dopo su un annuncio pubblico o su un esempio chiaramente dichiarato come sintetico; analizza titolo, chiarezza, informazioni mancanti, parole chiave pertinenti e fiducia dell'acquirente. Progetta una consegna più utile del semplice testo: diagnosi breve, riscrittura motivata e checklist specifica. Confronta il pacchetto attuale da 15 euro con almeno una variante, definisci un test misurabile e salva il deliverable. Non affermare di aver migliorato vendite o conversioni senza dati reali; non copiare contenuti in modo esteso e non contattare persone."
+        "Opportunity Lab — Revisione e scelta basata su prove",
+        "Confronta i dieci esperimenti completati usando evidenze: richieste esplicite, "
+        "prospect verificati, prezzi pubblici, requisiti, possibilità d'incasso in Italia, "
+        "tempo/costo di consegna e feedback. Scarta idee senza domanda verificabile. "
+        "Seleziona al massimo due test successivi e definisci metriche e soglie minime. "
+        "Non inventare conversioni, probabilità, clienti o ricavi."
     )
 
 
@@ -775,7 +762,7 @@ def execute_task(db, groq, open_tasks, user_id):
     if task_requires_market_evidence(title, notes):
         cited_urls = [str(source.get("url", "")).strip() for source in sources if source.get("url")]
         used_urls = [url for url in cited_urls if url in deliverable]
-        minimum_citations = 3 if "ricerca clienti" in title.casefold() or "potenziali clienti" in title.casefold() else 1
+        minimum_citations = 3 if any(token in title.casefold() for token in ("ricerca clienti", "potenziali clienti", "opportunity lab")) else 1
         if len(set(used_urls)) < minimum_citations:
             diagnostic = (
                 "Attività non completata: il testo generato cita "

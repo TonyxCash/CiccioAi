@@ -17,93 +17,51 @@ def fake_groq_response(text):
 
 
 class ProfitTaskSequenceTests(unittest.TestCase):
-    def test_skips_stages_already_present_in_task_history(self):
-        history = [
-            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"},
-            {"title": "Classifica opportunità — scegliere i 3 test migliori", "status": "Bloccata"},
-            {"title": "Valida opportunità — verificare domanda e modalità di incasso", "status": "Completata"},
-        ]
-        title, notes = next_profit_task([], history)
-        self.assertEqual(title, "Crea prova vendibile — primo prodotto o servizio concreto")
-        self.assertTrue(notes)
-
-    def test_uses_distinct_review_task_after_all_stages_attempted(self):
-        stage_titles = [
-            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Classifica opportunità — scegliere i 3 test migliori",
-            "Valida opportunità — verificare domanda e modalità di incasso",
-            "Crea prova vendibile — primo prodotto o servizio concreto",
-            "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Kit di lancio — preparare offerta e primo test gratuito",
-            "Distribuzione offerta — attivare il canale gratuito più concreto",
-            "Revisione opportunità — scegliere un nuovo esperimento gratuito",
-        ]
-        title, _notes = next_profit_task([], [{"title": item, "status": "Bloccata"} for item in stage_titles])
-        self.assertEqual(title, "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1")
-        self.assertIn("Obiettivo:", _notes)
-
-    def test_alternates_customer_research_with_product_improvement(self):
-        history = [
-            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"},
-            {"title": "Classifica opportunità — scegliere i 3 test migliori", "status": "Completata"},
-            {"title": "Valida opportunità — verificare domanda e modalità di incasso", "status": "Completata"},
-            {"title": "Crea prova vendibile — primo prodotto o servizio concreto", "status": "Completata"},
-            {"title": "Ricerca clienti — trovare potenziali acquirenti verificabili", "status": "Completata"},
-            {"title": "Kit di lancio — preparare offerta e primo test gratuito", "status": "Completata"},
-            {"title": "Distribuzione offerta — attivare il canale gratuito più concreto", "status": "Completata"},
-            {"title": "Revisione opportunità — scegliere un nuovo esperimento gratuito", "status": "Completata"},
-            {"title": "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1", "status": "Completata"},
-        ]
-        title, notes = next_profit_task([], history)
-        self.assertEqual(title, "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione #1")
-        self.assertIn("mini-audit", notes)
-        self.assertIn("Non affermare", notes)
-
-    def test_returns_to_customer_research_after_growth_lab(self):
-        history = [
-            {"title": "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #1", "status": "Completata"},
-            {"title": "Ciccio Growth Lab — migliorare il servizio e il tasso di conversione #1", "status": "Completata"},
-        ]
-        title, notes = next_profit_task([], history)
-        self.assertEqual(title, "Ricerca clienti — trovare acquirenti per il pacchetto 5 annunci #2")
-        self.assertIn("bisogno osservabile", notes)
-        self.assertIn("Escludi directory generiche", notes)
-
-    def test_moves_from_opportunity_map_to_a_sellable_sample(self):
-        title, notes = next_profit_task([], [
-            {"title": "Mappa opportunità — confrontare almeno 8 modi per guadagnare", "status": "Completata"}
-        ])
-        self.assertEqual(title, "Crea prova vendibile — primo prodotto o servizio concreto")
-        self.assertIn("deliverable finito", notes)
-        self.assertNotEqual(title, "Classifica opportunità — scegliere i 3 test migliori")
-
-    def test_first_profit_task_explores_multiple_business_categories(self):
+    def test_first_task_starts_general_opportunity_lab(self):
         title, notes = next_profit_task([], [])
-        self.assertEqual(title, "Mappa opportunità — confrontare almeno 8 modi per guadagnare")
-        for category in ("servizi digitali", "prodotti digitali", "micro-freelance", "affiliazioni"):
-            self.assertIn(category, notes)
-        self.assertNotIn("solo LinkedIn", notes)
+        self.assertTrue(title.startswith("Opportunity Lab — 01"))
+        self.assertIn("Esperimento 1/10", notes)
+        self.assertIn("Non inviare messaggi", notes)
 
-    def test_prospect_research_searches_for_small_businesses_and_real_projects(self):
-        queries = task_search_queries(
-            "Ricerca clienti — trovare potenziali acquirenti verificabili",
-            "Individua potenziali clienti per un servizio digitale",
-        )
-        self.assertGreaterEqual(len(queries), 4)
-        self.assertTrue(any("piccole imprese" in query for query in queries))
-        self.assertTrue(any("progetti clienti" in query for query in queries))
+    def test_rotates_through_ten_distinct_models(self):
+        history = []
+        titles = []
+        for _ in range(10):
+            title, notes = next_profit_task([], history)
+            titles.append(title)
+            history.append({"title": title, "status": "Completata"})
+            self.assertIn("fonti", notes)
+        self.assertEqual(len(set(titles)), 10)
+        self.assertTrue(any("Assistente virtuale" in t for t in titles))
+        self.assertTrue(any("Affiliazioni" in t for t in titles))
 
-    def test_opportunity_mapping_requires_real_market_evidence(self):
-        self.assertTrue(task_requires_market_evidence(
-            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Confronta categorie diverse e cita fonti",
-        ))
+    def test_skips_completed_models_but_retries_blocked_models(self):
+        history = [
+            {"title": "Opportunity Lab — 01 Servizi di ricerca clienti B2B", "status": "Completata"},
+            {"title": "Opportunity Lab — 02 Assistente virtuale per piccole imprese", "status": "Bloccata"},
+        ]
+        title, _ = next_profit_task([], history)
+        self.assertTrue(title.startswith("Opportunity Lab — 03"))
+
+    def test_after_ten_models_creates_evidence_based_review(self):
+        history = [
+            {"title": f"Opportunity Lab — {i:02d} modello", "status": "Completata"}
+            for i in range(1, 11)
+        ]
+        title, notes = next_profit_task([], history)
+        self.assertIn("Revisione", title)
+        self.assertIn("Non inventare", notes)
+
+    def test_opportunity_lab_searches_diverse_categories(self):
         queries = task_search_queries(
-            "Mappa opportunità — confrontare almeno 8 modi per guadagnare",
-            "Confronta almeno otto modelli",
+            "Opportunity Lab — 01 Servizi di ricerca clienti B2B",
+            "Confronta opportunità e trova domanda verificabile",
         )
-        self.assertGreaterEqual(len(queries), 4)
-        self.assertTrue(any("prodotti digitali" in query for query in queries))
+        self.assertGreaterEqual(len(queries), 8)
+        self.assertTrue(any("virtual assistant" in q for q in queries))
+        self.assertTrue(any("supplier sourcing" in q for q in queries))
+        self.assertTrue(task_requires_market_evidence("Opportunity Lab — 01 Test", "fonti reali"))
+
 
 
 class AskAgentValidationTests(unittest.TestCase):
