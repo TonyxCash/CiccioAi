@@ -397,8 +397,19 @@ def task_search_queries(title, notes):
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
 def collect_task_sources(title, notes, *, max_results=20):
-    """Run targeted queries and merge only real URLs returned by search_web."""
+    """Collect real URLs and reject off-topic results before they reach the AI."""
     results, seen = [], set()
+    combined = (str(title or "") + " " + str(notes or "")).casefold()
+    local_website_task = any(token in combined for token in (
+        "siti web", "realizzazione siti", "ristoranti", "pizzerie",
+        "negozi di abbigliamento", "boutique",
+    ))
+    geo_pattern = re.compile(r"giugliano|napoli|pozzuoli|caserta|salerno|campania", re.I)
+    business_pattern = re.compile(
+        r"ristorant|pizzer|trattor|oster|cucin|menu|food|"
+        r"abbigli|boutique|negozio|moda|fashion|clothing",
+        re.I,
+    )
     for query in task_search_queries(title, notes):
         try:
             found = search_web(query, max_results=max_results, timeout=12)
@@ -408,13 +419,20 @@ def collect_task_sources(title, notes, *, max_results=20):
         for item in found or []:
             url = str(item.get("url", "")).strip()
             title_text = str(item.get("title", "")).strip()
+            snippet = str(item.get("snippet", "")).strip()
             if not url.startswith(("https://", "http://")) or not title_text or url in seen:
+                continue
+            evidence_text = title_text + " " + snippet + " " + url
+            if local_website_task and (
+                not geo_pattern.search(evidence_text) or not business_pattern.search(evidence_text)
+            ):
+                print("Fonte scartata: non dimostra settore e località Campania: " + url[:180])
                 continue
             seen.add(url)
             results.append({
                 "title": title_text[:220],
                 "url": url[:500],
-                "snippet": str(item.get("snippet", ""))[:500],
+                "snippet": snippet[:500],
             })
             if len(results) >= max_results:
                 return results
@@ -701,13 +719,19 @@ def execute_task(db, groq, open_tasks, user_id):
     if not title:
         return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
     sources = collect_task_sources(title, notes, max_results=12 if ("siti web" in (title + " " + notes).casefold() or "realizzazione siti" in (title + " " + notes).casefold()) else 5)
-    if task_requires_market_evidence(title, notes) and not sources:
-        # A market-validation report without sources is not a valid deliverable.
+    local_website_task = any(token in (title + " " + notes).casefold() for token in (
+        "siti web", "realizzazione siti", "ristoranti", "pizzerie",
+        "negozi di abbigliamento", "boutique",
+    ))
+    minimum_source_count = 3 if local_website_task else 1
+    if task_requires_market_evidence(title, notes) and len(sources) < minimum_source_count:
+        # A market-validation report without enough relevant sources is not a valid deliverable.
         # Keep it open so the next scheduled cycle can retry the search instead of
         # falsely recording an unsupported conclusion as completed.
         diagnostic = (
-            "Ultimo tentativo bloccato: nessuna fonte web recuperata dai motori gratuiti DuckDuckGo/Bing RSS. "
-            "L'attività resta aperta; nessuna domanda, prezzo o concorrenza è stata convalidata. "
+            "Ultimo tentativo bloccato: recuperate " + str(len(sources)) + " fonti pertinenti; ne servono almeno "
+            + str(minimum_source_count) + ". Le fonti fuori settore o fuori Campania sono state scartate. "
+            "L'attività resta aperta; nessun cliente, bisogno o recapito è stato convalidato. "
             "Prossimo tentativo: ripetere query mirate e completare solo con URL pubblici verificabili."
         )
         prior = str(task.get("notes", "")).strip()
