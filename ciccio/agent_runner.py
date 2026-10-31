@@ -330,6 +330,21 @@ def task_search_queries(title, notes):
             'remote online work international eligibility payout official terms',
             'legitimate zero-cost online income opportunities worldwide scam warnings official',
         ]
+    if "opportunity lab" in combined:
+        return [
+            'small business hiring virtual assistant appointment setter lead generation freelance project',
+            'business request supplier sourcing market research price monitoring freelance',
+            'digital product template spreadsheet checklist creator demand marketplace fees payout Italy',
+            'remote ecommerce operations product catalog data entry freelance job',
+            'business tender grant monitoring research service freelance demand',
+            'affiliate programs Italy publisher payout threshold official terms no fee',
+            'richiesta assistente virtuale appuntamenti ricerca fornitori freelance aziende',
+            'richiesta monitoraggio prezzi ricerca bandi supporto ecommerce freelance',
+            'site:upwork.com/jobs virtual assistant lead generation appointment setter',
+            'site:freelancer.com/projects market research supplier sourcing virtual assistant',
+            'site:contra.com freelance market research virtual assistant project',
+            'digital services freelance projects clients request budget recent',
+        ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
         # Ricerca mondiale e multilingue: non limitare Ciccio a Italia, a un settore
         # o a una sola piattaforma. Le query ruotano tra segnali di acquisto e bisogni concreti.
@@ -395,7 +410,7 @@ def task_requires_market_evidence(title, notes):
     text = (str(title or "") + " " + str(notes or "")).casefold()
     return any(token in text for token in (
         "validazione mercato", "validazione opportunità", "verifica domanda",
-        "mappa opportunità", "classifica opportunità", "ricerca clienti",
+        "mappa opportunità", "classifica opportunità", "opportunity lab", "ricerca clienti",
         "potenziali clienti", "confrontare almeno 8 modi",
     ))
 
@@ -747,7 +762,7 @@ def execute_task(db, groq, open_tasks, user_id):
     if task_requires_market_evidence(title, notes):
         cited_urls = [str(source.get("url", "")).strip() for source in sources if source.get("url")]
         used_urls = [url for url in cited_urls if url in deliverable]
-        minimum_citations = 3 if "ricerca clienti" in title.casefold() or "potenziali clienti" in title.casefold() else 1
+        minimum_citations = 3 if any(token in title.casefold() for token in ("ricerca clienti", "potenziali clienti", "opportunity lab")) else 1
         if len(set(used_urls)) < minimum_citations:
             diagnostic = (
                 "Attività non completata: il testo generato cita "
