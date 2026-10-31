@@ -24,3 +24,11 @@ Per una distribuzione Streamlit Community Cloud, seleziona questo repository e i
 2. Memoria persistente su Supabase con accesso autenticato.
 3. Agente con strumenti limitati, log delle azioni e conferma per operazioni sensibili.
 4. Automazioni programmate con limiti di costo e monitoraggio.
+
+## Opportunity Lab — motore di ricerca opportunità
+
+Il runner autonomo esplora una sequenza di 10 modelli indipendenti, senza vincolarsi a un settore o ai progetti precedenti dell'utente: ricerca clienti B2B, assistenza virtuale, appuntamenti, sourcing, microservizi digitali, prodotti digitali, monitoraggio prezzi, supporto e-commerce, monitoraggio bandi e affiliazioni.
+
+Per ogni modello crea un esperimento con evidenze pubbliche, requisiti e modalità di pagamento per un operatore residente in Italia, costi iniziali, un campione vendibile e bozze di contatto. Le attività richiedono fonti concrete; lead ipotetici e directory generiche non sono considerati clienti verificati. Dopo i dieci test l'agente produce una revisione comparativa basata sui risultati disponibili.
+
+**Limiti operativi:** la ricerca usa motori web gratuiti e può essere incompleta o temporaneamente bloccata. Ciccio non invia messaggi, non fa outreach automatico, non apre account, non paga servizi e non dichiara clienti o ricavi senza conferme verificabili. I contatti e i messaggi restano bozze fino a un'autorizzazione esplicita e a un'integrazione appropriata.
