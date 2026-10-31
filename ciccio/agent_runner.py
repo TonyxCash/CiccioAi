@@ -348,20 +348,14 @@ def task_search_queries(title, notes):
     if "siti web" in combined or "realizzazione siti" in combined or "ristoranti" in combined or "negozi di abbigliamento" in combined:
         # Ricerca commerciale locale: attività indipendenti in Campania con un bisogno digitale osservabile.
         return [
-            'ristorante Giugliano in Campania contatti sito web',
-            'ristorante Napoli contatti menu sito ufficiale',
-            'pizzeria Pozzuoli contatti sito web',
-            'ristorante Caserta contatti sito web menu',
-            'ristorante Salerno contatti sito web',
-            'boutique abbigliamento Giugliano Napoli contatti sito web',
-            'negozio abbigliamento Napoli contatti sito ufficiale',
-            'boutique abbigliamento Caserta Salerno sito web contatti',
-            'ristorante Campania Instagram Facebook senza sito web',
-            'negozio abbigliamento Campania Instagram Facebook sito web',
-            'site:instagram.com ristorante Giugliano Napoli',
-            'site:facebook.com ristorante Campania menu telefono',
-            'site:instagram.com boutique abbigliamento Napoli',
-            'site:facebook.com negozio abbigliamento Campania telefono',
+            'ristoranti indipendenti Giugliano in Campania telefono indirizzo sito ufficiale',
+            'pizzerie Giugliano in Campania menu contatti sito web',
+            'ristoranti e pizzerie indipendenti Napoli nord Pozzuoli contatti',
+            'boutique abbigliamento Giugliano Napoli negozio indipendente contatti',
+            'negozi abbigliamento indipendenti Napoli boutique telefono sito',
+            'boutique abbigliamento indipendenti Caserta Salerno contatti',
+            'ristoranti indipendenti Caserta Salerno menu telefono sito',
+            'attività locali Campania ristorante boutique pagina ufficiale contatti',
         ]
     if "ricerca clienti" in combined or "potenziali clienti" in combined:
         return [
@@ -396,7 +390,7 @@ def task_search_queries(title, notes):
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
-def fetch_public_page_text(url, *, timeout=8):
+def fetch_public_page_text(url, *, timeout=6):
     """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
     from html.parser import HTMLParser
 
@@ -454,7 +448,11 @@ def collect_task_sources(title, notes, *, max_results=20):
     )
     for query in task_search_queries(title, notes):
         try:
-            found = search_web(query, max_results=max_results, timeout=12)
+            found = search_web(
+                query,
+                max_results=5 if local_website_task else max_results,
+                timeout=6 if local_website_task else 12,
+            )
         except Exception as exc:
             print("Ricerca web fallita (" + type(exc).__name__ + "); nessuna fonte inventata.")
             found = []
