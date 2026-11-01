@@ -5,6 +5,7 @@ import re
 import smtplib
 import time
 import html
+import ipaddress
 import urllib.parse
 import urllib.request
 from email.message import EmailMessage
@@ -367,6 +368,160 @@ def task_search_queries(title, notes):
             'LinkedIn content marketing freelance services worldwide clients',
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
+
+OSM_CITY_GROUPS = [
+    ["Milano", "Torino", "Genova", "Bologna", "Firenze", "Verona", "Venezia", "Padova"],
+    ["Roma", "Napoli", "Bari", "Palermo", "Catania", "Cagliari", "Salerno", "Lecce"],
+    ["Bergamo", "Brescia", "Parma", "Modena", "Rimini", "Trieste", "Udine", "Trento"],
+    ["Perugia", "Ancona", "Pescara", "Reggio Calabria", "Messina", "Sassari", "Taranto", "Foggia"],
+]
+CHAIN_NAME_PATTERN = re.compile(
+    r"^(zara|h\\s*&\\s*m|ovs|primark|coin|calzedonia|intimissimi|tezenis|"
+    r"benetton|mango|nike|adidas|decathlon|carpisa|yamamay|kiabi|"
+    r"stradivarius|pull\\s*&\\s*bear|bershka|sephora|c\\s*&\\s*a|"
+    r"foot locker|superdry|guess|liu jo|gucci|prada|armani|max mara)$",
+    re.I,
+)
+
+
+def normalize_public_url(raw_url):
+    """Accept only public HTTP(S) URLs before making outbound requests."""
+    value = str(raw_url or "").strip()
+    if not value:
+        return ""
+    if not re.match(r"^https?://", value, re.I):
+        value = "https://" + value
+    try:
+        parsed = urllib.parse.urlparse(value)
+        host = (parsed.hostname or "").casefold()
+        if parsed.scheme not in {"http", "https"} or not host or parsed.username or parsed.password:
+            return ""
+        if host in {"localhost", "localhost.localdomain"} or host.endswith(".local"):
+            return ""
+        try:
+            address = ipaddress.ip_address(host)
+            if not address.is_global:
+                return ""
+        except ValueError:
+            if re.match(r"^\\d{1,3}(?:\\.\\d{1,3}){3}$", host):
+                return ""
+        if parsed.port not in {None, 80, 443}:
+            return ""
+        return urllib.parse.urlunparse(parsed._replace(fragment=""))
+    except (ValueError, TypeError):
+        return ""
+
+
+def parse_osm_clothing_stores(payload, city_group, *, limit=12):
+    """Turn an OpenStreetMap Overpass response into deduplicated Italian shop records."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("elements"), list):
+        return []
+    by_city = {}
+    seen = set()
+    for element in payload["elements"]:
+        tags = element.get("tags") or {}
+        name = re.sub(r"\\s+", " ", str(tags.get("name", "")).strip())
+        if not name or CHAIN_NAME_PATTERN.match(name):
+            continue
+        city = next((str(tags.get(key, "")).strip() for key in (
+            "addr:city", "addr:town", "addr:municipality", "addr:suburb",
+            "addr:village", "addr:place", "addr:county"
+        ) if tags.get(key)), "")
+        if not city:
+            continue
+        key = (name.casefold(), city.casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        street = " ".join(str(tags.get(k, "")).strip() for k in ("addr:street", "addr:housenumber") if tags.get(k))
+        postcode = str(tags.get("addr:postcode", "")).strip()
+        website = normalize_public_url(tags.get("contact:website") or tags.get("website") or "")
+        phone = str(tags.get("contact:phone") or tags.get("phone") or "").strip()
+        email = str(tags.get("contact:email") or tags.get("email") or "").strip()
+        element_type = str(element.get("type", "node"))
+        element_id = str(element.get("id", ""))
+        if not element_id:
+            continue
+        osm_url = f"https://www.openstreetmap.org/{element_type}/{element_id}"
+        details = [f"Attività censita su OpenStreetMap: {name}", f"Città: {city}"]
+        if street:
+            details.append("Indirizzo: " + street)
+        if postcode:
+            details.append("CAP: " + postcode)
+        if website:
+            details.append("Sito indicato nella scheda: " + website)
+        if phone:
+            details.append("Telefono pubblicato: " + phone)
+        if email:
+            details.append("Email pubblicata: " + email)
+        row = {
+            "title": name + " — " + city,
+            "url": osm_url,
+            "query": "OpenStreetMap Italia — " + ", ".join(city_group),
+            "snippet": "; ".join(details)[:500],
+            "page_verified": False,
+            "record_verified": True,
+            "source_type": "openstreetmap_record",
+            "business_name": name,
+            "city": city,
+            "website_tag": website,
+            "page_excerpt": " | ".join(details)[:1800],
+        }
+        by_city.setdefault(city.casefold(), []).append(row)
+    for rows_for_city in by_city.values():
+        rows_for_city.sort(key=lambda item: item["business_name"].casefold())
+    selected = []
+    city_keys = list(by_city)
+    while city_keys and len(selected) < limit:
+        remaining = []
+        for city_key in city_keys:
+            items = by_city[city_key]
+            if items and len(selected) < limit:
+                selected.append(items.pop(0))
+            if items:
+                remaining.append(city_key)
+        city_keys = remaining
+    return selected
+
+
+def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
+    """Find independent clothing shops across rotating Italian city groups using OSM."""
+    match = re.search(r"lotto\\s+(\\d+)", str(title or ""), re.I)
+    batch = max(1, int(match.group(1))) if match else 1
+    city_group = OSM_CITY_GROUPS[(batch - 1) % len(OSM_CITY_GROUPS)]
+    city_pattern = "|".join(re.escape(city) for city in city_group)
+    query = (
+        '[out:json][timeout:35];'
+        'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
+        '["name"~"^(' + city_pattern + ')$"]->.cities;'
+        '(nwr["shop"~"^(clothes|boutique|fashion)$"](area.cities););'
+        'out center tags;'
+    )
+    endpoints = (
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+    )
+    for endpoint in endpoints:
+        request = urllib.request.Request(
+            endpoint,
+            data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
+            headers={
+                "User-Agent": "CiccioResearch/1.0",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = json.loads(response.read(8_000_000).decode("utf-8", "replace"))
+            stores = parse_osm_clothing_stores(payload, city_group, limit=limit)
+            if stores:
+                print("OpenStreetMap: " + str(len(stores)) + " negozi candidati trovati nelle città: " + ", ".join(city_group))
+                return stores
+        except Exception as exc:
+            print("OpenStreetMap non disponibile (" + type(exc).__name__ + "); provo un'altra fonte gratuita.")
+    return []
+
 
 def fetch_public_page_text(url, *, timeout=6):
     """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
