@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 from email.message import EmailMessage
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from groq import Groq
 from supabase import create_client
@@ -40,6 +41,31 @@ def execute_read_with_retry(query, *, attempts=3):
             delay = min(2 ** attempt, 4)
             print(f"Errore temporaneo nella lettura Supabase ({type(exc).__name__}); nuovo tentativo tra {delay}s.")
             time.sleep(delay)
+
+
+def openrouter_completion_fallback(**kwargs):
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not service_key:
+        raise RuntimeError("Proxy di riserva non configurato.")
+    payload = {
+        "messages": kwargs.get("messages", []),
+        "temperature": kwargs.get("temperature", 0.2),
+        "max_completion_tokens": kwargs.get("max_completion_tokens", 1800),
+    }
+    request = urllib.request.Request(
+        "https://ciccio-ai.vercel.app/api/internal/agent-completion",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Authorization": "Bearer " + service_key, "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=100) as response:
+        data = json.loads(response.read(1_000_000).decode("utf-8", "replace"))
+    choices = data.get("choices") or []
+    if not choices or not isinstance(choices[0].get("message"), dict):
+        raise RuntimeError("OpenRouter non ha restituito una risposta valida.")
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=choices[0]["message"].get("content") or ""))]
+    )
 
 
 def groq_completion_with_retry(groq, *, attempts=3, **kwargs):
