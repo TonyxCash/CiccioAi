@@ -313,8 +313,8 @@ def task_search_queries(title, notes):
     """Ricerche mirate per trovare negozi indipendenti di abbigliamento in tutta Italia."""
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     clothing = any(token in combined for token in ("abbigliamento", "boutique", "negozi di abbigliamento", "negozi indipendenti"))
-    website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "ricerca clienti", "potenziali clienti"))
-    if clothing and website_clients:
+    website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "potenziali clienti"))
+    if clothing and (website_clients or "ricerca clienti" in combined):
         return [
             'negozi indipendenti abbigliamento boutique Italia sito ufficiale contatti',
             'boutique indipendenti abbigliamento Milano Lombardia negozi',
@@ -338,15 +338,6 @@ def task_search_queries(title, notes):
             'remote online work international eligibility payout official terms',
             'legitimate zero-cost online income opportunities worldwide scam warnings official',
         ]
-    if website_clients:
-        return [
-            'piccole imprese italiane sito web ufficiale contatti ristorante negozio',
-            'attività indipendenti Italia senza sito web negozi locali',
-            'negozi indipendenti Italia sito ufficiale contatti',
-            'ristoranti indipendenti Italia menu sito ufficiale contatti',
-            'pizzerie indipendenti Italia sito ufficiale menu contatti',
-            'directory attività commerciali italiane negozi indipendenti',
-        ]
     if "opportunity lab" in combined:
         return [
             'small business hiring virtual assistant appointment setter lead generation freelance project',
@@ -358,13 +349,22 @@ def task_search_queries(title, notes):
             'richiesta assistente virtuale appuntamenti ricerca fornitori freelance aziende',
             'richiesta monitoraggio prezzi ricerca bandi supporto ecommerce freelance',
         ]
+    if website_clients:
+        return [
+            'piccole imprese italiane sito web ufficiale contatti ristorante negozio',
+            'attività indipendenti Italia senza sito web negozi locali',
+            'negozi indipendenti Italia sito ufficiale contatti',
+            'ristoranti indipendenti Italia menu sito ufficiale contatti',
+            'pizzerie indipendenti Italia sito ufficiale menu contatti',
+            'directory attività commerciali italiane negozi indipendenti',
+        ]
     if "linkedin" in combined:
         return [
             'LinkedIn freelance content services international pricing',
             'freelance platforms LinkedIn content management international clients',
             'LinkedIn content marketing freelance services worldwide clients',
         ]
-    return [re.sub(r"\\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
+    return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
 def fetch_public_page_text(url, *, timeout=6):
     """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
