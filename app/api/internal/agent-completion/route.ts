@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 function authorized(req: NextRequest) {
   const expected = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const supplied = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
+  const supplied = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!expected || !supplied) return false;
   const a = Buffer.from(expected);
   const b = Buffer.from(supplied);
