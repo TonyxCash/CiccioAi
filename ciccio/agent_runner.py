@@ -526,6 +526,9 @@ def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
 def fetch_public_page_text(url, *, timeout=6):
     """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
     from html.parser import HTMLParser
+    url = normalize_public_url(url)
+    if not url:
+        return ""
 
     class VisibleTextParser(HTMLParser):
         def __init__(self):
