@@ -476,7 +476,7 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
         if not element_id:
             continue
         osm_url = f"https://www.openstreetmap.org/{element_type}/{element_id}"
-        details = [f"Attività censita su OpenStreetMap: {name}", f"Città: {city}"]
+        details = [f"Attività censita su OpenStreetMap: {name}", f"Città: {city}", "Dati © OpenStreetMap contributors"]
         if street:
             details.append("Indirizzo: " + street)
         if postcode:
