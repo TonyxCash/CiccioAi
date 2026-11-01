@@ -87,7 +87,7 @@ async function inspectPage(rawUrl: string) {
       /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
     throw new Error("Indirizzo privato non consentito.");
   }
-  if (host.includes(":") || /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(host)) throw new Error("Indirizzi IP diretti non consentiti.");
+  if (host.includes(":") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) throw new Error("Indirizzi IP diretti non consentiti.");
   const response = await fetch(url.toString(), {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)" },
     signal: AbortSignal.timeout(10000),
