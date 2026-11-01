@@ -37,6 +37,13 @@ def execute_read_with_retry(query, *, attempts=3):
             return query.execute()
         except Exception as exc:
             if not is_transient_error(exc) or attempt >= attempts - 1:
+                status = getattr(exc, "status_code", None)
+                if status == 429 or (isinstance(status, int) and status >= 500):
+                    try:
+                        print("Groq ha raggiunto un limite; provo il modello gratuito di riserva.")
+                        return openrouter_completion_fallback(**kwargs)
+                    except Exception as fallback_exc:
+                        print("Provider di riserva non disponibile (" + type(fallback_exc).__name__ + ").")
                 raise
             delay = min(2 ** attempt, 4)
             print(f"Errore temporaneo nella lettura Supabase ({type(exc).__name__}); nuovo tentativo tra {delay}s.")
