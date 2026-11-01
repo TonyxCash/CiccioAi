@@ -834,122 +834,19 @@ def next_profit_task(memories, task_history=None):
 
 def ask_agent(groq, memories, tasks, previous):
     system = """
-Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
-ragionamento, decisione, azione consentita, verifica e apprendimento.
-Missione principale concordata con l'utente: costruire un'attività che venda siti web professionali a piccole imprese italiane. La priorità commerciale attuale è trovare negozi indipendenti di abbigliamento in TUTTA ITALIA, verificare quali non hanno un sito e quali hanno un sito con difetti reali e documentabili, preparare mini-audit e demo commerciali. Non limitarti alla Campania. Non cambiare settore o progetto e non avviare Opportunity Lab o altre idee di business senza parlarne prima con l'utente.
-Budget iniziale zero: usa solo strumenti e ricerche gratuiti già disponibili.
-Comportati da socio operativo: decidi il prossimo passo sensato, esegui ricerche e verifiche concrete, salva i risultati e poi spiegali in italiano naturale. Non chiedere ogni volta settore, zona o cosa fare dopo.
-Ogni ciclo deve produrre un risultato finito e riutilizzabile: negozi italiani verificati, controllo del loro sito, mini-audit, demo o proposta pronta.
-risultati salvati e verificabili. Non limitarti a rapporti o liste generiche e non cambiare obiettivo. Non inventare opportunità, programmi, tariffe,
-clienti, ricavi o ricerche web non verificate. Se mancano fonti aggiornate, dichiara il limite e prepara
-un passo di verifica specifico. Lavora in autonomia senza chiedere conferma per le attività ordinarie che il codice può realmente eseguire: ricerca pubblica, creazione di prodotti/servizi campione, documenti e file pronti all’uso, verifica e salvataggio persistente. Ogni deliverable completato va salvato anche come file scaricabile del ciclo.
-Non dichiarare mai di aver pubblicato, contattato clienti, aperto account o incassato se non esiste una funzione tecnica configurata e una conferma verificabile. Non inviare spam, non aggirare regole di piattaforme o leggi, non spendere denaro, non trasferire fondi/cripto e non effettuare impegni legali. Prima di consigliare un canale di vendita, verifica le policy ufficiali aggiornate: non proporre Facebook Marketplace per servizi o prodotti digitali, vietati dalle regole commerciali Meta; non inventare integrazioni di pagamento, commissioni o modalità d’incasso. Non chiedere mai seed phrase, chiavi private, password, codici OTP o credenziali bancarie.
-Non fermarti alla pianificazione: esegui il lavoro disponibile nel ciclo, produci un risultato finito, salvalo e verifica che sia recuperabile. Le azioni esterne non supportate vanno identificate come limite tecnico concreto, senza fingere che siano state eseguite.
-Scegli un'azione concreta, gratuita e verificabile. Non inventare risultati.
-Rispondi esclusivamente con JSON valido con:
-goal, action_type, action_title, action_notes, memory_kind, memory_content,
-reason, expected_result, verification, learning, next_cycle.
-action_type deve essere uno fra "create_task", "save_memory", "audit_project", "no_op". Preferisci eseguire attività aperte e produrre deliverable scaricabili, invece di creare altre attività di pianificazione. Non segnare attività come completate solo sulla base di una tua affermazione: l'agente le completa esclusivamente dopo aver prodotto e salvato un deliverable verificabile.
-Per complete_task, action_title deve corrispondere esattamente al titolo di un'attività aperta.
-Per create_task, action_title deve essere un'attività piccola e verificabile, non generica.
-Per save_memory, memory_content deve contenere una deduzione concreta utile ai cicli futuri.
-Per audit_project, action_title deve descrivere un controllo concreto del progetto e action_notes deve indicare cosa controllare. Per no_op spiega il blocco e cosa manca. Lingua italiana.
+Sei Ciccio, socio operativo dell'utente. Parla e ragiona in italiano naturale, senza tono da robot, manuale o rapporto automatico.
+
+OBIETTIVO STABILE: vendere siti web professionali a negozi indipendenti di abbigliamento in TUTTA ITALIA. Non limitarti alla Campania. Non chiedere ogni volta settore, zona o cosa fare: sono già definiti. Non cambiare progetto né avviare idee alternative senza parlarne con l'utente.
+
+PRIORITÀ: trovare attività reali in più città italiane, verificarne la scheda e il sito ufficiale, individuare solo bisogni o difetti documentabili, preparare mini-audit, demo e proposte. Usa strumenti gratuiti. Distingui sempre fatti verificati, candidati da approfondire e ipotesi. La mancanza di un risultato di ricerca non prova che il negozio sia senza sito.
+
+SICUREZZA: puoi cercare, analizzare, creare bozze e salvare deliverable. Non contattare negozi, non pubblicare siti, non spendere denaro e non assumere impegni senza approvazione. Non inventare clienti, recapiti, fonti, ricavi o verifiche. Non chiedere password, codici o chiavi private.
+
+Scegli un passo concreto e verificabile. Preferisci portare avanti l'incarico aperto e creare un risultato salvato, invece di aggiungere altra pianificazione.
+Restituisci esclusivamente JSON valido con i campi: goal, action_type, action_title, action_notes, memory_kind, memory_content, reason, expected_result, verification, learning, next_cycle.
+action_type deve essere uno tra create_task, save_memory, audit_project, no_op. Se i dati non bastano, spiega il limite e il controllo preciso da ripetere. Lingua italiana.
 """
-    prompt = (
-        "Ora UTC: " + datetime.now(timezone.utc).isoformat()
-        + "\nMEMORIE RECENTI:\n" + json.dumps(memories, ensure_ascii=False)[:10000]
-        + "\nATTIVITÀ APERTE:\n" + json.dumps(tasks, ensure_ascii=False)[:8000]
-        + "\nULTIMI CICLI:\n" + json.dumps(previous, ensure_ascii=False)[:8000]
-        + "\nScegli ed esegui un solo passo sicuro. Evita duplicati."
-    )
-    response = groq_completion_with_retry(
-        groq,
-        model=MODEL,
-        messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
-        temperature=0.2,
-        max_completion_tokens=900,
-    )
-    raw = response.choices[0].message.content or ""
-    start, end = raw.find("{"), raw.rfind("}")
-    plan = {}
-    if start >= 0 and end > start:
-        try:
-            plan = json.loads(raw[start:end + 1])
-        except (json.JSONDecodeError, TypeError):
-            plan = {}
-    if not isinstance(plan, dict) or not plan:
-        # One repair attempt prevents a malformed model response from stopping the entire cycle.
-        repair = groq_completion_with_retry(
-            groq,
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": "Restituisci esclusivamente un singolo oggetto JSON valido, senza markdown né testo esterno."},
-                {"role": "user", "content": prompt + "\\n\\nLa risposta precedente non era JSON valido. Produci ora tutti i campi richiesti, con action_type consentito."},
-            ],
-            temperature=0,
-            max_completion_tokens=900,
-        )
-        raw = repair.choices[0].message.content or ""
-        start, end = raw.find("{"), raw.rfind("}")
-        if start >= 0 and end > start:
-            try:
-                plan = json.loads(raw[start:end + 1])
-            except (json.JSONDecodeError, TypeError):
-                plan = {}
-        if not isinstance(plan, dict) or not plan:
-            # Non fermare l’intero ciclo se il modello restituisce ancora JSON malformato.
-            # La validazione seguente convertirà il piano vuoto in no_op; main() darà
-            # comunque priorità a un’attività già aperta e proverà a produrre il deliverable.
-            plan = {}
-
-    if not isinstance(plan, dict):
-        plan = {}
-
-    # Risposte parziali o con tipi inattesi non devono interrompere il ciclo.
-    # In caso di dubbio si sceglie sempre no_op, senza eseguire azioni.
-    required = ["goal","action_type","action_title","action_notes","reason",
-                "expected_result","verification","learning","next_cycle"]
-    defaults = {
-        "goal": "Migliorare in modo sicuro il progetto Ciccio",
-        "action_type": "no_op",
-        "action_title": "Verifica e pianificazione del prossimo ciclo",
-        "action_notes": "Nessuna azione eseguita: risposta del modello incompleta.",
-        "reason": "Risposta del modello incompleta; scelta prudenziale.",
-        "expected_result": "Ciclo registrato senza azioni esterne.",
-        "verification": "Verificare nel database che il ciclo sia stato salvato.",
-        "learning": "Se la risposta del modello è incompleta, mantenere un comportamento prudente.",
-        "next_cycle": "Ripetere il ciclo e verificare la qualità della risposta del modello.",
-    }
-    missing = []
-    for key in required:
-        value = plan.get(key)
-        if value is None or not isinstance(value, (str, int, float, bool)) or not str(value).strip():
-            missing.append(key)
-            plan[key] = defaults[key]
-
-    allowed_actions = {"create_task", "save_memory", "audit_project", "no_op"}
-    if missing:
-        plan["action_type"] = "no_op"
-        plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
-        plan["reason"] = "Risposta incompleta del modello; nessuna azione eseguita."
-    elif plan.get("action_type") not in allowed_actions:
-        plan["action_type"] = "no_op"
-        plan["action_notes"] = "Tipo di azione non valido nella risposta del modello; nessuna azione eseguita."
-
-    # Questi campi sono facoltativi per alcune azioni, ma vengono normalizzati
-    # perché il resto del programma li legge in seguito.
-    for key, default in {
-        "memory_kind": "apprendimento_agente",
-        "memory_content": "",
-    }.items():
-        value = plan.get(key, default)
-        plan[key] = value if isinstance(value, str) else default
-
-    return plan
-
-
-def resolve_user_id(db):
-    """Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
+Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
     configured = os.getenv("CICCIO_USER_ID", "").strip()
     if configured:
         return configured
