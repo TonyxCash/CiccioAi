@@ -161,6 +161,9 @@ def main():
     logs = fetch_logs()
     if not logs.strip():
         raise RuntimeError("Log del workflow senza contenuto diagnostico.")
+    if re.search(r"RateLimitError|rate limit reached|tokens per day|HTTP 429", logs, re.I):
+        print("Limite del provider AI: non è un difetto del codice. Nessuna riparazione viene tentata; il ciclo riproverà al prossimo orario.")
+        return
     sources = complete_sources()
     if not sources:
         print("Nessun file sorgente completo entro il limite: riparazione annullata.")
