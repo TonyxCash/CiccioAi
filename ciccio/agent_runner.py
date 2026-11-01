@@ -495,7 +495,7 @@ def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
         'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
         '["name"~"^(' + city_pattern + ')$"]->.cities;'
         '(nwr["shop"~"^(clothes|boutique|fashion)$"](area.cities););'
-        'out center tags;'
+        'out center tags 200;'
     )
     endpoints = (
         "https://overpass-api.de/api/interpreter",
