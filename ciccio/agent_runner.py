@@ -992,7 +992,7 @@ def execute_task(db, groq, open_tasks, user_id):
         if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
             raise RuntimeError("Ricerca mercato bloccata ma lo stato aperto dell'attività non è stato verificato.")
         return {"status": "blocked", "result": diagnostic}
-    source_text = json.dumps(sources, ensure_ascii=False)[:12000] if sources else (
+    source_text = json.dumps(sources, ensure_ascii=False)[:18000] if sources else (
         "Nessuna fonte web è stata recuperata in questo ciclo. Non dichiarare di aver svolto "
         "ricerche web; indicare quali dati devono essere verificati manualmente."
     )
@@ -1033,7 +1033,6 @@ def execute_task(db, groq, open_tasks, user_id):
 
     deliverable = (response.choices[0].message.content or "").strip()
     if local_website_task:
-        # Site status is checked per candidate row, never from evidence belonging to another store.
         defect_pattern = re.compile(
             r"\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
             r"link non funzionante|modulo non funzionante|menu non disponibile|"
@@ -1047,43 +1046,64 @@ def execute_task(db, groq, open_tasks, user_id):
         )
         cleaned_lines = []
         for line in deliverable.splitlines():
-            if not re.search(r"\b(?:ASSENTE|DA\s+MIGLIORARE)\b", line, re.I):
+            if not re.search(r"\b(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE)\b", line, re.I):
                 cleaned_lines.append(line)
                 continue
-            matching_source = next(
-                (source for source in sources
-                 if source.get("url") and str(source.get("url")) in line),
-                None,
-            )
-            evidence = str(matching_source.get("page_excerpt", "")) if matching_source else ""
+            matching_sources = [
+                source for source in sources
+                if source.get("url") and str(source.get("url")) in line
+            ]
             candidate_name = line.split("|", 2)[1].strip() if "|" in line else ""
-            candidate_is_named = bool(candidate_name and candidate_name.casefold() in evidence.casefold())
+            def named_evidence(source):
+                evidence = str(source.get("page_excerpt", ""))
+                return bool(candidate_name and candidate_name.casefold() in evidence.casefold())
+            if re.search(r"\bESISTENTE\b", line, re.I):
+                official_match = any(
+                    source.get("source_type") == "official_website"
+                    and source.get("page_verified")
+                    and named_evidence(source)
+                    for source in matching_sources
+                )
+                if not official_match:
+                    line = re.sub(r"\bESISTENTE\b", "NON VERIFICATO (sito ufficiale non confermato)", line, flags=re.I)
             if re.search(r"\bASSENTE\b", line, re.I):
-                if not matching_source or not matching_source.get("page_verified") or not candidate_is_named or not no_site_pattern.search(evidence):
+                absent_match = any(
+                    source.get("page_verified")
+                    and named_evidence(source)
+                    and no_site_pattern.search(str(source.get("page_excerpt", "")))
+                    for source in matching_sources
+                )
+                if not absent_match:
                     line = re.sub(r"\bASSENTE\b", "NON VERIFICATO (assenza non dimostrata)", line, flags=re.I)
             if re.search(r"DA\s+MIGLIORARE", line, re.I):
-                if not matching_source or not matching_source.get("page_verified") or not candidate_is_named or not defect_pattern.search(evidence):
+                defect_match = any(
+                    source.get("source_type") == "official_website"
+                    and source.get("page_verified")
+                    and named_evidence(source)
+                    and defect_pattern.search(str(source.get("page_excerpt", "")))
+                    for source in matching_sources
+                )
+                if not defect_match:
                     line = re.sub(r"DA\s+MIGLIORARE(?:\s*\([^\n)]*\))?", "NON VERIFICATO (difetto non dimostrato)", line, flags=re.I)
             cleaned_lines.append(line)
         deliverable = "\n".join(cleaned_lines)
-        # A client is counted only when a candidate row has a qualifying site status
-        # and cites one of the pages actually fetched and verified in this cycle.
+        # A candidate is counted only when its shop record or official page was verified this cycle.
         verified_urls = [
             str(source.get("url", "")).strip()
             for source in sources
-            if source.get("page_verified") and source.get("url")
+            if (source.get("page_verified") or source.get("record_verified")) and source.get("url")
         ]
-        qualified_rows = []
+        verified_rows = []
         for line in deliverable.splitlines():
-            if re.search(r"\|\s*(?:ASSENTE|DA\s+MIGLIORARE)\s*\|", line, re.I):
+            if re.search(r"\|\s*(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE|NON\s+VERIFICATO)\b", line, re.I):
                 if any(url in line for url in verified_urls):
-                    qualified_rows.append(line)
-        if len(qualified_rows) < 3:
+                    verified_rows.append(line)
+        if len(verified_rows) < 5:
             diagnostic = (
-                "Ricerca non completata: " + str(len(qualified_rows))
-                + " potenziali clienti hanno una pagina verificata e uno stato del sito dimostrato; "
-                "ne servono 3. I candidati con sito esistente o stato non verificato non vengono conteggiati. "
-                "L'attività resta aperta e nessun contatto viene inviato."
+                "Ricerca non completata: " + str(len(verified_rows))
+                + " schede di negozi verificabili nel lotto; ne servono almeno 5. "
+                "Le schede con stato del sito non dimostrato restano candidate da approfondire, non lead qualificati. "
+                "Nessun contatto viene inviato."
             )
             prior = str(task.get("notes", "")).strip()
             updated_notes = (prior[:1800] + "\n\n" + diagnostic)[:3000]
