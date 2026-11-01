@@ -489,7 +489,8 @@ def should_pause_task(task, previous):
     attempts = failed_task_attempts(task, previous)
     notes = str(task.get("notes", "")).casefold()
     no_sources = "0 url recuperati" in notes or "nessuna fonte web recuperata" in notes
-    return attempts >= 3 or (attempts >= 1 and no_sources)
+    nationwide_clothing = "abbigliamento italia" in str(task.get("title", "")).casefold()
+    return attempts >= 3 or (attempts >= 1 and no_sources and not nationwide_clothing)
 
 
 def required_env(name):
