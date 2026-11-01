@@ -518,28 +518,41 @@ def failed_task_attempts(task, previous):
     return count
 
 
-def next_profit_task(memories, task_history=None):
-    """Keep Ciccio focused on the agreed nationwide clothing-store prospecting mission."""
+def next_client_research_task(memories, task_history=None):
     history = task_history or []
-    batch = 1 + sum(
-        1 for item in history
-        if "Ricerca clienti — abbigliamento Italia" in str(item.get("title", ""))
+    batch = 1 + sum(1 for item in history if "Ricerca clienti — abbigliamento Italia" in str(item.get("title", "")))
+    return (
+        f"Ricerca clienti — abbigliamento Italia — lotto {batch:03d}",
+        "Trova negozi indipendenti di abbigliamento in tutta Italia, in tutte le regioni. "
+        "Visita le pagine, cerca il sito ufficiale e verifica il suo stato. "
+        "Registra nome, città, provincia, fonte e recapiti commerciali pubblicati. "
+        "Non contattare nessuno, non pubblicare e non spendere."
     )
-    title = f"Ricerca clienti — abbigliamento Italia — lotto {batch:03d}"
-    notes = (
-        "Obiettivo continuativo: trovare nuovi negozi indipendenti di abbigliamento in tutta Italia "
-        "(tutte le regioni, non solo Campania) a cui proporre un sito web professionale. "
-        "Cerca attività reali, boutique e negozi multimarca; escludi catene e duplicati già presenti "
-        "nelle attività o nelle memorie. Per ogni candidato visita la pagina della fonte e cerca il "
-        "sito ufficiale con ricerche sul nome esatto. Verifica il sito aprendo la pagina, non basarti "
-        "sulla sola assenza di risultati. Registra nome, città, provincia, fonte, sito ufficiale, "
-        "telefono/email commerciale pubblicati e prova osservabile del bisogno. Stato sito: ASSENTE "
-        "solo con prova affidabile; ESISTENTE se trovato; DA MIGLIORARE solo con difetto concreto "
-        "osservato; altrimenti NON VERIFICATO. Dai priorità ai negozi senza sito o con sito debole "
-        "dimostrato. Crea una lista utile, non un rapporto generico. Non contattare nessuno, non "
-        "pubblicare e non spendere. Salva il risultato e le fonti."
-    )
-    return title, notes
+
+
+def next_profit_task(memories, task_history=None):
+    models = [
+        "Servizi di ricerca clienti B2B", "Assistente virtuale per piccole imprese",
+        "Fissazione appuntamenti", "Ricerca fornitori e sourcing", "Contenuti e microservizi digitali",
+        "Prodotti digitali scaricabili", "Ricerca e monitoraggio prezzi", "Supporto e-commerce operativo",
+        "Ricerca bandi e opportunità per imprese", "Affiliazioni e partnership senza investimento",
+    ]
+    history = task_history or []
+    completed, existing = set(), set()
+    for item in history:
+        match = re.match(r"Opportunity Lab — (\\d{2})", str(item.get("title", "")), re.I)
+        if match:
+            number = int(match.group(1))
+            existing.add(number)
+            if item.get("status") == "Completata":
+                completed.add(number)
+    for index, name in enumerate(models, 1):
+        if index not in completed and index not in existing:
+            return (f"Opportunity Lab — {index:02d} {name}",
+                    f"Esperimento {index}/10. Cerca fonti concrete. Non inviare messaggi.")
+    return ("Opportunity Lab — Revisione e scelta basata su prove",
+            "Confronta i risultati senza inventare dati.")
+
 
 def ask_agent(groq, memories, tasks, previous):
     system = """
@@ -1077,7 +1090,7 @@ def main():
         # Advance through a deterministic sequence instead of repeating a generic offer.
         # The sequence is inferred from persisted deliverable memories and remains zero-budget.
         if not tasks:
-            next_title, next_notes = next_profit_task(memories, task_history)
+            next_title, next_notes = next_client_research_task(memories, task_history)
             plan["action_type"] = "create_task"
             plan["goal"] = "Validare e sviluppare una fonte di profitto concreta a costo zero"
             plan["action_title"] = next_title
