@@ -9,14 +9,11 @@ on:
       - "ciccio/offer_page.py"
       - ".github/workflows/ciccio-agent.yml"
   schedule:
-    # Frequent autonomous polling. GitHub scheduled events can be delayed;
-    # this is recurring execution, not a permanently running 24/7 server.
-    - cron: "*/15 * * * *"
+    # Three useful research cycles per day; GitHub may delay scheduled events.
+    - cron: "17 7,13,19 * * *"
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: ciccio-agent-cycle
