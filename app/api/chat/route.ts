@@ -77,6 +77,38 @@ async function searchWeb(query: string) {
   return { query: q, results, note: results.length ? "Risultati di ricerca: verifica le pagine originali prima di presentare dati come certi." : "Il motore non ha restituito risultati leggibili." };
 }
 
+async function inspectPage(rawUrl: string) {
+  const value = cleanText(rawUrl, 1200);
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error("Indirizzo della pagina non valido."); }
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Posso aprire soltanto pagine web pubbliche.");
+  const host = url.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".local") || host === "127.0.0.1" || host === "::1" ||
+      /^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)/.test(host)) {
+    throw new Error("Indirizzo privato non consentito.");
+  }
+  const response = await fetch(url.toString(), {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)" },
+    signal: AbortSignal.timeout(10000),
+    redirect: "follow",
+    cache: "no-store"
+  });
+  const finalUrl = new URL(response.url);
+  if (!["http:", "https:"].includes(finalUrl.protocol)) throw new Error("Reindirizzamento non consentito.");
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok) return { url: response.url, status: response.status, title: "", text: "Pagina non raggiungibile con stato HTTP " + response.status };
+  if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
+    return { url: response.url, status: response.status, title: "", text: "La pagina non contiene testo HTML leggibile (" + contentType + ")." };
+  }
+  const html = (await response.text()).slice(0, 500000);
+  const title = ((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [,""])[1] || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/\\s+/g, " ").trim();
+  const text = html.replace(/<(script|style|noscript|svg)[^>]*>[\\s\\S]*?<\\/\\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
+    .replace(/\\s+/g, " ").trim().slice(0, 5000);
+  return { url: response.url, status: response.status, title, text };
+}
+
 async function listTasks(c: Config, status?: string) {
   const params = new URLSearchParams({ select: "id,title,status,notes,created_at,updated_at", user_id: "eq." + c.user, order: "created_at.desc", limit: "15" });
   if (status && ["Da fare", "In corso", "Completata", "Bloccata"].includes(status)) params.set("status", "eq." + status);
@@ -146,7 +178,8 @@ async function saveMemory(c: Config, content: string, kind: string) {
 }
 
 const tools = [
-  { type: "function", function: { name: "search_web", description: "Cerca sul web informazioni pubbliche e restituisce titolo, URL e snippet. Usa questa funzione per ricerche attuali; non inventare risultati.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false } } },
+  { type: "function", function: { name: "search_web", description: "Cerca sul web. Per negozi di abbigliamento cerca in tutta Italia e in più regioni, non chiedere una zona. Restituisce risultati reali ma gli snippet non sono prove: apri le pagine interessanti con inspect_page.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false } } },
+  { type: "function", function: { name: "inspect_page", description: "Visita una pagina pubblica già trovata, ne legge titolo e testo visibile e restituisce lo stato HTTP. Usala per verificare negozio, città, sito ufficiale e difetti osservabili. Non dichiara che un sito manca solo perché non lo trova.", parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"], additionalProperties: false } } },
   { type: "function", function: { name: "list_tasks", description: "Legge gli incarichi dell'utente nella coda Ciccio.", parameters: { type: "object", properties: { status: { type: "string", enum: ["Da fare", "In corso", "Completata", "Bloccata"] } }, additionalProperties: false } } },
   { type: "function", function: { name: "create_task", description: "Crea un incarico che il runner autonomo di Ciccio elaborerà nei suoi cicli.", parameters: { type: "object", properties: { title: { type: "string" }, notes: { type: "string" } }, required: ["title", "notes"], additionalProperties: false } } },
   { type: "function", function: { name: "get_task", description: "Legge un incarico specifico, incluso il suo stato e i risultati salvati.", parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false } } },
@@ -191,6 +224,7 @@ function plainToolSummary(items: Array<{ name: string; result: unknown }>): stri
 async function executeTool(c: Config, name: string, args: Record<string, unknown>) {
   switch (name) {
     case "search_web": return await searchWeb(String(args.query || ""));
+    case "inspect_page": return await inspectPage(String(args.url || ""));
     case "list_tasks": return await listTasks(c, args.status ? String(args.status) : undefined);
     case "create_task": return await createTask(c, String(args.title || ""), String(args.notes || ""));
     case "get_task": return await getTask(c, String(args.id || ""));
@@ -205,6 +239,9 @@ const systemBase = [
   "Sei Ciccio, collaboratore operativo personale dell'utente. Parla in italiano naturale, caldo e diretto, come una persona che ragiona insieme a lui: mai come un manuale, un help desk o un catalogo di funzioni.",
   "Non elencare spontaneamente strumenti, nomi di funzioni, dettagli tecnici o procedure interne. Gli strumenti sono mezzi invisibili: usali per ottenere risultati, non raccontarli.",
   "Quando l'utente esprime un obiettivo, comprendilo, individua il prossimo passo sensato e agisci subito sulle attività reversibili. Non chiedere quale strumento usare e non proporre un menu di opzioni se la richiesta è già chiara.",
+  "Obiettivo stabile: vendere siti web professionali a piccole imprese italiane. Priorità attuale: negozi indipendenti di abbigliamento in TUTTA ITALIA. Se l'utente dice 'abbigliamento', 'continua' o 'cerca clienti', applica questo contesto senza chiedere settore o zona. Cerca negozi reali, visita le pagine, verifica se esiste un sito ufficiale e documenta difetti concreti. Distingui sempre siti assenti, esistenti e non verificati. Non spacciare directory e social per siti ufficiali.",
+  "Parla come un socio: frasi naturali, brevi e specifiche. Evita formule da call center come 'vuoi provare un termine diverso?', 'potresti indicarmi', 'ecco dove siamo', elenchi di capacità e domande che scaricano il lavoro sull'utente. Se puoi fare un passo, fallo.",
+  "Per la ricerca di negozi italiani, fai più ricerche con città e regioni diverse (Milano, Roma, Torino, Bologna, Firenze, Verona, Bari, Palermo, Catania, Napoli e altre). Apri i risultati rilevanti con inspect_page; non fermarti al primo risultato o a una ricerca generica.",
   "Se l'utente vuole ragionare su un progetto, contribuisci con idee, valutazioni, priorità e decisioni motivate. Non limitarti a dire che puoi aiutare: fai avanzare concretamente il lavoro.",
   "Le istruzioni comportamentali e le preferenze permanenti presenti nella memoria hanno priorità sulle indicazioni generiche qui sotto. Evita risposte prolisse e tabelle non necessarie.",
   "Non limitarti a dare istruzioni: quando serve informazione attuale usa search_web; per incarichi che richiedono lavoro successivo usa create_task; per aggiornamenti consulta list_tasks/get_task/list_activity; conserva risultati verificati con append_task_update.",
@@ -254,6 +291,7 @@ export async function POST(req: NextRequest) {
 
     let finalReply = "";
     let toolCount = 0;
+    const toolResults: Array<{ name: string; result: unknown }> = [];
     for (let round = 0; round < 5; round++) {
       let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -354,9 +392,12 @@ export async function POST(req: NextRequest) {
         try {
           args = JSON.parse(String(call.function?.arguments || "{}"));
           const result = await executeTool(c, name, args);
+          toolResults.push({ name, result });
           messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
         } catch (error) {
-          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ error: error instanceof Error ? error.message : "Errore esecuzione strumento" }) });
+          const failure = { error: error instanceof Error ? error.message : "Errore esecuzione strumento" };
+          toolResults.push({ name, result: failure });
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(failure) });
         }
       }
     }
