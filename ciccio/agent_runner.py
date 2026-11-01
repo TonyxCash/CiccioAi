@@ -593,6 +593,68 @@ def collect_task_sources(title, notes, *, max_results=20):
         r"friuli|trentino|basilicata|molise|abruzzo",
         re.I,
     )
+    clothing_task = "abbigliamento" in combined or "boutique" in combined
+    if local_website_task and clothing_task:
+        osm_stores = collect_osm_clothing_stores(title, limit=12)
+        blocked_domains = (
+            "facebook.com", "instagram.com", "tiktok.com", "linkedin.com",
+            "paginegialle.it", "paginebianche.it", "google.", "maps.google",
+            "yelp.", "tripadvisor.", "cylex.", "tuttocitta.", "italiaonline.",
+            "virgilio.it", "subito.it",
+        )
+        stop_tokens = {"negozio", "negozi", "boutique", "abbigliamento", "store", "shop", "moda", "della", "delle", "uomo", "donna"}
+        for store in osm_stores:
+            results.append(store)
+            seen.add(store["url"])
+            name = str(store.get("business_name", ""))
+            city = str(store.get("city", ""))
+            name_tokens = [
+                token for token in re.findall(r"[a-z0-9]+", name.casefold())
+                if len(token) >= 4 and token not in stop_tokens
+            ]
+            candidates = []
+            declared_site = normalize_public_url(store.get("website_tag", ""))
+            if declared_site:
+                candidates.append({"title": "Sito indicato nella scheda OSM", "url": declared_site, "snippet": ""})
+            else:
+                try:
+                    candidates = search_web(
+                        '"' + name + '" "' + city + '" abbigliamento sito ufficiale',
+                        max_results=3,
+                        timeout=6,
+                    )
+                except Exception as exc:
+                    print("Ricerca sito ufficiale non riuscita per " + name[:80] + " (" + type(exc).__name__ + ").")
+            for hit in candidates:
+                site_url = normalize_public_url(hit.get("url", ""))
+                if not site_url or site_url in seen:
+                    continue
+                host = urllib.parse.urlparse(site_url).netloc.casefold()
+                if any(domain in host for domain in blocked_domains):
+                    continue
+                page_text = fetch_public_page_text(site_url, timeout=5)
+                if not page_text:
+                    continue
+                folded_page = page_text.casefold()
+                if name_tokens and not any(token in folded_page for token in name_tokens):
+                    continue
+                results.append({
+                    "title": "Sito ufficiale verificato candidato: " + name + " — " + city,
+                    "url": site_url,
+                    "query": '"' + name + '" "' + city + '" sito ufficiale',
+                    "snippet": str(hit.get("snippet", ""))[:500],
+                    "page_verified": True,
+                    "record_verified": False,
+                    "source_type": "official_website",
+                    "business_name": name,
+                    "city": city,
+                    "page_excerpt": ("Negozio: " + name + ". Città: " + city + ". " + page_text)[:1800],
+                })
+                seen.add(site_url)
+                break
+        if osm_stores:
+            return results[:max_results]
+
     for query in task_search_queries(title, notes):
         try:
             found = search_web(
