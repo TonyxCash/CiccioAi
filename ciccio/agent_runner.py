@@ -310,25 +310,33 @@ def search_web(query, *, max_results=5, timeout=12):
 
 
 def task_search_queries(title, notes):
-    """Return diverse, targeted free-web searches for the current earning opportunity."""
+    """Ricerche mirate per trovare negozi indipendenti di abbigliamento in tutta Italia."""
     combined = (str(title or "") + " " + str(notes or "")).casefold()
-    if any(token in combined for token in ("mappa opportunità", "classifica opportunità", "confrontare almeno", "categorie diverse")):
+    clothing = any(token in combined for token in ("abbigliamento", "boutique", "negozi di abbigliamento", "negozi indipendenti"))
+    website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "ricerca clienti", "potenziali clienti"))
+    if clothing and website_clients:
         return [
-            'prodotti digitali piattaforme gratuite costi commissioni modalità pagamento ufficiali',
-            'freelance platforms worldwide free to join fees payout countries official terms',
-            'sell digital products worldwide free platforms fees payout official terms',
-            'small business digital services freelance international pricing demand',
-            'remote microtask jobs worldwide eligibility payment terms official',
-            'international affiliate programs eligibility payout thresholds official terms',
+            'negozi indipendenti abbigliamento boutique Italia sito ufficiale contatti',
+            'boutique indipendenti abbigliamento Milano Lombardia negozi',
+            'negozi abbigliamento indipendenti Roma Lazio boutique',
+            'boutique abbigliamento indipendenti Torino Piemonte negozi',
+            'negozi abbigliamento indipendenti Bologna Emilia Romagna',
+            'boutique indipendenti Firenze Toscana abbigliamento',
+            'negozi abbigliamento indipendenti Verona Veneto boutique',
+            'boutique abbigliamento indipendenti Bari Lecce Puglia',
+            'negozi abbigliamento indipendenti Palermo Catania Sicilia',
+            'boutique indipendenti Napoli Caserta Salerno Campania',
+            'directory boutique indipendenti Italia negozi abbigliamento',
+            'negozio abbigliamento donna uomo indipendente Italia contatti sito',
         ]
-    if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
+    if website_clients:
         return [
-            'piattaforme freelance prezzi commissioni pagamenti e requisiti ufficiali',
-            'opportunità online legittime senza costi iniziali truffe segnali ufficiali',
-            'freelance services worldwide platforms pricing official payment terms',
-            'digital product platforms international fees official terms payout countries',
-            'remote online work international eligibility payout official terms',
-            'legitimate zero-cost online income opportunities worldwide scam warnings official',
+            'piccole imprese italiane sito web ufficiale contatti ristorante negozio',
+            'attività indipendenti Italia senza sito web negozi locali',
+            'negozi indipendenti Italia sito ufficiale contatti',
+            'ristoranti indipendenti Italia menu sito ufficiale contatti',
+            'pizzerie indipendenti Italia sito ufficiale menu contatti',
+            'directory attività commerciali italiane negozi indipendenti',
         ]
     if "opportunity lab" in combined:
         return [
@@ -340,47 +348,6 @@ def task_search_queries(title, notes):
             'affiliate programs Italy publisher payout threshold official terms no fee',
             'richiesta assistente virtuale appuntamenti ricerca fornitori freelance aziende',
             'richiesta monitoraggio prezzi ricerca bandi supporto ecommerce freelance',
-            'site:upwork.com/jobs virtual assistant lead generation appointment setter',
-            'site:freelancer.com/projects market research supplier sourcing virtual assistant',
-            'site:contra.com freelance market research virtual assistant project',
-            'digital services freelance projects clients request budget recent',
-        ]
-    if "siti web" in combined or "realizzazione siti" in combined or "ristoranti" in combined or "negozi di abbigliamento" in combined:
-        # Ricerca commerciale locale: attività indipendenti in Campania con un bisogno digitale osservabile.
-        return [
-            'ristoranti indipendenti Giugliano in Campania telefono indirizzo sito ufficiale',
-            'pizzerie Giugliano in Campania menu contatti sito web',
-            'ristoranti e pizzerie indipendenti Napoli nord Pozzuoli contatti',
-            'boutique abbigliamento Giugliano Napoli negozio indipendente contatti',
-            'negozi abbigliamento indipendenti Napoli boutique telefono sito',
-            'boutique abbigliamento indipendenti Caserta Salerno contatti',
-            'ristoranti indipendenti Caserta Salerno menu telefono sito',
-            'attività locali Campania ristorante boutique pagina ufficiale contatti',
-        ]
-    if "ricerca clienti" in combined or "potenziali clienti" in combined:
-        return [
-            'piccole imprese che cercano servizi digitali e clienti con progetti concreti',
-            'progetti clienti richieste freelance servizi digitali piccoli business',
-            'small business owner looking for product listing writer ecommerce job',
-            'hire product description writer ecommerce freelance project',
-            'seller needs help improve product listings marketplace freelance',
-            'looking for copywriter product descriptions online store job',
-            'site:upwork.com/jobs product listing description ecommerce',
-            'site:freelancer.com/projects product description ecommerce writing',
-            'site:contra.com freelance ecommerce copywriter project',
-            'site:peopleperhour.com freelance product descriptions ecommerce',
-            'busco redactor fichas de producto tienda online freelance trabajo',
-            'se busca copywriter descripciones productos ecommerce proyecto',
-            'recherche rédacteur fiches produits boutique en ligne freelance mission',
-            'cherche copywriter descriptions produits ecommerce freelance',
-            'suche Texter Produktbeschreibungen Onlineshop Freelancer Auftrag',
-            'freelancer gesucht Produkttexte Onlineshop Stellenangebot',
-            'cerco copywriter schede prodotto ecommerce freelance lavoro',
-            'annunci venditori online descrizioni prodotti richiesta copywriter',
-            '求人 EC 商品説明 ライター フリーランス',
-            '求 product description writer ecommerce freelance job',
-            'global ecommerce seller community looking for listing optimization help',
-            'independent online shop contact about product content services',
         ]
     if "linkedin" in combined:
         return [
@@ -388,7 +355,7 @@ def task_search_queries(title, notes):
             'freelance platforms LinkedIn content management international clients',
             'LinkedIn content marketing freelance services worldwide clients',
         ]
-    return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
+    return [re.sub(r"\\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
 def fetch_public_page_text(url, *, timeout=6):
     """Fetch a public HTML page for evidence; return visible text only, never execute page code."""
@@ -438,12 +405,13 @@ def collect_task_sources(title, notes, *, max_results=20):
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     local_website_task = any(token in combined for token in (
         "siti web", "realizzazione siti", "ristoranti", "pizzerie",
-        "negozi di abbigliamento", "boutique",
+        "negozi di abbigliamento", "abbigliamento", "boutique",
     ))
-    geo_pattern = re.compile(r"giugliano|napoli|pozzuoli|caserta|salerno|campania", re.I)
+    # La ricerca è nazionale: non applicare filtri geografici regionali.
+    # La località italiana viene richiesta e verificata nel testo della singola attività.
     business_pattern = re.compile(
-        r"ristorant|pizzer|trattor|oster|cucin|menu|food|"
-        r"abbigli|boutique|negozio|moda|fashion|clothing",
+        r"abbigli|boutique|negozio|moda|fashion|clothing|"
+        r"uomo|donna|multibrand|prêt.?à.?porter|pret.?a.?porter",
         re.I,
     )
     for query in task_search_queries(title, notes):
@@ -466,7 +434,6 @@ def collect_task_sources(title, notes, *, max_results=20):
             evidence_text = title_text + " " + snippet + " " + url + " " + page_text
             if local_website_task and (
                 not page_text
-                or not geo_pattern.search(evidence_text)
                 or not business_pattern.search(evidence_text)
             ):
                 print("Fonte scartata: pagina non accessibile o non prova settore e località Campania: " + url[:180])
@@ -552,7 +519,30 @@ def failed_task_attempts(task, previous):
 
 
 def next_profit_task(memories, task_history=None):
-    """Rotate through ten independent, zero-budget business models and validate demand."""
+    """Keep Ciccio focused on the agreed nationwide clothing-store prospecting mission."""
+    history = task_history or []
+    batch = 1 + sum(
+        1 for item in history
+        if "Ricerca clienti — abbigliamento Italia" in str(item.get("title", ""))
+    )
+    title = f"Ricerca clienti — abbigliamento Italia — lotto {batch:03d}"
+    notes = (
+        "Obiettivo continuativo: trovare nuovi negozi indipendenti di abbigliamento in tutta Italia "
+        "(tutte le regioni, non solo Campania) a cui proporre un sito web professionale. "
+        "Cerca attività reali, boutique e negozi multimarca; escludi catene e duplicati già presenti "
+        "nelle attività o nelle memorie. Per ogni candidato visita la pagina della fonte e cerca il "
+        "sito ufficiale con ricerche sul nome esatto. Verifica il sito aprendo la pagina, non basarti "
+        "sulla sola assenza di risultati. Registra nome, città, provincia, fonte, sito ufficiale, "
+        "telefono/email commerciale pubblicati e prova osservabile del bisogno. Stato sito: ASSENTE "
+        "solo con prova affidabile; ESISTENTE se trovato; DA MIGLIORARE solo con difetto concreto "
+        "osservato; altrimenti NON VERIFICATO. Dai priorità ai negozi senza sito o con sito debole "
+        "dimostrato. Crea una lista utile, non un rapporto generico. Non contattare nessuno, non "
+        "pubblicare e non spendere. Salva il risultato e le fonti."
+    )
+    return title, notes
+
+def _legacy_next_profit_task_removed(memories, task_history=None):
+    """Legacy sequence retained only to keep old imports stable."""
     models = [
         ("Servizi di ricerca clienti B2B", "Trova imprese che chiedono pubblicamente supporto commerciale o lead generation. Cerca domanda esplicita, requisiti, budget indicato e canali ufficiali. Definisci un servizio pilota consegnabile senza spese e prepara 5 prospect verificabili."),
         ("Assistente virtuale per piccole imprese", "Verifica richieste reali di assistenza amministrativa leggera, gestione email, cataloghi e organizzazione. Escludi attività regolamentate e accessi a dati sensibili. Crea un'offerta pilota con limiti e prezzo confrontato con fonti."),
@@ -607,12 +597,9 @@ def ask_agent(groq, memories, tasks, previous):
     system = """
 Sei Ciccio, agente persistente con obiettivo stabile: lavorare in cicli di memoria,
 ragionamento, decisione, azione consentita, verifica e apprendimento.
-Missione esclusiva: trovare e sviluppare una o più fonti di profitto concrete per l'utente, esplorando categorie diverse e non fissandosi su una sola idea.
-ListingAI non è una priorità e non deve essere proposto come obiettivo salvo richiesta esplicita.
-Budget iniziale zero o minimo; niente abbonamenti, pubblicità a pagamento o investimenti speculativi.
-Cerca modelli sostenibili come servizi digitali vendibili, prodotti digitali, lavori da remoto/commissioni
-e affiliazioni con condizioni verificabili. Valuta tempo necessario, costi, difficoltà, modalità di pagamento,
-soglia di pagamento e rischi di truffa.
+Missione principale concordata con l'utente: costruire un'attività che venda siti web professionali a piccole imprese italiane. La priorità commerciale attuale è trovare negozi indipendenti di abbigliamento in TUTTA ITALIA, verificare quali non hanno un sito e quali hanno un sito con difetti reali e documentabili, preparare mini-audit e demo commerciali. Non limitarti alla Campania. Non cambiare settore o progetto e non avviare Opportunity Lab o altre idee di business senza parlarne prima con l'utente.
+Budget iniziale zero: usa solo strumenti e ricerche gratuiti già disponibili.
+Comportati da socio operativo: decidi il prossimo passo sensato, esegui ricerche e verifiche concrete, salva i risultati e poi spiegali in italiano naturale. Non chiedere ogni volta settore, zona o cosa fare dopo.
 Ogni ciclo deve produrre un risultato finito e riutilizzabile: confronto tra più opportunità, verifica di domanda e modalità di incasso, offerta commerciale,
 campione di prodotto/servizio, testo di vendita, procedura per acquisire clienti o attività precisa collegata
 al primo incasso. Non limitarti a rapporti o liste generiche. Non inventare opportunità, programmi, tariffe,
@@ -763,7 +750,7 @@ def execute_task(db, groq, open_tasks, user_id):
     notes = str(task.get("notes", "")).strip()
     if not title:
         return {"status": "blocked", "result": "Attività senza titolo: nessun deliverable creato."}
-    sources = collect_task_sources(title, notes, max_results=12 if ("siti web" in (title + " " + notes).casefold() or "realizzazione siti" in (title + " " + notes).casefold()) else 5)
+    sources = collect_task_sources(title, notes, max_results=24 if ("abbigliamento" in (title + " " + notes).casefold() or "boutique" in (title + " " + notes).casefold()) else 12)
     local_website_task = any(token in (title + " " + notes).casefold() for token in (
         "siti web", "realizzazione siti", "ristoranti", "pizzerie",
         "negozi di abbigliamento", "boutique",
@@ -799,7 +786,7 @@ def execute_task(db, groq, open_tasks, user_id):
         if not check or check[0].get("status") != "Da fare" or diagnostic not in str(check[0].get("notes", "")):
             raise RuntimeError("Ricerca mercato bloccata ma lo stato aperto dell'attività non è stato verificato.")
         return {"status": "blocked", "result": diagnostic}
-    source_text = json.dumps(sources, ensure_ascii=False)[:4500] if sources else (
+    source_text = json.dumps(sources, ensure_ascii=False)[:12000] if sources else (
         "Nessuna fonte web è stata recuperata in questo ciclo. Non dichiarare di aver svolto "
         "ricerche web; indicare quali dati devono essere verificati manualmente."
     )
@@ -830,7 +817,7 @@ def execute_task(db, groq, open_tasks, user_id):
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
-            max_completion_tokens=1400,
+            max_completion_tokens=2200,
         )
     except Exception as exc:
         return {
@@ -908,11 +895,11 @@ def execute_task(db, groq, open_tasks, user_id):
                 groq,
                 model=MODEL,
                 messages=[
-                    {"role": "system", "content": "Produci un risultato operativo completo, strutturato e pronto all'uso. Evita risposte brevi."},
+                    {"role": "system", "content": "Produci un risultato operativo completo ma leggibile, in italiano naturale, senza tabelle inutili. Evita risposte brevi."},
                     {"role": "user", "content": prompt + "\n\nLa risposta precedente era troppo breve. Ripeti il lavoro in modo completo: usa sezioni, confronto concreto, passi pratici e URL reali delle fonti fornite. Non inventare dati. Per una ricerca di mercato, confronta esplicitamente più opzioni e spiega limiti e prossimi passi."},
                 ],
                 temperature=0.2,
-                max_completion_tokens=2400,
+                max_completion_tokens=2600,
             )
             retry_text = (retry_response.choices[0].message.content or "").strip()
             if len(retry_text) > len(deliverable):
