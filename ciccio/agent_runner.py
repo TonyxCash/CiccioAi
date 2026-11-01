@@ -846,7 +846,9 @@ Scegli un passo concreto e verificabile. Preferisci portare avanti l'incarico ap
 Restituisci esclusivamente JSON valido con i campi: goal, action_type, action_title, action_notes, memory_kind, memory_content, reason, expected_result, verification, learning, next_cycle.
 action_type deve essere uno tra create_task, save_memory, audit_project, no_op. Se i dati non bastano, spiega il limite e il controllo preciso da ripetere. Lingua italiana.
 """
-Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
+
+def resolve_user_id(db):
+    """Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
     configured = os.getenv("CICCIO_USER_ID", "").strip()
     if configured:
         return configured
