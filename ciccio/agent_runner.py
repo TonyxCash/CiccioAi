@@ -813,35 +813,39 @@ def execute_task(db, groq, open_tasks, user_id):
 
     deliverable = (response.choices[0].message.content or "").strip()
     if local_website_task:
-        # A site is never "DA MIGLIORARE" merely because the model imagines a possible improvement.
-        page_evidence = " ".join(str(source.get("page_excerpt", "")) for source in sources)
-        concrete_defect = re.search(
-            r"\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
+        # Site status is checked per candidate row, never from evidence belonging to another store.
+        defect_pattern = re.compile(
+            r"\\b(404|500 internal server error|pagina non trovata|sito non raggiungibile|"
             r"link non funzionante|modulo non funzionante|menu non disponibile|"
-            r"prenotazione non disponibile|errore tecnico|certificato non valido)\b",
-            page_evidence,
+            r"prenotazione non disponibile|errore tecnico|certificato non valido)\\b",
             re.I,
         )
-        if not concrete_defect:
-            deliverable = re.sub(
-                r"DA\s+MIGLIORARE(?:\s*\([^\n)]*\))?",
-                "NON VERIFICATO (nessun difetto concreto documentato)",
-                deliverable,
-                flags=re.I,
-            )
-        explicit_no_site = re.search(
-            r"\b(nessun sito web|sito web assente|non dispone di un sito|non ha un sito ufficiale|"
-            r"no official website|website not available)\b",
-            page_evidence,
+        no_site_pattern = re.compile(
+            r"\\b(nessun sito web|sito web assente|non dispone di un sito|"
+            r"non ha un sito ufficiale|no official website|website not available)\\b",
             re.I,
         )
-        if not explicit_no_site:
-            deliverable = re.sub(
-                r"\bASSENTE\b",
-                "NON VERIFICATO (assenza del sito non dimostrata)",
-                deliverable,
-                flags=re.I,
+        cleaned_lines = []
+        for line in deliverable.splitlines():
+            if not re.search(r"\\b(?:ASSENTE|DA\\s+MIGLIORARE)\\b", line, re.I):
+                cleaned_lines.append(line)
+                continue
+            matching_source = next(
+                (source for source in sources
+                 if source.get("url") and str(source.get("url")) in line),
+                None,
             )
+            evidence = str(matching_source.get("page_excerpt", "")) if matching_source else ""
+            candidate_name = line.split("|", 2)[1].strip() if "|" in line else ""
+            candidate_is_named = bool(candidate_name and candidate_name.casefold() in evidence.casefold())
+            if re.search(r"\\bASSENTE\\b", line, re.I):
+                if not matching_source or not matching_source.get("page_verified") or not candidate_is_named or not no_site_pattern.search(evidence):
+                    line = re.sub(r"\\bASSENTE\\b", "NON VERIFICATO (assenza non dimostrata)", line, flags=re.I)
+            if re.search(r"DA\\s+MIGLIORARE", line, re.I):
+                if not matching_source or not matching_source.get("page_verified") or not candidate_is_named or not defect_pattern.search(evidence):
+                    line = re.sub(r"DA\\s+MIGLIORARE(?:\\s*\\([^\\n)]*\\))?", "NON VERIFICATO (difetto non dimostrato)", line, flags=re.I)
+            cleaned_lines.append(line)
+        deliverable = "\\n".join(cleaned_lines)
         # A client is counted only when a candidate row has a qualifying site status
         # and cites one of the pages actually fetched and verified in this cycle.
         verified_urls = [
