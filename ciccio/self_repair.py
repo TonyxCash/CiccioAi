@@ -125,7 +125,12 @@ def github_api_json(url):
 
 def verify_failed_run():
     url = f"https://api.github.com/repos/{REPO}/actions/runs/{RUN_ID}"
-    validate_run_metadata(github_api_json(url), REPO)
+    data = github_api_json(url)
+    if data.get("name") != "Ciccio tests":
+        print("Errore del ciclo operativo: non è un errore dei test del codice. Nessuna auto-riparazione viene tentata.")
+        return False
+    validate_run_metadata(data, REPO)
+    return True
 
 
 def fetch_logs():
@@ -157,7 +162,8 @@ def main():
     TOKEN = os.environ["GITHUB_TOKEN"]
     GROQ_KEY = os.environ["GROQ_API_KEY"]
 
-    verify_failed_run()
+    if not verify_failed_run():
+        return
     logs = fetch_logs()
     if not logs.strip():
         raise RuntimeError("Log del workflow senza contenuto diagnostico.")
