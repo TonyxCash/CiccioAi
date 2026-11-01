@@ -846,6 +846,97 @@ Scegli un passo concreto e verificabile. Preferisci portare avanti l'incarico ap
 Restituisci esclusivamente JSON valido con i campi: goal, action_type, action_title, action_notes, memory_kind, memory_content, reason, expected_result, verification, learning, next_cycle.
 action_type deve essere uno tra create_task, save_memory, audit_project, no_op. Se i dati non bastano, spiega il limite e il controllo preciso da ripetere. Lingua italiana.
 """
+    prompt = (
+        "Ora UTC: " + datetime.now(timezone.utc).isoformat()
+        + "\nMEMORIE RECENTI:\n" + json.dumps(memories, ensure_ascii=False)[:10000]
+        + "\nATTIVITÀ APERTE:\n" + json.dumps(tasks, ensure_ascii=False)[:8000]
+        + "\nULTIMI CICLI:\n" + json.dumps(previous, ensure_ascii=False)[:8000]
+        + "\nScegli ed esegui un solo passo sicuro. Evita duplicati."
+    )
+    response = groq_completion_with_retry(
+        groq,
+        model=MODEL,
+        messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
+        temperature=0.2,
+        max_completion_tokens=900,
+    )
+    raw = response.choices[0].message.content or ""
+    start, end = raw.find("{"), raw.rfind("}")
+    plan = {}
+    if start >= 0 and end > start:
+        try:
+            plan = json.loads(raw[start:end + 1])
+        except (json.JSONDecodeError, TypeError):
+            plan = {}
+    if not isinstance(plan, dict) or not plan:
+        # One repair attempt prevents a malformed model response from stopping the entire cycle.
+        repair = groq_completion_with_retry(
+            groq,
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "Restituisci esclusivamente un singolo oggetto JSON valido, senza markdown né testo esterno."},
+                {"role": "user", "content": prompt + "\\n\\nLa risposta precedente non era JSON valido. Produci ora tutti i campi richiesti, con action_type consentito."},
+            ],
+            temperature=0,
+            max_completion_tokens=900,
+        )
+        raw = repair.choices[0].message.content or ""
+        start, end = raw.find("{"), raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                plan = json.loads(raw[start:end + 1])
+            except (json.JSONDecodeError, TypeError):
+                plan = {}
+        if not isinstance(plan, dict) or not plan:
+            # Non fermare l’intero ciclo se il modello restituisce ancora JSON malformato.
+            # La validazione seguente convertirà il piano vuoto in no_op; main() darà
+            # comunque priorità a un’attività già aperta e proverà a produrre il deliverable.
+            plan = {}
+
+    if not isinstance(plan, dict):
+        plan = {}
+
+    # Risposte parziali o con tipi inattesi non devono interrompere il ciclo.
+    # In caso di dubbio si sceglie sempre no_op, senza eseguire azioni.
+    required = ["goal","action_type","action_title","action_notes","reason",
+                "expected_result","verification","learning","next_cycle"]
+    defaults = {
+        "goal": "Migliorare in modo sicuro il progetto Ciccio",
+        "action_type": "no_op",
+        "action_title": "Verifica e pianificazione del prossimo ciclo",
+        "action_notes": "Nessuna azione eseguita: risposta del modello incompleta.",
+        "reason": "Risposta del modello incompleta; scelta prudenziale.",
+        "expected_result": "Ciclo registrato senza azioni esterne.",
+        "verification": "Verificare nel database che il ciclo sia stato salvato.",
+        "learning": "Se la risposta del modello è incompleta, mantenere un comportamento prudente.",
+        "next_cycle": "Ripetere il ciclo e verificare la qualità della risposta del modello.",
+    }
+    missing = []
+    for key in required:
+        value = plan.get(key)
+        if value is None or not isinstance(value, (str, int, float, bool)) or not str(value).strip():
+            missing.append(key)
+            plan[key] = defaults[key]
+
+    allowed_actions = {"create_task", "save_memory", "audit_project", "no_op"}
+    if missing:
+        plan["action_type"] = "no_op"
+        plan["action_notes"] = "Azione annullata in sicurezza: la risposta del modello non conteneva tutti i campi obbligatori (" + ", ".join(missing) + ")."
+        plan["reason"] = "Risposta incompleta del modello; nessuna azione eseguita."
+    elif plan.get("action_type") not in allowed_actions:
+        plan["action_type"] = "no_op"
+        plan["action_notes"] = "Tipo di azione non valido nella risposta del modello; nessuna azione eseguita."
+
+    # Questi campi sono facoltativi per alcune azioni, ma vengono normalizzati
+    # perché il resto del programma li legge in seguito.
+    for key, default in {
+        "memory_kind": "apprendimento_agente",
+        "memory_content": "",
+    }.items():
+        value = plan.get(key, default)
+        plan[key] = value if isinstance(value, str) else default
+
+    return plan
 
 def resolve_user_id(db):
     """Resolve a non-empty owner UUID for all user-scoped Ciccio records."""
