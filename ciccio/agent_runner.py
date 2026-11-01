@@ -844,7 +844,7 @@ def execute_task(db, groq, open_tasks, user_id):
             diagnostic = (
                 "Ricerca non completata: " + str(len(qualified_rows))
                 + " potenziali clienti hanno una pagina verificata e uno stato del sito dimostrato; "
-                "ne servono 10. I candidati con sito esistente o stato non verificato non vengono conteggiati. "
+                "ne servono 3. I candidati con sito esistente o stato non verificato non vengono conteggiati. "
                 "L'attività resta aperta e nessun contatto viene inviato."
             )
             prior = str(task.get("notes", "")).strip()
