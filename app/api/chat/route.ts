@@ -23,10 +23,17 @@ function headers(c: Config) {
 }
 
 async function readMemory(c: Config): Promise<MemoryRow[]> {
-  const url = c.base + "/rest/v1/ciccio_memories?select=created_at,kind,content&user_id=eq." + encodeURIComponent(c.user) + "&order=created_at.desc&limit=30";
-  const r = await fetch(url, { headers: headers(c), cache: "no-store" });
-  if (!r.ok) throw new Error("Lettura memoria non riuscita (" + r.status + ").");
-  return await r.json() as MemoryRow[];
+  const base = c.base + "/rest/v1/ciccio_memories?select=created_at,kind,content&user_id=eq." + encodeURIComponent(c.user);
+  const [recentResponse, pinnedResponse] = await Promise.all([
+    fetch(base + "&order=created_at.desc&limit=40", { headers: headers(c), cache: "no-store" }),
+    fetch(base + "&kind=in.(obiettivo_principale,istruzioni_comportamento)&order=created_at.desc&limit=12", { headers: headers(c), cache: "no-store" })
+  ]);
+  if (!recentResponse.ok || !pinnedResponse.ok) throw new Error("Lettura memoria non riuscita.");
+  const recent = await recentResponse.json() as MemoryRow[];
+  const pinned = await pinnedResponse.json() as MemoryRow[];
+  const unique = new Map<string, MemoryRow>();
+  for (const row of [...recent, ...pinned]) unique.set(row.created_at + "|" + row.kind + "|" + row.content, row);
+  return [...unique.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
 async function saveRows(c: Config, items: Array<{ kind: string; content: string }>) {
@@ -199,8 +206,10 @@ export async function POST(req: NextRequest) {
     if (!message) return NextResponse.json({ error: "Il messaggio è vuoto." }, { status: 400 });
 
     const rows = (await readMemory(c)).reverse();
-    const durable = rows.filter(x => !["conversazione", "risposta_assistente"].includes(x.kind)).slice(-8);
-    const memoryContext = durable.map(x => "- [" + x.kind + "] " + x.content.slice(0, 260)).join("\n").slice(-2200) || "(nessuna memoria salvata)";
+    const priorityMemory = rows.filter(x => ["obiettivo_principale", "istruzioni_comportamento"].includes(x.kind)).slice(-6);
+    const otherDurable = rows.filter(x => !["conversazione", "risposta_assistente", "obiettivo_principale", "istruzioni_comportamento"].includes(x.kind)).slice(-4);
+    const durable = [...otherDurable, ...priorityMemory];
+    const memoryContext = durable.map(x => "- [" + x.kind + "] " + x.content.slice(0, 1100)).join("\n").slice(-3200) || "(nessuna memoria salvata)";
     const recent = rows.filter(x => ["conversazione", "risposta_assistente"].includes(x.kind)).slice(-6)
       .map(x => ({ role: x.kind === "conversazione" ? "user" : "assistant", content: x.content.replace(/^Utente: /, "").slice(-900) }));
 
