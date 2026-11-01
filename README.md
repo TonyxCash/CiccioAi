@@ -1,74 +1,87 @@
-# ListingAI
+# Ciccio AI
 
-Assistente web per venditori di abbigliamento: genera titoli, descrizioni e hashtag, salva annunci in un catalogo temporaneo ed esporta testo e CSV.
+Ciccio è un collaboratore AI personale in italiano. La chat principale è una web app Next.js, con memoria persistente su Supabase e un agente operativo schedulato tramite GitHub Actions.
 
-## Demo locale
+## Accesso
 
-Richiede Python 3.10 o superiore.
+- App: https://ciccio-ai.vercel.app
+- Repository: https://github.com/TonyxCash/CiccioAi
+- Progetto Vercel: `ciccio-ai`
+- Database: Supabase
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+## Obiettivo operativo attuale
 
-## Deploy gratuito su Streamlit Community Cloud
+Trovare e acquisire clienti per la vendita di siti web professionali a negozi indipendenti di abbigliamento in **tutta Italia**, non soltanto in Campania.
 
-1. Apri https://share.streamlit.io/
-2. Collega GitHub e scegli il repository `TonyxCash/ListingAI`.
-3. Branch: `main`; file principale: `app.py`.
-4. Premi Deploy.
+Ciccio deve:
+1. Cercare attività reali in più regioni italiane.
+2. Aprire le pagine delle attività e verificare le informazioni.
+3. Cercare il sito ufficiale del negozio e controllarlo direttamente.
+4. Distinguere con prove: `ASSENTE`, `ESISTENTE`, `DA MIGLIORARE` o `NON VERIFICATO`.
+5. Salvare nome, città, provincia, fonti, sito e recapiti commerciali pubblicati.
+6. Preparare mini-audit, demo e proposte concrete.
 
-## MVP attuale
+Non deve chiedere ogni volta settore o zona. Non deve cambiare progetto senza parlarne con l'utente.
 
-- Interfaccia responsive e dashboard.
-- Generazione di titolo, descrizione e hashtag con modelli locali inclusi.
-- Inserimento di categoria, marca, taglia, colore, condizioni, materiale, dettagli e prezzo.
-- Esportazione dell'annuncio in TXT e del catalogo in CSV.
-- Catalogo conservato solo nella sessione corrente.
+## Come funziona
 
-## Limiti importanti
+- `app/`: chat Next.js e API server.
+- `lib/session.ts`: sessione privata della chat.
+- `ciccio/agent_runner.py`: agente che esegue i lavori salvati.
+- `ciccio/artifacts.py`: salvataggio dei deliverable.
+- `ciccio/agent_schema.sql`: schema del database.
+- `.github/workflows/ciccio-agent.yml`: esecuzione automatica.
+- `ciccio/test_*.py`: test automatici.
 
-- Non c'è ancora login né separazione degli account.
-- I dati in sessione non sono un archivio permanente e possono perdersi al riavvio.
-- Non pubblica direttamente su marketplace e non usa API a pagamento.
-- I suggerimenti non sono una valutazione automatica del mercato; controllare sempre ogni annuncio.
-- Non raccogliere o inserire credenziali dei marketplace.
+La chat usa Groq come modello principale e OpenRouter come riserva gratuita quando configurato. Le ricerche web usano motori pubblici gratuiti; disponibilità e qualità dei risultati possono variare.
 
-## Roadmap
+## Automazione
 
-1. Testare il flusso con venditori reali e raccogliere feedback.
-2. Aggiungere database persistente e account in modo sicuro.
-3. Validare interesse e disponibilità a pagare prima di integrare abbonamenti.
-4. Integrare un provider di pagamenti e gestione abbonamenti solo dopo la validazione.
+GitHub Actions esegue Ciccio tre volte al giorno (07:17, 13:17 e 19:17 UTC) e consente anche l'avvio manuale. Non è un processo attivo 24 ore su 24: GitHub può ritardare gli orari programmati.
 
+Ogni ciclo:
+- legge incarichi e memorie;
+- dà priorità agli incarichi di ricerca clienti per siti web;
+- raccoglie e controlla fonti pubbliche;
+- salva il risultato e un file scaricabile;
+- registra esito e verifiche in Supabase.
 
-## Ciccio — agente autonomo
+## Regole di sicurezza
 
-Ciccio è un agente separato dalla demo ListingAI. Il suo ciclo viene eseguito da GitHub Actions ogni 15 minuti e può essere avviato manualmente dalla scheda **Actions**. Le esecuzioni programmate sono ricorrenti ma non equivalgono a un processo server 24/7: GitHub può ritardare gli eventi pianificati e ogni ciclo termina al completamento.
+- Nessun contatto a potenziali clienti senza approvazione.
+- Nessuna pubblicazione o spesa senza approvazione.
+- Nessun pagamento o trasferimento di denaro.
+- Nessun dato inventato: l'assenza di risultati di ricerca non dimostra che un negozio non abbia un sito.
+- Le chiavi segrete restano nei Secrets di GitHub e nelle variabili server-side di Vercel; mai nel codice o nel browser.
 
-### Funzioni implementate
+## Configurazione
 
-- Legge attività e memorie dell'utente da Supabase.
-- Sceglie una singola azione interna e limitata per ciclo.
-- Genera risultati concreti per le attività aperte e li salva nelle note dell'attività e in Memorie.
-- Verifica la chiusura delle attività prima di considerarle completate.
-- Ritenta fino a tre volte le chiamate Groq e le letture Supabase in caso di errori temporanei riconosciuti.
-- Registra i fallimenti in `ciccio_agent_runs` quando Supabase è raggiungibile, prova a inviare notifiche email e Telegram se configurate e sospende un'attività dopo tre tentativi falliti senza una modifica manuale nel frattempo.
-- Esegue test automatici di sicurezza prima di avviare il ciclo.
+### Vercel
+Variabili server-side richieste:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CICCIO_USER_ID`
+- `CICCIO_APP_PASSWORD`
+- `CICCIO_SESSION_SECRET` (almeno 32 caratteri)
+- `GROQ_API_KEY`
+- `OPENROUTER_API_KEY` (facoltativa)
 
-### Configurazione richiesta
+### GitHub Actions
+Secrets richiesti:
+- `GROQ_API_KEY`
+- `SUPABASE_PROJECT_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CICCIO_USER_ID`
 
-Nel repository GitHub, in **Settings → Secrets and variables → Actions**, configura i secret usati dal workflow: `GROQ_API_KEY`, `SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CICCIO_USER_ID`. Per le notifiche sono facoltativi `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_TO`, `EMAIL_FROM`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. Email e Telegram inviano solo riepiloghi al destinatario/chat configurati; un errore di notifica non annulla un'azione già salvata.
+Notifiche email e Telegram sono facoltative. Non copiare mai le chiavi in file pubblici.
 
-Esegui l'ultima versione dello schema SQL di `ciccio/agent_schema.sql` nel progetto Supabase prima del primo ciclo; se avevi già configurato Ciccio, riesegui lo script aggiornato per abilitare anche lo stato `Bloccata`. Puoi riaprire un'attività sospesa correggendone le note e reimpostando lo stato dalla dashboard. Non mettere mai chiavi segrete nel codice o in file pubblici.
+## Verifiche
 
-Per collegare anche la dashboard Streamlit, configura nei Secrets di Streamlit `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CICCIO_USER_ID` e una password robusta in `CICCIO_APP_PASSWORD`. Quando la chiave service-role è presente, la password protegge tutte le sezioni della dashboard, non soltanto i cicli. La dashboard usa `SUPABASE_URL`; nel workflow GitHub il secret del progetto si chiama invece `SUPABASE_PROJECT_URL` e viene passato allo script come `SUPABASE_URL`. Usa lo stesso UUID utente per `CICCIO_USER_ID` in entrambi gli ambienti.
+Prima di considerare una modifica pronta:
+1. compilare i file;
+2. eseguire i test automatici;
+3. controllare il risultato del workflow;
+4. verificare lo stato della distribuzione Vercel;
+5. controllare gli errori runtime.
 
-### Limiti e sicurezza
-
-Ciccio può operare autonomamente sulle proprie attività e memorie. Non pubblica annunci, non contatta persone, non spende denaro e non modifica repository o account esterni. Queste azioni richiedono un'integrazione dedicata e un controllo esplicito. La riuscita va confermata tramite i log di GitHub Actions e i record in Supabase; la presenza del workflow da sola non dimostra che il ciclo sia riuscito.
-
-
-## Licenza
-
-Prototipo in sviluppo. Aggiungere una licenza prima di distribuire il codice a terzi.
+La sola presenza di un commit o di un workflow non dimostra che un'attività sia stata completata.
