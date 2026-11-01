@@ -155,6 +155,39 @@ const tools = [
   { type: "function", function: { name: "save_memory", description: "Salva una preferenza o decisione durevole comunicata dall'utente.", parameters: { type: "object", properties: { content: { type: "string" }, kind: { type: "string" } }, required: ["content"], additionalProperties: false } } }
 ] as const;
 
+function plainToolSummary(items: Array<{ name: string; result: unknown }>): string {
+  const lines: string[] = [];
+  for (const item of items) {
+    const value = item.result as any;
+    if (item.name === "search_web" && value && Array.isArray(value.results)) {
+      lines.push("Ho cercato: " + String(value.query || "informazioni richieste") + ".");
+      for (const hit of value.results.slice(0, 5)) {
+        lines.push("- " + String(hit.title || "Risultato") + (hit.snippet ? ": " + String(hit.snippet).slice(0, 260) : "") + (hit.url ? " — " + String(hit.url) : ""));
+      }
+      if (!value.results.length) lines.push("La ricerca non ha restituito risultati leggibili.");
+    } else if (item.name === "list_tasks" && Array.isArray(value)) {
+      lines.push(value.length ? "Nella coda risultano " + value.length + " incarichi:" : "La coda degli incarichi è vuota.");
+      for (const task of value.slice(0, 8)) lines.push("- " + task.title + " — " + task.status + (task.notes ? ". " + String(task.notes).slice(0, 220) : ""));
+    } else if (item.name === "list_activity" && Array.isArray(value)) {
+      lines.push(value.length ? "Ho controllato gli ultimi cicli di lavoro:" : "Non risultano cicli di lavoro registrati.");
+      for (const run of value.slice(0, 5)) lines.push("- " + String(run.goal || run.action || "Attività") + " — " + String(run.status || "stato non indicato") + (run.result ? ": " + String(run.result).slice(0, 240) : ""));
+    } else if (item.name === "create_task" && value) {
+      lines.push(value.created ? "Ho creato l'incarico: " + String(value.task?.title || "") + ". Stato: " + String(value.task?.status || "Da fare") + "." : String(value.message || "L'incarico esiste già.") + (value.task?.title ? " Titolo: " + value.task.title + "." : ""));
+    } else if (item.name === "get_task" && value) {
+      lines.push(value.title ? "Incarico: " + value.title + ". Stato: " + value.status + ". " + String(value.notes || "").slice(0, 500) : "Non ho trovato l'incarico richiesto.");
+    } else if (item.name === "append_task_update" && value) {
+      lines.push(value.updated ? "Ho salvato l'aggiornamento all'incarico " + String(value.task?.title || "") + "." : "Non sono riuscito a confermare il salvataggio dell'aggiornamento.");
+    } else if (item.name === "save_memory" && value) {
+      lines.push(value.saved ? "Ho salvato in memoria: " + String(value.content || "") : "Non ho potuto confermare il salvataggio in memoria.");
+    } else if (value?.error) {
+      lines.push("Durante " + item.name + " si è verificato un problema: " + String(value.error));
+    }
+  }
+  return lines.length
+    ? "Ho completato queste operazioni. Ecco cosa è emerso:\\n\\n" + lines.join("\\n")
+    : "Ho avviato alcune operazioni, ma non ho risultati verificabili da comunicarti. Non voglio inventare progressi.";
+}
+
 async function executeTool(c: Config, name: string, args: Record<string, unknown>) {
   switch (name) {
     case "search_web": return await searchWeb(String(args.query || ""));
@@ -351,7 +384,7 @@ export async function POST(req: NextRequest) {
         signal: AbortSignal.timeout(45000)
       });
       let synthesisData = await synthesisResponse.json();
-      if ((synthesisResponse.status === 429 || synthesisResponse.status >= 500) && c.openrouter) {
+      if (!synthesisResponse.ok && c.openrouter) {
         const backup = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -381,7 +414,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!finalReply) finalReply = toolCount
-      ? "Ho completato alcune operazioni e ho salvato gli eventuali risultati disponibili. Non sono riuscito a generare un riepilogo affidabile: dimmi «riepiloga il lavoro appena svolto» e controllerò i risultati registrati."
+      ? plainToolSummary(toolResults)
       : "Non sono riuscito a ottenere una risposta dal servizio AI. Riprova tra poco.";
     await saveRows(c, [
       { kind: "conversazione", content: "Utente: " + message },
