@@ -329,6 +329,15 @@ def task_search_queries(title, notes):
             'directory boutique indipendenti Italia negozi abbigliamento',
             'negozio abbigliamento donna uomo indipendente Italia contatti sito',
         ]
+    if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
+        return [
+            'piattaforme freelance prezzi commissioni pagamenti e requisiti ufficiali',
+            'opportunità online legittime senza costi iniziali truffe segnali ufficiali',
+            'freelance services worldwide platforms pricing official payment terms',
+            'digital product platforms international fees official terms payout countries',
+            'remote online work international eligibility payout official terms',
+            'legitimate zero-cost online income opportunities worldwide scam warnings official',
+        ]
     if website_clients:
         return [
             'piccole imprese italiane sito web ufficiale contatti ristorante negozio',
