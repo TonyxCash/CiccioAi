@@ -549,7 +549,7 @@ def next_profit_task(memories, task_history=None):
     history = task_history or []
     completed, existing = set(), set()
     for item in history:
-        match = re.match(r"Opportunity Lab — (\\d{2})", str(item.get("title", "")), re.I)
+        match = re.match(r"Opportunity Lab — (\d{2})", str(item.get("title", "")), re.I)
         if match:
             number = int(match.group(1))
             existing.add(number)
