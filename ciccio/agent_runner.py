@@ -560,7 +560,7 @@ def next_profit_task(memories, task_history=None):
             return (f"Opportunity Lab — {index:02d} {name}",
                     f"Esperimento {index}/10. Cerca fonti concrete. Non inviare messaggi.")
     return ("Opportunity Lab — Revisione e scelta basata su prove",
-            "Confronta i risultati senza inventare dati.")
+            "Confronta i risultati. Non inventare dati.")
 
 
 def ask_agent(groq, memories, tasks, previous):
