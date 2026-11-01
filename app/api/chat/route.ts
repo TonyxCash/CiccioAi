@@ -84,28 +84,30 @@ async function inspectPage(rawUrl: string) {
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Posso aprire soltanto pagine web pubbliche.");
   const host = url.hostname.toLowerCase();
   if (host === "localhost" || host.endsWith(".local") || host === "127.0.0.1" || host === "::1" ||
-      /^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)/.test(host)) {
+      /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
     throw new Error("Indirizzo privato non consentito.");
   }
+  if (host.includes(":") || /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(host)) throw new Error("Indirizzi IP diretti non consentiti.");
   const response = await fetch(url.toString(), {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; CiccioResearch/1.0)" },
     signal: AbortSignal.timeout(10000),
-    redirect: "follow",
+    redirect: "manual",
     cache: "no-store"
   });
-  const finalUrl = new URL(response.url);
-  if (!["http:", "https:"].includes(finalUrl.protocol)) throw new Error("Reindirizzamento non consentito.");
+  if (response.status >= 300 && response.status < 400) {
+    return { url: response.url, status: response.status, title: "", text: "La pagina reindirizza a un altro indirizzo; va verificato separatamente." };
+  }
   const contentType = response.headers.get("content-type") || "";
   if (!response.ok) return { url: response.url, status: response.status, title: "", text: "Pagina non raggiungibile con stato HTTP " + response.status };
   if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
     return { url: response.url, status: response.status, title: "", text: "La pagina non contiene testo HTML leggibile (" + contentType + ")." };
   }
   const html = (await response.text()).slice(0, 500000);
-  const title = ((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [,""])[1] || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/\\s+/g, " ").trim();
-  const text = html.replace(/<(script|style|noscript|svg)[^>]*>[\\s\\S]*?<\\/\\1>/gi, " ")
+  const title = ((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [,""])[1] || "").replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+  const text = html.replace(/<(script|style|noscript|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
     .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
-    .replace(/\\s+/g, " ").trim().slice(0, 5000);
+    .replace(/\s+/g, " ").trim().slice(0, 5000);
   return { url: response.url, status: response.status, title, text };
 }
 
@@ -217,7 +219,7 @@ function plainToolSummary(items: Array<{ name: string; result: unknown }>): stri
     }
   }
   return lines.length
-    ? "Ho completato queste operazioni. Ecco cosa è emerso:\\n\\n" + lines.join("\\n")
+    ? "Ho completato queste operazioni. Ecco cosa è emerso:\n\n" + lines.join("\n")
     : "Ho avviato alcune operazioni, ma non ho risultati verificabili da comunicarti. Non voglio inventare progressi.";
 }
 
@@ -354,7 +356,7 @@ export async function POST(req: NextRequest) {
         const providerCode = String(data?.error?.code || data?.error?.type || "").toLowerCase();
         const detail = (providerCode + " " + providerMessage).toLowerCase();
         const retryHeader = response.headers.get("retry-after");
-        const retrySeconds = retryHeader && /^\\d+$/.test(retryHeader) ? Math.max(1, Number(retryHeader)) : null;
+        const retrySeconds = retryHeader && /^\d+$/.test(retryHeader) ? Math.max(1, Number(retryHeader)) : null;
         let userMessage: string;
         if (/insufficient_quota|billing|credits|quota_exceeded|daily.*limit|tokens per day|tpm.*day/.test(detail)) {
           userMessage = "Il credito o il limite giornaliero del servizio AI è esaurito. Aspettare qualche secondo non risolve: bisogna ripristinare la quota oppure passare a un modello/servizio con disponibilità.";
