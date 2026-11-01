@@ -402,6 +402,7 @@ def task_search_queries(title, notes):
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
+# Nationwide shop discovery: rotate city groups and verify each candidate's official site.
 OSM_CITY_GROUPS = [
     ["Milano", "Torino", "Genova", "Bologna", "Firenze", "Verona", "Venezia", "Padova"],
     ["Roma", "Napoli", "Bari", "Palermo", "Catania", "Cagliari", "Salerno", "Lecce"],
