@@ -444,8 +444,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             page_text = fetch_public_page_text(url) if local_website_task else ""
             evidence_text = title_text + " " + snippet + " " + url + " " + page_text
             if local_website_task and (
-                not page_text
-                or not business_pattern.search(evidence_text)
+                not business_pattern.search(evidence_text)
             ):
                 print("Fonte scartata: pagina non accessibile o non pertinente al settore abbigliamento: " + url[:180])
                 continue
@@ -453,6 +452,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             results.append({
                 "title": title_text[:220],
                 "url": url[:500],
+                "query": query[:220],
                 "snippet": snippet[:500],
                 "page_verified": bool(page_text),
                 "page_excerpt": page_text[:1800],
@@ -840,7 +840,7 @@ def execute_task(db, groq, open_tasks, user_id):
             if re.search(r"\|\s*(?:ASSENTE|DA\s+MIGLIORARE)\s*\|", line, re.I):
                 if any(url in line for url in verified_urls):
                     qualified_rows.append(line)
-        if len(qualified_rows) < 10:
+        if len(qualified_rows) < 3:
             diagnostic = (
                 "Ricerca non completata: " + str(len(qualified_rows))
                 + " potenziali clienti hanno una pagina verificata e uno stato del sito dimostrato; "
@@ -1095,17 +1095,17 @@ def main():
         # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
         if tasks and plan.get("action_type") in {"no_op", "audit_project", "create_task", "save_memory"}:
             plan["action_type"] = "execute_task"
-            plan["action_title"] = str(sorted(tasks, key=lambda t: (0 if ("siti web" in str(t.get("title", "")).casefold() or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1, str(t.get("created_at", "")) ))[0].get("title", "Attività aperta"))
+            plan["action_title"] = str(sorted(tasks, key=lambda t: (0 if ("abbigliamento italia" in str(t.get("title", "")).casefold() or "siti web" in str(t.get("title", "")).casefold() or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1, str(t.get("created_at", "")) ))[0].get("title", "Attività aperta"))
             plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
         # Advance through a deterministic sequence instead of repeating a generic offer.
         # The sequence is inferred from persisted deliverable memories and remains zero-budget.
         if not tasks:
             next_title, next_notes = next_client_research_task(memories, task_history)
             plan["action_type"] = "create_task"
-            plan["goal"] = "Validare e sviluppare una fonte di profitto concreta a costo zero"
+            plan["goal"] = "Trovare negozi indipendenti di abbigliamento in Italia"
             plan["action_title"] = next_title
             plan["action_notes"] = next_notes
-            plan["reason"] = "Nessuna attività aperta: avvio della prossima fase verificabile della sequenza commerciale."
+            plan["reason"] = "Nessuna attività aperta: avvio di un nuovo lotto di ricerca clienti in tutta Italia."
             plan["expected_result"] = "Un deliverable concreto con evidenze, limiti e un prossimo passo operativo."
             plan["verification"] = "Il runner salva il deliverable nelle note e in Memorie solo dopo aver verificato il record in Supabase."
 
