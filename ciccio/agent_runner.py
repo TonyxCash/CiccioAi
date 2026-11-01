@@ -270,10 +270,12 @@ def search_web(query, *, max_results=5, timeout=12):
             seen.add(target)
             results.append({"title": title[:220], "url": target[:500], "snippet": snippet[:500]})
             if len(results) >= max_results:
-                return results
+                break
     # Fallback gratuito: Bing RSS, indipendente dal markup HTML di DuckDuckGo.
     # È usato solo se le pagine DuckDuckGo non hanno restituito risultati validi.
-    if len(results) < max_results:
+    ddg_results = list(results)
+    results = []
+    if True:
         rss_url = "https://www.bing.com/search?" + urllib.parse.urlencode({
             "format": "rss",
             "q": query,
@@ -306,7 +308,7 @@ def search_web(query, *, max_results=5, timeout=12):
                     break
         except Exception as exc:
             print("Ricerca Bing RSS non disponibile (" + type(exc).__name__ + "); nessuna fonte inventata.")
-    return results
+    return results[:max_results] if results else ddg_results[:max_results]
 
 
 def task_search_queries(title, notes):
