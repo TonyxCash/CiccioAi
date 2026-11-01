@@ -315,7 +315,61 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!finalReply) finalReply = "Ho eseguito gli strumenti disponibili, ma non sono riuscito a comporre la risposta finale. Controlla la coda attività per vedere gli eventuali risultati salvati.";
+    // If the tool loop used all rounds, make one final synthesis call with tools disabled.
+    // This prevents exposing an internal orchestration failure to the user.
+    if (!finalReply) {
+      const synthesisMessages = [
+        ...messages,
+        {
+          role: "system",
+          content: "Ora concludi la risposta all'utente usando ESCLUSIVAMENTE i risultati degli strumenti già presenti nella conversazione. Non chiamare altri strumenti. Scrivi in italiano naturale, in prima persona, con tono collaborativo e concreto. Non parlare di tool, cicli, limiti interni o errori di composizione. Se hai creato un incarico, comunica titolo e stato reale; se hai trovato dati, riassumili; se un'azione non è riuscita, dillo chiaramente senza inventare. Rispondi direttamente all'obiettivo dell'utente."
+        }
+      ];
+      let synthesisResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + c.groq, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: synthesisMessages,
+          tool_choice: "none",
+          temperature: 0.3,
+          max_completion_tokens: 900
+        }),
+        signal: AbortSignal.timeout(45000)
+      });
+      let synthesisData = await synthesisResponse.json();
+      if ((synthesisResponse.status === 429 || synthesisResponse.status >= 500) && c.openrouter) {
+        const backup = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + c.openrouter,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ciccio-ai.vercel.app",
+            "X-Title": "Ciccio AI"
+          },
+          body: JSON.stringify({
+            model: "openrouter/free",
+            messages: synthesisMessages,
+            tool_choice: "none",
+            temperature: 0.3,
+            max_tokens: 900
+          }),
+          signal: AbortSignal.timeout(45000)
+        });
+        const backupData = await backup.json();
+        if (backup.ok) {
+          synthesisResponse = backup;
+          synthesisData = backupData;
+        }
+      }
+      if (synthesisResponse.ok) {
+        finalReply = String(synthesisData?.choices?.[0]?.message?.content || "").trim();
+      }
+    }
+
+    if (!finalReply) finalReply = toolCount
+      ? "Ho completato alcune operazioni e ho salvato gli eventuali risultati disponibili. Non sono riuscito a generare un riepilogo affidabile: dimmi «riepiloga il lavoro appena svolto» e controllerò i risultati registrati."
+      : "Non sono riuscito a ottenere una risposta dal servizio AI. Riprova tra poco.";
     await saveRows(c, [
       { kind: "conversazione", content: "Utente: " + message },
       { kind: "risposta_assistente", content: finalReply }
