@@ -293,7 +293,7 @@ def search_web(query, *, max_results=5, timeout=12):
                 if parsed.scheme not in {"http", "https"} or not parsed.netloc or raw_url in seen:
                     continue
                 title = re.sub(r"\s+", " ", html.unescape(item.findtext("title") or "")).strip()
-                snippet = re.sub(r"\\s+", " ", html.unescape(item.findtext("description") or "")).strip()
+                snippet = re.sub(r"\s+", " ", html.unescape(item.findtext("description") or "")).strip()
                 if not title:
                     continue
                 seen.add(raw_url)
