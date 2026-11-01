@@ -200,6 +200,9 @@ function plainToolSummary(items: Array<{ name: string; result: unknown }>): stri
         lines.push("- " + String(hit.title || "Risultato") + (hit.snippet ? ": " + String(hit.snippet).slice(0, 260) : "") + (hit.url ? " — " + String(hit.url) : ""));
       }
       if (!value.results.length) lines.push("La ricerca non ha restituito risultati leggibili.");
+    } else if (item.name === "inspect_page" && value) {
+      lines.push("Ho aperto una pagina: " + String(value.title || value.url || "sito") + " (HTTP " + String(value.status ?? "n/d") + ").");
+      if (value.text) lines.push(String(value.text).slice(0, 600));
     } else if (item.name === "list_tasks" && Array.isArray(value)) {
       lines.push(value.length ? "Nella coda risultano " + value.length + " incarichi:" : "La coda degli incarichi è vuota.");
       for (const task of value.slice(0, 8)) lines.push("- " + task.title + " — " + task.status + (task.notes ? ". " + String(task.notes).slice(0, 220) : ""));
