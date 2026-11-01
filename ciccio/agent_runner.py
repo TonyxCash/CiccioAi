@@ -425,6 +425,16 @@ def collect_task_sources(title, notes, *, max_results=20):
         r"uomo|donna|multibrand|prêt.?à.?porter|pret.?a.?porter",
         re.I,
     )
+    italy_pattern = re.compile(
+        r"italia|italy|milano|roma|torino|bologna|firenze|verona|venezia|"
+        r"genova|bari|lecce|palermo|catania|napoli|caserta|salerno|"
+        r"bergamo|brescia|padova|treviso|modena|parma|rimini|pisa|"
+        r"livorno|perugia|ancona|pescara|cagliari|sassari|"
+        r"lombardia|lazio|piemonte|veneto|toscana|emilia.?romagna|"
+        r"puglia|sicilia|campania|liguria|marche|umbria|sardegna|calabria|"
+        r"friuli|trentino|basilicata|molise|abruzzo",
+        re.I,
+    )
     for query in task_search_queries(title, notes):
         try:
             found = search_web(
@@ -443,8 +453,11 @@ def collect_task_sources(title, notes, *, max_results=20):
                 continue
             page_text = fetch_public_page_text(url) if local_website_task else ""
             evidence_text = title_text + " " + snippet + " " + url + " " + page_text
+            parsed_host = urllib.parse.urlparse(url).netloc.casefold()
+            italian_domain = parsed_host.endswith(".it") or ".it:" in parsed_host
             if local_website_task and (
                 not business_pattern.search(evidence_text)
+                or (not italian_domain and not italy_pattern.search(evidence_text))
             ):
                 print("Fonte scartata: pagina non accessibile o non pertinente al settore abbigliamento: " + url[:180])
                 continue
