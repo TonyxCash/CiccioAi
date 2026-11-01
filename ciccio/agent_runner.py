@@ -376,9 +376,9 @@ OSM_CITY_GROUPS = [
     ["Perugia", "Ancona", "Pescara", "Reggio Calabria", "Messina", "Sassari", "Taranto", "Foggia"],
 ]
 CHAIN_NAME_PATTERN = re.compile(
-    r"^(zara|h\\s*&\\s*m|ovs|primark|coin|calzedonia|intimissimi|tezenis|"
+    r"^(zara|h\s*&\s*m|ovs|primark|coin|calzedonia|intimissimi|tezenis|"
     r"benetton|mango|nike|adidas|decathlon|carpisa|yamamay|kiabi|"
-    r"stradivarius|pull\\s*&\\s*bear|bershka|sephora|c\\s*&\\s*a|"
+    r"stradivarius|pull\s*&\s*bear|bershka|sephora|c\s*&\s*a|"
     r"foot locker|superdry|guess|liu jo|gucci|prada|armani|max mara)$",
     re.I,
 )
@@ -403,7 +403,7 @@ def normalize_public_url(raw_url):
             if not address.is_global:
                 return ""
         except ValueError:
-            if re.match(r"^\\d{1,3}(?:\\.\\d{1,3}){3}$", host):
+            if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", host):
                 return ""
         if parsed.port not in {None, 80, 443}:
             return ""
@@ -420,7 +420,7 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
     seen = set()
     for element in payload["elements"]:
         tags = element.get("tags") or {}
-        name = re.sub(r"\\s+", " ", str(tags.get("name", "")).strip())
+        name = re.sub(r"\s+", " ", str(tags.get("name", "")).strip())
         if not name or CHAIN_NAME_PATTERN.match(name):
             continue
         city = next((str(tags.get(key, "")).strip() for key in (
@@ -486,7 +486,7 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
 
 def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
     """Find independent clothing shops across rotating Italian city groups using OSM."""
-    match = re.search(r"lotto\\s+(\\d+)", str(title or ""), re.I)
+    match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
     city_group = OSM_CITY_GROUPS[(batch - 1) % len(OSM_CITY_GROUPS)]
     city_pattern = "|".join(re.escape(city) for city in city_group)
