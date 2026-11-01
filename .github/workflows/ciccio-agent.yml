@@ -14,8 +14,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: ciccio-agent-cycle
@@ -95,31 +93,3 @@ jobs:
             echo "- Download the bundled work products from this run's Artifacts section."
             echo "- The detailed execution log is available in the job output."
           } >> "${GITHUB_STEP_SUMMARY}"
-
-  publish_offer:
-    needs: agent
-    if: needs.agent.outputs.offer_page_created == 'true'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Download generated offer page
-        uses: actions/download-artifact@v4
-        with:
-          name: ciccio-work-products-${{ github.run_number }}
-          path: ciccio_output
-      - name: Prepare Pages site
-        run: |
-          test -s ciccio_output/offer-page.html
-          mkdir -p _site
-          cp ciccio_output/offer-page.html _site/index.html
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - name: Deploy offer page
-        id: deployment
-        uses: actions/deploy-pages@v4
