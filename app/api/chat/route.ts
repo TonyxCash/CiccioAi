@@ -4,7 +4,7 @@ import { isAuthenticated } from "@/lib/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Config = { base: string; key: string; user: string; groq: string };
+type Config = { base: string; key: string; user: string; groq: string; openrouter: string };
 type MemoryRow = { created_at: string; kind: string; content: string };
 type TaskRow = { id: string; title: string; status: string; notes: string; created_at?: string; updated_at?: string };
 
@@ -13,8 +13,9 @@ function config(): Config {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const user = process.env.CICCIO_USER_ID || "";
   const groq = process.env.GROQ_API_KEY || "";
+  const openrouter = process.env.OPENROUTER_API_KEY || "";
   if (!base || !key || !user || !groq) throw new Error("Configurazione server incompleta: controlla le variabili di Ciccio su Vercel.");
-  return { base, key, user, groq };
+  return { base, key, user, groq, openrouter };
 }
 
 function headers(c: Config) {
@@ -208,7 +209,7 @@ export async function POST(req: NextRequest) {
     let finalReply = "";
     let toolCount = 0;
     for (let round = 0; round < 5; round++) {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      let response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: "Bearer " + c.groq, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -222,7 +223,48 @@ export async function POST(req: NextRequest) {
         }),
         signal: AbortSignal.timeout(45000)
       });
-      const data = await response.json();
+      let data = await response.json();
+      let activeProvider = "Groq";
+
+      // Automatic free fallback: preserve the same conversation and Ciccio tools.
+      if ((response.status === 429 || response.status >= 500) && c.openrouter) {
+        const fallbackResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + c.openrouter,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://ciccio-ai.vercel.app",
+            "X-Title": "Ciccio AI"
+          },
+          body: JSON.stringify({
+            model: "openrouter/free",
+            messages,
+            tools,
+            tool_choice: "auto",
+            parallel_tool_calls: false,
+            temperature: 0.4,
+            max_tokens: 1000
+          }),
+          signal: AbortSignal.timeout(45000)
+        });
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackResponse.ok) {
+          response = fallbackResponse;
+          data = fallbackData;
+          activeProvider = "OpenRouter";
+        } else {
+          const fallbackDetail = String(fallbackData?.error?.message || fallbackData?.message || "servizio non disponibile").slice(0, 180);
+          return NextResponse.json({
+            error: fallbackResponse.status === 429
+              ? "Groq ha esaurito la quota e anche il modello gratuito di riserva OpenRouter ha raggiunto il suo limite. Le quote gratuite si ripristinano secondo i limiti del provider. Dettaglio: " + fallbackDetail
+              : "Groq non è disponibile e OpenRouter non ha completato la richiesta. Dettaglio: " + fallbackDetail
+          }, { status: fallbackResponse.status === 429 ? 429 : 503 });
+        }
+      }
+
+      if (response.status === 429 && activeProvider === "OpenRouter") {
+        return NextResponse.json({ error: "Il modello gratuito di riserva OpenRouter ha raggiunto il limite temporaneo o giornaliero. Riprova più tardi; Ciccio non ha effettuato spese." }, { status: 429 });
+      }
       if (response.status === 429) {
         const providerMessage = String(data?.error?.message || "");
         const providerCode = String(data?.error?.code || data?.error?.type || "").toLowerCase();
