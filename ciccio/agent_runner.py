@@ -723,7 +723,7 @@ def execute_task(db, groq, open_tasks, user_id):
     sources = collect_task_sources(title, notes, max_results=24 if ("abbigliamento" in (title + " " + notes).casefold() or "boutique" in (title + " " + notes).casefold()) else 12)
     local_website_task = any(token in (title + " " + notes).casefold() for token in (
         "siti web", "realizzazione siti", "ristoranti", "pizzerie",
-        "negozi di abbigliamento", "boutique",
+        "negozi di abbigliamento", "abbigliamento", "boutique",
     ))
     minimum_source_count = 3 if local_website_task else 1
     if task_requires_market_evidence(title, notes) and len(sources) < minimum_source_count:
