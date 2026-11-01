@@ -527,8 +527,9 @@ def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
     city_pattern = "|".join(re.escape(city) for city in city_group)
     query = (
         '[out:json][timeout:35];'
+        'area["ISO3166-1"="IT"]["admin_level"="2"]->.italy;'
         'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
-        '["name"~"^(' + city_pattern + ')$"]->.cities;'
+        '["name"~"^(' + city_pattern + ')$"](area.italy)->.cities;'
         '(nwr["shop"~"^(clothes|boutique|fashion)$"](area.cities););'
         'out center tags 200;'
     )
