@@ -586,7 +586,7 @@ def parse_google_places_response(payload, city, *, limit=12):
     for place in payload["places"]:
         display = place.get("displayName") or {}
         name = re.sub(r"\s+", " ", str(display.get("text", "")).strip())
-        address = re.sub(r"\\s+", " ", str(place.get("formattedAddress", "")).strip())
+        address = re.sub(r"\s+", " ", str(place.get("formattedAddress", "")).strip())
         if not name or name.casefold() in seen or CHAIN_NAME_PATTERN.match(name):
             continue
         seen.add(name.casefold())
@@ -643,26 +643,26 @@ def collect_google_places(title, *, limit=12, timeout=10):
     category = categories[(batch - 1) % len(categories)]
     results = []
     for city in cities:
-            body = json.dumps({"textQuery": category + " a " + city + ", Italia", "pageSize": 5, "languageCode": "it"}).encode("utf-8")
-            request = urllib.request.Request(
-                "https://places.googleapis.com/v1/places:searchText",
-                data=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Goog-Api-Key": api_key,
-                    "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.googleMapsUri,places.businessStatus",
-                },
-                method="POST",
-            )
-            try:
-                with urllib.request.urlopen(request, timeout=timeout) as response:
-                    payload = json.loads(response.read(1_500_000).decode("utf-8", "replace"))
-                rows = parse_google_places_response(payload, city, limit=limit - len(results))
-                results.extend(rows)
-            except Exception as exc:
-                print("Google Places non disponibile per " + city + " (" + type(exc).__name__ + ").")
-            if len(results) >= limit:
-                return results[:limit]
+        body = json.dumps({"textQuery": category + " a " + city + ", Italia", "pageSize": 5, "languageCode": "it"}).encode("utf-8")
+        request = urllib.request.Request(
+            "https://places.googleapis.com/v1/places:searchText",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": api_key,
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.googleMapsUri,places.businessStatus",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = json.loads(response.read(1_500_000).decode("utf-8", "replace"))
+            rows = parse_google_places_response(payload, city, limit=limit - len(results))
+            results.extend(rows)
+        except Exception as exc:
+            print("Google Places non disponibile per " + city + " (" + type(exc).__name__ + ").")
+        if len(results) >= limit:
+            return results[:limit]
     if results:
         print("Google Places: " + str(len(results)) + " attività candidate recuperate.")
     return results[:limit]
