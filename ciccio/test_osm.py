@@ -5,6 +5,7 @@ from agent_runner import (
     collect_task_sources,
     normalize_public_url,
     parse_osm_clothing_stores,
+    task_search_queries,
 )
 
 
@@ -37,6 +38,27 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertEqual(aurora["website_tag"], "https://aurora.example")
         self.assertIn("OpenStreetMap contributors", aurora["page_excerpt"])
 
+    def test_uses_queried_municipality_when_osm_address_is_missing(self):
+        payload = {"elements": [{
+            "type": "node", "id": 205,
+            "tags": {"name": "Atelier Campania", "shop": "clothes"}
+        }]}
+        rows = parse_osm_clothing_stores(payload, ["Giugliano in Campania"], limit=10)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["city"], "Giugliano in Campania")
+
+    def test_search_queries_are_limited_to_campania(self):
+        queries = task_search_queries(
+            "Ricerca clienti — abbigliamento Campania — lotto 001",
+            "Trova boutique indipendenti per proporre siti web",
+        )
+        joined = " ".join(queries).casefold()
+        self.assertIn("napoli", joined)
+        self.assertIn("caserta", joined)
+        self.assertIn("salerno", joined)
+        self.assertNotIn("milano", joined)
+        self.assertNotIn("roma lazio", joined)
+
     def test_rejects_private_urls(self):
         self.assertEqual(normalize_public_url("https://example.com/path"), "https://example.com/path")
         self.assertEqual(normalize_public_url("http://127.0.0.1/admin"), "")
@@ -67,8 +89,8 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         }]
         fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Milano"
         rows = collect_task_sources(
-            "Ricerca clienti — abbigliamento Italia — lotto 001",
-            "Trova negozi indipendenti in tutta Italia",
+            "Ricerca clienti — abbigliamento Campania — lotto 001",
+            "Trova negozi indipendenti in Campania",
             max_results=24,
         )
         self.assertTrue(any(row.get("record_verified") for row in rows))
