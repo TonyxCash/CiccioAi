@@ -346,24 +346,22 @@ def search_web(query, *, max_results=5, timeout=12):
 
 
 def task_search_queries(title, notes):
-    """Ricerche mirate per trovare negozi indipendenti di abbigliamento in tutta Italia."""
+    """Ricerche geografiche mirate per boutique indipendenti in Campania."""
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     clothing = any(token in combined for token in ("abbigliamento", "boutique", "negozi di abbigliamento", "negozi indipendenti"))
     website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "potenziali clienti"))
     if clothing and (website_clients or "ricerca clienti" in combined):
         return [
-            'negozi indipendenti abbigliamento boutique Italia sito ufficiale contatti',
-            'boutique indipendenti abbigliamento Milano Lombardia negozi',
-            'negozi abbigliamento indipendenti Roma Lazio boutique',
-            'boutique abbigliamento indipendenti Torino Piemonte negozi',
-            'negozi abbigliamento indipendenti Bologna Emilia Romagna',
-            'boutique indipendenti Firenze Toscana abbigliamento',
-            'negozi abbigliamento indipendenti Verona Veneto boutique',
-            'boutique abbigliamento indipendenti Bari Lecce Puglia',
-            'negozi abbigliamento indipendenti Palermo Catania Sicilia',
-            'boutique indipendenti Napoli Caserta Salerno Campania',
-            'directory boutique indipendenti Italia negozi abbigliamento',
-            'negozio abbigliamento donna uomo indipendente Italia contatti sito',
+            '"negozio abbigliamento" Napoli boutique indipendente contatti',
+            '"boutique" Napoli abbigliamento sito ufficiale',
+            '"negozio abbigliamento" Giugliano in Campania contatti',
+            '"boutique" Pozzuoli abbigliamento negozio',
+            '"negozio abbigliamento" Casoria Afragola Frattamaggiore',
+            '"boutique" Aversa Caserta Marcianise abbigliamento',
+            '"negozio abbigliamento" Santa Maria Capua Vetere Caserta',
+            '"boutique" Salerno Cava de Tirreni Battipaglia',
+            '"negozio abbigliamento" Avellino Benevento boutique',
+            'negozi indipendenti abbigliamento Campania sito ufficiale contatti',
         ]
     if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
         return [
@@ -397,18 +395,20 @@ def task_search_queries(title, notes):
     if "linkedin" in combined:
         return [
             'LinkedIn freelance content services international pricing',
-            'freelance platforms LinkedIn content management international clients',
-            'LinkedIn content marketing freelance services worldwide clients',
+            'freelance platforms LinkedIn content management international clients',            'LinkedIn content marketing freelance services worldwide clients',
         ]
     return [re.sub(r"\s+", " ", str(title or "") + " " + str(notes or "")[:180]).strip()[:240]]
 
 # Nationwide shop discovery: rotate city groups and verify each candidate's official site.
 # Pipeline validation.
+# Un comune per ciclo: così i record OSM senza addr:city ricevono una località certa
+# dal perimetro amministrativo interrogato, invece di essere scartati.
 OSM_CITY_GROUPS = [
-    ["Milano", "Torino", "Genova", "Bologna", "Firenze", "Verona", "Venezia", "Padova"],
-    ["Roma", "Napoli", "Bari", "Palermo", "Catania", "Cagliari", "Salerno", "Lecce"],
-    ["Bergamo", "Brescia", "Parma", "Modena", "Rimini", "Trieste", "Udine", "Trento"],
-    ["Perugia", "Ancona", "Pescara", "Reggio Calabria", "Messina", "Sassari", "Taranto", "Foggia"],
+    ["Napoli"], ["Giugliano in Campania"], ["Pozzuoli"], ["Casoria"],
+    ["Afragola"], ["Frattamaggiore"], ["Aversa"], ["Caserta"],
+    ["Marcianise"], ["Santa Maria Capua Vetere"], ["Salerno"],
+    ["Cava de' Tirreni"], ["Battipaglia"], ["Avellino"], ["Benevento"],
+    ["Torre del Greco"], ["Portici"], ["Ercolano"], ["Nola"], ["Pompei"],
 ]
 CHAIN_NAME_PATTERN = re.compile(
     r"^(zara|h\s*&\s*m|ovs|primark|coin|calzedonia|intimissimi|tezenis|"
@@ -462,6 +462,10 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
             "addr:city", "addr:town", "addr:municipality", "addr:suburb",
             "addr:village", "addr:place", "addr:county"
         ) if tags.get(key)), "")
+        # Molti negozi OSM non hanno addr:city: quando interroghiamo un solo
+        # perimetro comunale, la città è comunque determinata dall'area usata.
+        if not city and len(city_group) == 1:
+            city = city_group[0]
         if not city:
             continue
         key = (name.casefold(), city.casefold())
@@ -519,7 +523,7 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
     return selected
 
 
-def collect_osm_clothing_stores(title, *, limit=12, timeout=45):
+def collect_osm_clothing_stores(title, *, limit=12, timeout=18):
     """Find independent clothing shops across rotating Italian city groups using OSM."""
     match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
@@ -745,8 +749,8 @@ def should_pause_task(task, previous):
     attempts = failed_task_attempts(task, previous)
     notes = str(task.get("notes", "")).casefold()
     no_sources = "0 url recuperati" in notes or "nessuna fonte web recuperata" in notes
-    nationwide_clothing = "abbigliamento italia" in str(task.get("title", "")).casefold()
-    return attempts >= 3 or (attempts >= 1 and no_sources and not nationwide_clothing)
+    campania_clothing = "abbigliamento campania" in str(task.get("title", "")).casefold()
+    return attempts >= 3 or (attempts >= 1 and no_sources and not campania_clothing)
 
 
 def required_env(name):
@@ -798,15 +802,15 @@ def failed_task_attempts(task, previous):
         count += 1
     return count
 
-
 def next_client_research_task(memories, task_history=None):
     history = task_history or []
-    batch = 1 + sum(1 for item in history if "Ricerca clienti — abbigliamento Italia" in str(item.get("title", "")))
+    batch = 1 + sum(1 for item in history if "Ricerca clienti — abbigliamento Campania" in str(item.get("title", "")))
     return (
-        f"Ricerca clienti — abbigliamento Italia — lotto {batch:03d}",
-        "Trova negozi indipendenti di abbigliamento in tutta Italia, in tutte le regioni. "
-        "Visita le pagine, cerca il sito ufficiale e verifica il suo stato. "
-        "Registra nome, città, provincia, fonte e recapiti commerciali pubblicati. "
+        f"Ricerca clienti — abbigliamento Campania — lotto {batch:03d}",
+        "Trova negozi indipendenti di abbigliamento in Campania, un comune alla volta. "
+        "Parti da Napoli e provincia, poi prosegui con Caserta, Salerno, Avellino e Benevento. "
+        "Verifica l'attività, cerca il sito ufficiale e controlla la pagina direttamente. "
+        "Registra nome, comune, indirizzo, fonte e recapiti commerciali pubblicati. "
         "Non contattare nessuno, non pubblicare e non spendere."
     )
 
@@ -972,7 +976,7 @@ def execute_task(db, groq, open_tasks, user_id):
     task = sorted(
         open_tasks,
         key=lambda t: (
-            0 if ("abbigliamento italia" in str(t.get("title", "")).casefold()
+            0 if ("abbigliamento campania" in str(t.get("title", "")).casefold()
                   or "siti web" in str(t.get("title", "")).casefold()
                   or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1,
             str(t.get("created_at", "")),
@@ -1197,8 +1201,7 @@ def execute_task(db, groq, open_tasks, user_id):
     # Keep a short excerpt of the original request while reserving space for the result.
     new_notes = ((old_notes[:500] + "\n\n") if old_notes else "") + deliverable_block
     new_notes = new_notes[:3000]
-    db.table("ciccio_tasks").update({
-        "status": "Completata",
+    db.table("ciccio_tasks").update({        "status": "Completata",
         "notes": new_notes,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", task["id"]).eq("user_id", user_id).execute()
@@ -1379,17 +1382,17 @@ def main():
         # Priorità al lavoro concreto: ogni ciclo lavora su un’attività aperta prima di crearne altre.
         if tasks and plan.get("action_type") in {"no_op", "audit_project", "create_task", "save_memory"}:
             plan["action_type"] = "execute_task"
-            plan["action_title"] = str(sorted(tasks, key=lambda t: (0 if ("abbigliamento italia" in str(t.get("title", "")).casefold() or "siti web" in str(t.get("title", "")).casefold() or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1, str(t.get("created_at", "")) ))[0].get("title", "Attività aperta"))
+            plan["action_title"] = str(sorted(tasks, key=lambda t: (0 if ("abbigliamento campania" in str(t.get("title", "")).casefold() or "siti web" in str(t.get("title", "")).casefold() or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1, str(t.get("created_at", "")) ))[0].get("title", "Attività aperta"))
             plan["action_notes"] = "Realizza il deliverable richiesto dall’attività aperta e salvalo in modo persistente."
         # Advance through a deterministic sequence instead of repeating a generic offer.
         # The sequence is inferred from persisted deliverable memories and remains zero-budget.
         if not tasks:
             next_title, next_notes = next_client_research_task(memories, task_history)
             plan["action_type"] = "create_task"
-            plan["goal"] = "Trovare negozi indipendenti di abbigliamento in Italia"
+            plan["goal"] = "Trovare negozi indipendenti di abbigliamento in Campania"
             plan["action_title"] = next_title
             plan["action_notes"] = next_notes
-            plan["reason"] = "Nessuna attività aperta: avvio di un nuovo lotto di ricerca clienti in tutta Italia."
+            plan["reason"] = "Nessuna attività aperta: avvio di un nuovo lotto di ricerca clienti in Campania."
             plan["expected_result"] = "Un deliverable concreto con evidenze, limiti e un prossimo passo operativo."
             plan["verification"] = "Il runner salva il deliverable nelle note e in Memorie solo dopo aver verificato il record in Supabase."
 
