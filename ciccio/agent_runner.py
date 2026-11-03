@@ -361,6 +361,10 @@ def task_search_queries(title, notes):
             'negozi abbigliamento indipendenti Sicilia Sardegna Abruzzo Marche',
             'negozi abbigliamento indipendenti Umbria Lazio Friuli Trentino',
             'negozio abbigliamento indipendente Italia telefono indirizzo sito web',
+            'ristoranti indipendenti Italia sito ufficiale menu telefono contatti',
+            'pizzerie indipendenti Italia sito ufficiale menu telefono contatti',
+            'ristoranti e pizzerie indipendenti Milano Roma Napoli Torino Bologna',
+            'ristoranti e pizzerie indipendenti Veneto Toscana Puglia Sicilia',
         ]
     if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
         return [
@@ -720,6 +724,7 @@ def collect_task_sources(title, notes, *, max_results=20):
     # La località italiana viene richiesta e verificata nel testo della singola attività.
     business_pattern = re.compile(
         r"abbigli|boutique|negozio|moda|fashion|clothing|"
+        r"ristorant|pizzer|trattoria|osteria|cucina|pizza|"
         r"uomo|donna|multibrand|prêt.?à.?porter|pret.?a.?porter",
         re.I,
     )
@@ -738,6 +743,30 @@ def collect_task_sources(title, notes, *, max_results=20):
         google_places = collect_google_places(title, limit=12)
         results.extend(google_places)
         seen.update(row["url"] for row in google_places)
+        # Verify any Google-listed website directly before describing it as official.
+        for place in google_places:
+            site_url = normalize_public_url(place.get("website_tag", ""))
+            if not site_url or site_url in seen:
+                continue
+            page_text = fetch_public_page_text(site_url, timeout=5)
+            name_tokens = [
+                token for token in re.findall(r"[a-z0-9]+", str(place.get("business_name", "")).casefold())
+                if len(token) >= 4 and token not in {"negozio", "ristorante", "pizzeria", "bar", "cafe"}
+            ]
+            if page_text and (not name_tokens or any(token in page_text.casefold() for token in name_tokens)):
+                results.append({
+                    "title": "Sito indicato da Google e verificato: " + str(place.get("business_name", "")),
+                    "url": site_url,
+                    "query": "Google Places — verifica sito ufficiale",
+                    "snippet": "Sito collegato alla scheda Google; nome dell'attività riscontrato nella pagina.",
+                    "page_verified": True,
+                    "record_verified": False,
+                    "source_type": "official_website",
+                    "business_name": place.get("business_name", ""),
+                    "city": place.get("city", ""),
+                    "page_excerpt": page_text[:1800],
+                })
+                seen.add(site_url)
     if local_website_task and clothing_task:
         osm_stores = collect_osm_clothing_stores(title, limit=12)
         blocked_domains = (
