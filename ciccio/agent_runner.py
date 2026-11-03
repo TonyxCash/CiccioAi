@@ -346,22 +346,21 @@ def search_web(query, *, max_results=5, timeout=12):
 
 
 def task_search_queries(title, notes):
-    """Ricerche geografiche mirate per boutique indipendenti in Campania."""
+    """Ricerche commerciali nazionali per attività indipendenti in tutta Italia."""
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     clothing = any(token in combined for token in ("abbigliamento", "boutique", "negozi di abbigliamento", "negozi indipendenti"))
     website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "potenziali clienti"))
     if clothing and (website_clients or "ricerca clienti" in combined):
         return [
-            '"negozio abbigliamento" Napoli boutique indipendente contatti',
-            '"boutique" Napoli abbigliamento sito ufficiale',
-            '"negozio abbigliamento" Giugliano in Campania contatti',
-            '"boutique" Pozzuoli abbigliamento negozio',
-            '"negozio abbigliamento" Casoria Afragola Frattamaggiore',
-            '"boutique" Aversa Caserta Marcianise abbigliamento',
-            '"negozio abbigliamento" Santa Maria Capua Vetere Caserta',
-            '"boutique" Salerno Cava de Tirreni Battipaglia',
-            '"negozio abbigliamento" Avellino Benevento boutique',
-            'negozi indipendenti abbigliamento Campania sito ufficiale contatti',
+            '"negozio abbigliamento" boutique indipendente Italia sito ufficiale contatti',
+            'negozi abbigliamento indipendenti Milano Torino Bologna Firenze',
+            'boutique indipendenti Roma Napoli Bari Palermo sito ufficiale',
+            'negozi abbigliamento indipendenti Veneto Lombardia Piemonte',
+            'boutique indipendenti Toscana Liguria Emilia Romagna',
+            'negozi abbigliamento indipendenti Campania Puglia Calabria',
+            'negozi abbigliamento indipendenti Sicilia Sardegna Abruzzo Marche',
+            'negozi abbigliamento indipendenti Umbria Lazio Friuli Trentino',
+            'negozio abbigliamento indipendente Italia telefono indirizzo sito web',
         ]
     if any(token in combined for token in ("validazione mercato", "validazione opportunità", "verifica domanda", "modalità di incasso")):
         return [
@@ -401,14 +400,26 @@ def task_search_queries(title, notes):
 
 # Nationwide shop discovery: rotate city groups and verify each candidate's official site.
 # Pipeline validation.
-# Un comune per ciclo: così i record OSM senza addr:city ricevono una località certa
-# dal perimetro amministrativo interrogato, invece di essere scartati.
+# Rotazione nazionale: ogni ciclo copre un gruppo di comuni in regioni diverse.
 OSM_CITY_GROUPS = [
-    ["Napoli"], ["Giugliano in Campania"], ["Pozzuoli"], ["Casoria"],
-    ["Afragola"], ["Frattamaggiore"], ["Aversa"], ["Caserta"],
-    ["Marcianise"], ["Santa Maria Capua Vetere"], ["Salerno"],
-    ["Cava de' Tirreni"], ["Battipaglia"], ["Avellino"], ["Benevento"],
-    ["Torre del Greco"], ["Portici"], ["Ercolano"], ["Nola"], ["Pompei"],
+    ["Milano", "Monza", "Bergamo", "Brescia"],
+    ["Roma", "Latina", "Viterbo", "Frosinone"],
+    ["Napoli", "Giugliano in Campania", "Caserta", "Salerno"],
+    ["Torino", "Novara", "Alessandria", "Cuneo"],
+    ["Bologna", "Modena", "Parma", "Reggio Emilia"],
+    ["Firenze", "Pisa", "Livorno", "Arezzo"],
+    ["Venezia", "Verona", "Padova", "Treviso"],
+    ["Genova", "La Spezia", "Savona", "Imperia"],
+    ["Bari", "Lecce", "Taranto", "Foggia"],
+    ["Palermo", "Catania", "Messina", "Siracusa"],
+    ["Cagliari", "Sassari", "Olbia", "Nuoro"],
+    ["Perugia", "Terni", "Ancona", "Pesaro"],
+    ["Pescara", "Chieti", "Teramo", "L'Aquila"],
+    ["Trento", "Bolzano", "Rovereto", "Merano"],
+    ["Trieste", "Udine", "Pordenone", "Gorizia"],
+    ["Reggio Calabria", "Catanzaro", "Cosenza", "Crotone"],
+    ["Potenza", "Matera", "Campobasso", "Isernia"],
+    ["Rimini", "Ferrara", "Ravenna", "Forli"],
 ]
 CHAIN_NAME_PATTERN = re.compile(
     r"^(zara|h\s*&\s*m|ovs|primark|coin|calzedonia|intimissimi|tezenis|"
@@ -524,7 +535,7 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
 
 
 def collect_osm_clothing_stores(title, *, limit=12, timeout=18):
-    """Find independent clothing shops in one Campania municipality using OSM."""
+    """Find independent clothing shops across rotating Italian city groups using OSM."""
     match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
     city_group = OSM_CITY_GROUPS[(batch - 1) % len(OSM_CITY_GROUPS)]
@@ -614,7 +625,7 @@ def collect_task_sources(title, notes, *, max_results=20):
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     local_website_task = any(token in combined for token in (
         "siti web", "realizzazione siti", "ristoranti", "pizzerie",
-        "negozi di abbigliamento", "abbigliamento", "boutique",
+        "negozi", "abbigliamento", "boutique", "attività commerciali",
     ))
     # La ricerca è nazionale: non applicare filtri geografici regionali.
     # La località italiana viene richiesta e verificata nel testo della singola attività.
@@ -749,8 +760,7 @@ def should_pause_task(task, previous):
     attempts = failed_task_attempts(task, previous)
     notes = str(task.get("notes", "")).casefold()
     no_sources = "0 url recuperati" in notes or "nessuna fonte web recuperata" in notes
-    campania_clothing = "abbigliamento campania" in str(task.get("title", "")).casefold()
-    return attempts >= 3 or (attempts >= 1 and no_sources and not campania_clothing)
+    return attempts >= 3 or (attempts >= 1 and no_sources)
 
 
 def required_env(name):
@@ -804,14 +814,15 @@ def failed_task_attempts(task, previous):
 
 def next_client_research_task(memories, task_history=None):
     history = task_history or []
-    batch = 1 + sum(1 for item in history if "Ricerca clienti — abbigliamento Campania" in str(item.get("title", "")))
+    batch = 1 + sum(1 for item in history if "Ricerca clienti — Italia" in str(item.get("title", "")))
     return (
-        f"Ricerca clienti — abbigliamento Campania — lotto {batch:03d}",
-        "Trova negozi indipendenti di abbigliamento in Campania, un comune alla volta. "
-        "Parti da Napoli e provincia, poi prosegui con Caserta, Salerno, Avellino e Benevento. "
-        "Verifica l'attività, cerca il sito ufficiale e controlla la pagina direttamente. "
-        "Registra nome, comune, indirizzo, fonte e recapiti commerciali pubblicati. "
-        "Non contattare nessuno, non pubblicare e non spendere."
+        f"Ricerca clienti — Italia — lotto {batch:03d}",
+        "Trova attività indipendenti in tutta Italia per proporre siti web professionali: negozi di abbigliamento e boutique, ristoranti e pizzerie. "
+        "Ruota le regioni e i comuni italiani, senza limitarti alla Campania. "
+        "Verifica che l'attività esista, cerca il sito ufficiale e controlla direttamente la qualità e il funzionamento del sito. "
+        "Registra nome, settore, comune, indirizzo, telefono, email commerciale pubblicata, sito ufficiale e URL della scheda Google Maps o altra fonte. "
+        "Distingui attività senza sito da attività per cui il sito non è stato trovato. Non inventare recapiti. "
+        "Non inviare messaggi né contattare nessuno: prepara lead verificati e bozze."
     )
 
 
@@ -976,7 +987,7 @@ def execute_task(db, groq, open_tasks, user_id):
     task = sorted(
         open_tasks,
         key=lambda t: (
-            0 if ("abbigliamento campania" in str(t.get("title", "")).casefold()
+            0 if ("ricerca clienti" in str(t.get("title", "")).casefold()
                   or "siti web" in str(t.get("title", "")).casefold()
                   or "realizzazione siti" in str(t.get("title", "")).casefold()) else 1,
             str(t.get("created_at", "")),
@@ -1389,10 +1400,10 @@ def main():
         if not tasks:
             next_title, next_notes = next_client_research_task(memories, task_history)
             plan["action_type"] = "create_task"
-            plan["goal"] = "Trovare negozi indipendenti di abbigliamento in Campania"
+            plan["goal"] = "Trovare attività indipendenti interessate a siti web in tutta Italia"
             plan["action_title"] = next_title
             plan["action_notes"] = next_notes
-            plan["reason"] = "Nessuna attività aperta: avvio di un nuovo lotto di ricerca clienti in Campania."
+            plan["reason"] = "Nessuna attività aperta: avvio di un nuovo lotto di ricerca clienti in tutta Italia."
             plan["expected_result"] = "Un deliverable concreto con evidenze, limiti e un prossimo passo operativo."
             plan["verification"] = "Il runner salva il deliverable nelle note e in Memorie solo dopo aver verificato il record in Supabase."
 
