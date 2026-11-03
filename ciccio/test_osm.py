@@ -51,7 +51,7 @@ class OpenStreetMapLeadTests(unittest.TestCase):
     def test_search_queries_cover_all_italy_and_all_business_sectors(self):
         queries = task_search_queries(
             "Ricerca clienti — Italia — lotto 001",
-            "Trova negozi, ristoranti e pizzerie indipendenti per proporre siti web",
+            "Trova negozi di abbigliamento, ristoranti e pizzerie indipendenti per proporre siti web",
         )
         joined = " ".join(queries).casefold()
         self.assertIn("milano", joined)
@@ -109,7 +109,7 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Milano"
         rows = collect_task_sources(
             "Ricerca clienti — Italia — lotto 001",
-            "Trova negozi indipendenti in tutta Italia",
+            "Trova negozi di abbigliamento indipendenti in tutta Italia per siti web",
             max_results=24,
         )
         self.assertTrue(any(row.get("record_verified") for row in rows))
