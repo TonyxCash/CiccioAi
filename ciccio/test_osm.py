@@ -5,6 +5,8 @@ from agent_runner import (
     collect_task_sources,
     normalize_public_url,
     parse_osm_clothing_stores,
+    parse_google_places_response,
+    task_search_queries,
 )
 
 
@@ -37,6 +39,45 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertEqual(aurora["website_tag"], "https://aurora.example")
         self.assertIn("OpenStreetMap contributors", aurora["page_excerpt"])
 
+    def test_uses_queried_municipality_when_osm_address_is_missing(self):
+        payload = {"elements": [{
+            "type": "node", "id": 205,
+            "tags": {"name": "Atelier Campania", "shop": "clothes"}
+        }]}
+        rows = parse_osm_clothing_stores(payload, ["Giugliano in Campania"], limit=10)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["city"], "Giugliano in Campania")
+
+    def test_search_queries_cover_all_italy_and_all_business_sectors(self):
+        queries = task_search_queries(
+            "Ricerca clienti — Italia — lotto 001",
+            "Trova negozi di abbigliamento, ristoranti e pizzerie indipendenti per proporre siti web",
+        )
+        joined = " ".join(queries).casefold()
+        self.assertIn("milano", joined)
+        self.assertIn("roma", joined)
+        self.assertIn("napoli", joined)
+        self.assertIn("ristoranti", joined)
+        self.assertIn("pizzerie", joined)
+
+    def test_parses_google_places_business_data(self):
+        rows = parse_google_places_response({
+            "places": [{
+                "id": "place-123",
+                "displayName": {"text": "Trattoria Aurora"},
+                "formattedAddress": "Via Roma 10, Bologna BO",
+                "websiteUri": "https://aurora.example",
+                "nationalPhoneNumber": "+39 051 123456",
+                "googleMapsUri": "https://maps.google.com/?cid=123",
+                "businessStatus": "OPERATIONAL",
+            }]
+        }, "Bologna", limit=5)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["business_name"], "Trattoria Aurora")
+        self.assertEqual(rows[0]["phone"], "+39 051 123456")
+        self.assertEqual(rows[0]["website_tag"], "https://aurora.example")
+        self.assertEqual(rows[0]["source_type"], "google_places_record")
+
     def test_rejects_private_urls(self):
         self.assertEqual(normalize_public_url("https://example.com/path"), "https://example.com/path")
         self.assertEqual(normalize_public_url("http://127.0.0.1/admin"), "")
@@ -67,8 +108,8 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         }]
         fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Milano"
         rows = collect_task_sources(
-            "Ricerca clienti — abbigliamento Italia — lotto 001",
-            "Trova negozi indipendenti in tutta Italia",
+            "Ricerca clienti — Italia — lotto 001",
+            "Trova negozi di abbigliamento indipendenti in tutta Italia per siti web",
             max_results=24,
         )
         self.assertTrue(any(row.get("record_verified") for row in rows))

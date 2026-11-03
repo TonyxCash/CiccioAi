@@ -25,8 +25,18 @@ Per una distribuzione Streamlit Community Cloud, seleziona questo repository e i
 3. Agente con strumenti limitati, log delle azioni e conferma per operazioni sensibili.
 4. Automazioni programmate con limiti di costo e monitoraggio.
 
-## Ricerca clienti — abbigliamento in tutta Italia
+## Ricerca clienti — tutta Italia
 
-Il runner autonomo è orientato alla ricerca di negozi indipendenti di abbigliamento in tutte le regioni italiane, per proporre siti web professionali. Cerca attività reali, verifica le pagine e lo stato del sito, salva fonti e recapiti commerciali pubblici e prepara mini-audit. Non deve chiedere ogni volta una zona o cambiare progetto senza parlarne con l'utente.
+Il runner cerca negozi indipendenti di abbigliamento e boutique, ristoranti e pizzerie in tutte le regioni italiane. Ruota comuni e settori, raccoglie schede e recapiti commerciali pubblici, individua il sito indicato dall'attività e ne verifica direttamente la pagina prima di descriverlo come sito ufficiale.
 
-**Limiti operativi:** la ricerca usa motori web gratuiti e può essere incompleta o temporaneamente bloccata. Ciccio non invia messaggi, non fa outreach automatico, non apre account, non paga servizi e non dichiara clienti o ricavi senza conferme verificabili. I contatti e i messaggi restano bozze fino a un'autorizzazione esplicita e a un'integrazione appropriata.
+### Google Places (facoltativo)
+
+Per abilitare la ricerca strutturata su Google Maps:
+1. Crea un progetto in Google Cloud Console.
+2. Abilita Places API (New) e configura la fatturazione e le quote.
+3. Crea una API key con restrizioni appropriate.
+4. Aggiungi la chiave nei GitHub Actions secrets con il nome `GOOGLE_MAPS_API_KEY`.
+
+Senza la chiave, Ciccio continua a usare motori di ricerca web e OpenStreetMap. Google Places viene interrogato per un settore e un gruppo di comuni per ciclo, con rotazione dei settori (abbigliamento, ristoranti, pizzerie) per contenere le richieste. Google Places può comportare costi in base al piano, ai campi richiesti e all'utilizzo: controllare prezzi e quote in Google Cloud prima di abilitarlo.
+
+**Limiti operativi:** una scheda Google o OSM è un candidato da verificare, non prova da sola che l'attività sia ancora aperta o interessata a un sito. L'assenza di un sito nei risultati non prova che l'attività ne sia priva. Ciccio non invia messaggi né contatta automaticamente i negozi: prepara lead, prove, mini-audit e bozze per la revisione dell'utente.
