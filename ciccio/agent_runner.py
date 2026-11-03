@@ -639,9 +639,10 @@ def collect_google_places(title, *, limit=12, timeout=10):
         "ristorante indipendente",
         "pizzeria indipendente",
     )
+    # One sector per batch keeps API usage bounded; all three sectors rotate.
+    category = categories[(batch - 1) % len(categories)]
     results = []
     for city in cities:
-        for category in categories:
             body = json.dumps({"textQuery": category + " a " + city + ", Italia", "pageSize": 5, "languageCode": "it"}).encode("utf-8")
             request = urllib.request.Request(
                 "https://places.googleapis.com/v1/places:searchText",
