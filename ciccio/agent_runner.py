@@ -585,7 +585,7 @@ def parse_google_places_response(payload, city, *, limit=12):
     rows, seen = [], set()
     for place in payload["places"]:
         display = place.get("displayName") or {}
-        name = re.sub(r"\\s+", " ", str(display.get("text", "")).strip())
+        name = re.sub(r"\s+", " ", str(display.get("text", "")).strip())
         address = re.sub(r"\\s+", " ", str(place.get("formattedAddress", "")).strip())
         if not name or name.casefold() in seen or CHAIN_NAME_PATTERN.match(name):
             continue
@@ -631,7 +631,7 @@ def collect_google_places(title, *, limit=12, timeout=10):
     if not api_key:
         print("Google Places non configurato: manca GOOGLE_MAPS_API_KEY; uso fonti pubbliche alternative.")
         return []
-    match = re.search(r"lotto\\s+(\\d+)", str(title or ""), re.I)
+    match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
     cities = OSM_CITY_GROUPS[(batch - 1) % len(OSM_CITY_GROUPS)]
     categories = (
@@ -979,7 +979,7 @@ Sei Ciccio, socio operativo dell'utente. Parla e ragiona in italiano naturale, s
 
 OBIETTIVO STABILE: trovare clienti reali in tutta Italia per siti web professionali. Cerca negozi indipendenti di abbigliamento e boutique, ristoranti e pizzerie in tutte le regioni. Non limitarti alla Campania e non chiedere ogni volta la zona. Non chiedere ogni volta settore, zona o cosa fare: sono già definiti. Non cambiare progetto né avviare idee alternative senza parlarne con l'utente.
 
-PRIORITÀ: trovare attività reali in comuni di tutta Italia, verificarne la scheda e il sito ufficiale, individuare solo bisogni o difetti documentabili, preparare mini-audit, demo e proposte. Usa strumenti gratuiti. Distingui sempre fatti verificati, candidati da approfondire e ipotesi. La mancanza di un risultato di ricerca non prova che il negozio sia senza sito.
+PRIORITÀ: trovare attività reali in comuni di tutta Italia, verificarne la scheda e il sito ufficiale, individuare solo bisogni o difetti documentabili, preparare mini-audit, demo e proposte. Usa fonti pubbliche gratuite; usa Google Places solo se l'utente ha configurato GOOGLE_MAPS_API_KEY e accettato eventuali costi. Distingui sempre fatti verificati, candidati da approfondire e ipotesi. La mancanza di un risultato di ricerca non prova che il negozio sia senza sito.
 
 SICUREZZA: puoi cercare, analizzare, creare bozze e salvare deliverable. Non contattare negozi, non pubblicare siti, non spendere denaro e non assumere impegni senza approvazione. Non inventare clienti, recapiti, fonti, ricavi o verifiche. Non chiedere password, codici o chiavi private.
 
@@ -1480,8 +1480,28 @@ def main():
             if task.get("status") not in {"Completata", "Bloccata"}
         ]
 
-        # Pause repeated failures; if free web search returned no URLs, pause after the first
-        # blocked cycle so Ciccio can continue with a different useful task instead of looping.
+        # Convert any still-open legacy Campania-only research task to the agreed nationwide brief.
+        for task in tasks:
+            if "abbigliamento campania" in str(task.get("title", "")).casefold():
+                match = re.search(r"lotto\s+(\d+)", str(task.get("title", "")), re.I)
+                lot = int(match.group(1)) if match else 1
+                new_title = f"Ricerca clienti — Italia — lotto {lot:03d}"
+                new_notes = (
+                    "Trova attività indipendenti in tutta Italia: negozi di abbigliamento e boutique, "
+                    "ristoranti e pizzerie. Ruota regioni e comuni. Verifica scheda, sito ufficiale e "
+                    "recapiti pubblici. Non inventare dati e non contattare nessuno."
+                )
+                updated = db.table("ciccio_tasks").update({
+                    "title": new_title,
+                    "notes": new_notes,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", task["id"]).eq("user_id", user_id).execute()
+                if not updated.data:
+                    raise RuntimeError("Migrazione dell'attività Campania a ricerca nazionale non confermata.")
+                task["title"] = new_title
+                task["notes"] = new_notes
+
+        # Pause repeated failures only after repeated attempts; never send empty-result emails.
         active_tasks = []
         for task in tasks:
             attempts = failed_task_attempts(task, previous)
