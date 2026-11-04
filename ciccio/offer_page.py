@@ -14,7 +14,7 @@ def build_offer_page(output_dir="ciccio_output"):
 
     configured_email = os.getenv("CICCIO_CONTACT_EMAIL", "").strip()
     contact_email = configured_email if re.fullmatch(
-        r"[^\s@]+@[^\s@]+\.[^\s@]+", configured_email
+        r"[^\s@]+@[^\s@]+\.[A-Za-z]{2,}", configured_email
     ) else DEFAULT_CONTACT_EMAIL
 
     email_href = escape(contact_email, quote=True)
