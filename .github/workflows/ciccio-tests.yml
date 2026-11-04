@@ -8,6 +8,7 @@ on:
       - ".github/workflows/ciccio-agent.yml"
       - ".github/workflows/ciccio-self-repair.yml"
       - ".github/workflows/ciccio-failure-diagnosis.yml"
+      - ".github/workflows/ciccio-offer-page.yml"
   push:
     branches: [main]
     paths:

@@ -169,6 +169,16 @@ class SupabaseReadRetryTests(unittest.TestCase):
         self.assertEqual(query.execute.call_count, 1)
         sleep.assert_not_called()
 
+    def test_rate_limited_database_read_does_not_call_ai_fallback(self):
+        query = Mock()
+        error = RuntimeError("database rate limited")
+        error.status_code = 429
+        query.execute.side_effect = error
+        with patch("agent_runner.openrouter_completion_fallback") as fallback:
+            with self.assertRaisesRegex(RuntimeError, "database rate limited"):
+                execute_read_with_retry(query, attempts=1)
+        fallback.assert_not_called()
+
 
 
 class FailureLoggingTests(unittest.TestCase):
@@ -420,6 +430,37 @@ class MarketResearchGuardrailTests(unittest.TestCase):
         self.assertEqual([item["url"] for item in sources], [
             "https://example.com/a", "https://example.com/b"
         ])
+
+
+class GroqFallbackTests(unittest.TestCase):
+    def test_transient_groq_failure_uses_configured_fallback_once(self):
+        groq = Mock()
+        groq.chat.completions.create.side_effect = [
+            ConnectionError("temporary"),
+            ConnectionError("temporary"),
+        ]
+        fallback_response = object()
+        with patch("agent_runner.time.sleep"), patch(
+            "agent_runner.openrouter_completion_fallback",
+            return_value=fallback_response,
+        ) as fallback:
+            result = groq_completion_with_retry(
+                groq, attempts=2, model="test", messages=[{"role": "user", "content": "test"}]
+            )
+        self.assertIs(result, fallback_response)
+        fallback.assert_called_once()
+
+
+class CycleOutcomeTests(unittest.TestCase):
+    def test_blocked_cycle_returns_nonzero_exit(self):
+        from agent_runner import require_completed_cycle
+        with self.assertRaises(SystemExit) as raised:
+            require_completed_cycle("blocked")
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_completed_cycle_keeps_success_exit(self):
+        from agent_runner import require_completed_cycle
+        self.assertIsNone(require_completed_cycle("completed"))
 
 
 class EmailNotificationTests(unittest.TestCase):

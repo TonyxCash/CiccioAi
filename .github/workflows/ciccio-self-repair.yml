@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows:
       - Ciccio tests
-      - Ciccio autonomous agent cycle
     types: [completed]
     branches: [main]
 

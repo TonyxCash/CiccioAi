@@ -7,56 +7,42 @@ from offer_page import build_offer_page
 
 
 class OfferPageTests(unittest.TestCase):
-    def test_builds_clean_public_page_without_faking_checkout(self):
+    def test_builds_website_service_page_with_safe_default_contact(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
             with patch.dict("os.environ", {}, clear=True):
-                result = build_offer_page(root)
-            self.assertTrue(result["created"])
-            page = (root / "offer-page.html").read_text(encoding="utf-8")
-            self.assertIn("5 annunci ottimizzati per la vendita online", page)
-            self.assertIn("Pacchetto pilota · 5 annunci · 15 €", page)
-            self.assertIn("mailto:ciccio.servizi@proton.me", page)
-            self.assertNotIn("Contatto non ancora configurato", page)
-            self.assertNotIn("example.org/pay", page)
-            self.assertNotIn("Acquista", page)
+                result = build_offer_page(tmp)
+            page = (Path(tmp) / "offer-page.html").read_text(encoding="utf-8")
+        self.assertTrue(result["created"])
+        self.assertEqual(result["contact_email"], "ciccio.servizi@proton.me")
+        self.assertIn("Siti web per piccole attività", page)
+        self.assertIn("negozi indipendenti, boutique, ristoranti e pizzerie", page)
+        self.assertIn("mailto:ciccio.servizi@proton.me", page)
+        self.assertNotIn("5 annunci", page)
+        self.assertNotIn("15 €", page)
+        self.assertNotIn("paypal.com", page)
 
-    def test_adds_contact_and_payment_actions_only_for_valid_values(self):
+    def test_invalid_contact_secret_falls_back_to_valid_public_address(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "kit-di-lancio-offerta.md").write_text("# Offerta\n\nDettagli.", encoding="utf-8")
-            env = {
-                "CICCIO_CONTACT_EMAIL": "hello@example.org",
-                "CICCIO_PAYMENT_URL": "https://checkout.example.org/pay",
-            }
-            with patch.dict("os.environ", env, clear=True):
-                result = build_offer_page(root)
-            self.assertTrue(result["created"])
-            page = (root / "offer-page.html").read_text(encoding="utf-8")
-            self.assertIn("mailto:hello@example.org", page)
-            self.assertIn('href="https://checkout.example.org/pay"', page)
-            self.assertIn("Vai al pagamento", page)
+            with patch.dict("os.environ", {"CICCIO_CONTACT_EMAIL": "ciccio.servizi@proton.m"}, clear=True):
+                result = build_offer_page(tmp)
+            page = (Path(tmp) / "offer-page.html").read_text(encoding="utf-8")
+        self.assertEqual(result["contact_email"], "ciccio.servizi@proton.me")
+        self.assertIn("mailto:ciccio.servizi@proton.me", page)
+        self.assertEqual(page.count("ciccio.servizi@proton.me"), 4)
 
-    def test_ignores_invalid_payment_url_and_contact_email(self):
+    def test_uses_valid_custom_contact_email(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "kit-di-lancio-offerta.md").write_text("# Offerta\n\nDettagli.", encoding="utf-8")
-            env = {
-                "CICCIO_CONTACT_EMAIL": "not-an-email",
-                "CICCIO_PAYMENT_URL": "javascript:alert(1)",
-            }
-            with patch.dict("os.environ", env, clear=True):
-                build_offer_page(root)
-            page = (root / "offer-page.html").read_text(encoding="utf-8")
-            self.assertNotIn("mailto:", page)
-            self.assertNotIn("javascript:", page)
-            self.assertIn("Contatto non ancora configurato", page)
+            with patch.dict("os.environ", {"CICCIO_CONTACT_EMAIL": "hello@example.org"}, clear=True):
+                result = build_offer_page(tmp)
+            page = (Path(tmp) / "offer-page.html").read_text(encoding="utf-8")
+        self.assertEqual(result["contact_email"], "hello@example.org")
+        self.assertIn("mailto:hello@example.org", page)
 
-    def test_creates_default_page_without_launch_kit(self):
+    def test_page_is_created_with_sufficient_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = build_offer_page(tmp)
-            self.assertTrue(result["created"])
-            self.assertTrue((Path(tmp) / "offer-page.html").is_file())
+            self.assertTrue(Path(result["path"]).is_file())
+            self.assertGreater(result["bytes"], 1000)
 
 
 if __name__ == "__main__":
