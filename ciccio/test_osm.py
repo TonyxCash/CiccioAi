@@ -22,13 +22,13 @@ class OpenStreetMapLeadTests(unittest.TestCase):
                 "email": "info@aurora.example"
             }},
             {"type": "node", "id": 102, "tags": {
-                "name": "Boutique Aurora", "shop": "clothes", "addr:city": "Milano"
+                "name": "Boutique Aurora", "shop": "clothes", "addr:city": "Napoli"
             }},
             {"type": "way", "id": 103, "tags": {
                 "name": "Zara", "shop": "clothes", "addr:city": "Caserta"
             }},
             {"type": "node", "id": 104, "tags": {
-                "name": "Atelier Stella", "shop": "boutique", "addr:city": "Roma"
+                "name": "Atelier Stella", "shop": "boutique", "addr:city": "Caserta"
             }},
         ]}
         rows = parse_osm_clothing_stores(payload, ["Napoli", "Caserta"], limit=10)
@@ -66,6 +66,24 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertIn("ristoranti", joined)
         self.assertIn("pizzerie", joined)
 
+
+
+    @patch("agent_runner.collect_osm_clothing_stores", return_value=[])
+    @patch("agent_runner.collect_google_places", return_value=[])
+    @patch("agent_runner.fetch_public_page_text", return_value="Boutique abbigliamento Arlington Texas")
+    @patch("agent_runner.search_web")
+    def test_rejects_business_results_outside_campania(self, search, fetch_page, google, osm):
+        search.return_value = [{
+            "title": "Boutique abbigliamento Arlington",
+            "url": "https://boutique.example",
+            "snippet": "Clothing boutique in Arlington, Texas",
+        }]
+        rows = collect_task_sources(
+            "Ricerca clienti — Campania — lotto 001",
+            "Trova boutique indipendenti in Campania per siti web",
+            max_results=24,
+        )
+        self.assertFalse(any("boutique.example" in row.get("url", "") for row in rows))
 
     def test_extracts_only_public_email_and_italian_phone(self):
         contacts = extract_public_contacts(
