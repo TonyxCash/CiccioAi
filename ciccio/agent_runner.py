@@ -834,7 +834,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             else:
                 try:
                     candidates = search_web(
-                        '"' + name + '" "' + city + '" ' + sector_label + ' sito ufficiale contatti',
+                        '"' + name + '" "' + city + '" ' + str(store.get("sector") or "attività commerciale") + ' sito ufficiale contatti',
                         max_results=3,
                         timeout=6,
                     )
@@ -870,8 +870,7 @@ def collect_task_sources(title, notes, *, max_results=20):
                 })
                 seen.add(site_url)
                 break
-        # Continue with web search too: OSM only covers clothing shops, while this task
-        # also needs restaurants and pizzerias.
+        # Continue with web search too to supplement the local OpenStreetMap records.
     for query in task_search_queries(title, notes):
         try:
             found = search_web(
