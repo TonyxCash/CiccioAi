@@ -569,13 +569,18 @@ def collect_osm_clothing_stores(title, *, limit=24, timeout=18):
     seen = set()
     for city in city_group:
         city_pattern = re.escape(city)
+        if tag_key == "shop":
+            category_filter = 'nwr["shop"~"^(' + tag_value + ')$"](area.city);'
+        elif sector_label == "ristoranti":
+            category_filter = 'nwr["amenity"="restaurant"](area.city);'
+        else:
+            category_filter = 'nwr["amenity"="fast_food"]["cuisine"~"pizza"](area.city);'
         query = (
             '[out:json][timeout:25];'
             'area["ISO3166-1"="IT"]["admin_level"="2"]->.italy;'
             'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
             '["name"~"^' + city_pattern + '$"](area.italy)->.city;'
-            '(nwr["' + tag_key + '"~"^(' + tag_value + ')$"](area.city);'
-            'nwr["cuisine"~"pizza"](area.city););'
+            '(' + category_filter + ');'
             'out center tags 200;'
         )
         city_rows = []
