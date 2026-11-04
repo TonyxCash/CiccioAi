@@ -1,8 +1,11 @@
+import os
 import unittest
 from unittest.mock import patch
 
 from agent_runner import (
     collect_task_sources,
+    collect_google_places,
+    extract_public_contacts,
     normalize_public_url,
     parse_osm_clothing_stores,
     parse_google_places_response,
@@ -15,22 +18,22 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         payload = {"elements": [
             {"type": "node", "id": 101, "tags": {
                 "name": "Boutique Aurora", "shop": "clothes",
-                "addr:city": "Milano", "addr:street": "Via Roma",
+                "addr:city": "Napoli", "addr:street": "Via Roma",
                 "website": "https://aurora.example",
                 "phone": "+39 02 1234567",
                 "email": "info@aurora.example"
             }},
             {"type": "node", "id": 102, "tags": {
-                "name": "Boutique Aurora", "shop": "clothes", "addr:city": "Milano"
+                "name": "Boutique Aurora", "shop": "clothes", "addr:city": "Napoli"
             }},
             {"type": "way", "id": 103, "tags": {
-                "name": "Zara", "shop": "clothes", "addr:city": "Roma"
+                "name": "Zara", "shop": "clothes", "addr:city": "Caserta"
             }},
             {"type": "node", "id": 104, "tags": {
-                "name": "Atelier Stella", "shop": "boutique", "addr:city": "Roma"
+                "name": "Atelier Stella", "shop": "boutique", "addr:city": "Caserta"
             }},
         ]}
-        rows = parse_osm_clothing_stores(payload, ["Milano", "Roma"], limit=10)
+        rows = parse_osm_clothing_stores(payload, ["Napoli", "Caserta"], limit=10)
         self.assertEqual(len(rows), 2)
         self.assertEqual(
             {row["business_name"] for row in rows},
@@ -52,17 +55,54 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["city"], "Giugliano in Campania")
 
-    def test_search_queries_cover_all_italy_and_all_business_sectors(self):
+    def test_search_queries_are_limited_to_campania_and_cover_all_business_sectors(self):
         queries = task_search_queries(
-            "Ricerca clienti — Italia — lotto 001",
-            "Trova negozi di abbigliamento, ristoranti e pizzerie indipendenti per proporre siti web",
+            "Ricerca clienti — Campania — lotto 001",
+            "Trova negozi di abbigliamento, ristoranti e pizzerie indipendenti in Campania per proporre siti web",
         )
         joined = " ".join(queries).casefold()
-        self.assertIn("milano", joined)
-        self.assertIn("roma", joined)
+        self.assertIn("giugliano", joined)
+        self.assertNotIn("milano", joined)
+        self.assertIn("caserta", joined)
         self.assertIn("napoli", joined)
         self.assertIn("ristoranti", joined)
         self.assertIn("pizzerie", joined)
+
+
+
+    @patch("agent_runner.collect_osm_clothing_stores", return_value=[])
+    @patch("agent_runner.collect_google_places", return_value=[])
+    @patch("agent_runner.fetch_public_page_text", return_value="Boutique abbigliamento Arlington Texas")
+    @patch("agent_runner.search_web")
+    def test_rejects_business_results_outside_campania(self, search, fetch_page, google, osm):
+        search.return_value = [{
+            "title": "Boutique abbigliamento Arlington",
+            "url": "https://boutique.example",
+            "snippet": "Clothing boutique in Arlington, Texas",
+        }]
+        rows = collect_task_sources(
+            "Ricerca clienti — Campania — lotto 001",
+            "Trova boutique indipendenti in Campania per siti web",
+            max_results=24,
+        )
+        self.assertFalse(any("boutique.example" in row.get("url", "") for row in rows))
+
+    def test_extracts_only_public_email_and_italian_phone(self):
+        contacts = extract_public_contacts(
+            "Contatti: info@atelier.example - Tel. 081 1234567"
+        )
+        self.assertEqual(contacts["email"], "info@atelier.example")
+        self.assertEqual(contacts["phone"], "081 1234567")
+
+    def test_ignores_non_italian_phone_patterns(self):
+        contacts = extract_public_contacts("Call 555-123-4567 or visit our store")
+        self.assertEqual(contacts, {"phone": "", "email": ""})
+
+
+    def test_google_places_requires_explicit_zero_cost_opt_in(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test-key"}, clear=True):
+            self.assertEqual(collect_google_places("negozio abbigliamento Napoli"), [])
 
     def test_parses_google_places_business_data(self):
         rows = parse_google_places_response({
@@ -93,27 +133,27 @@ class OpenStreetMapLeadTests(unittest.TestCase):
     @patch("agent_runner.fetch_public_page_text")
     def test_verifies_exact_name_before_adding_official_website(self, fetch_page, search, osm):
         osm.return_value = [{
-            "title": "Atelier Aurora — Milano",
+            "title": "Atelier Aurora — Napoli",
             "url": "https://www.openstreetmap.org/node/101",
-            "query": "OpenStreetMap Italia — Milano",
-            "snippet": "Atelier Aurora; Città: Milano",
+            "query": "OpenStreetMap Campania — Napoli",
+            "snippet": "Atelier Aurora; Città: Napoli",
             "page_verified": False,
             "record_verified": True,
             "source_type": "openstreetmap_record",
             "business_name": "Atelier Aurora",
-            "city": "Milano",
+            "city": "Napoli",
             "website_tag": "",
-            "page_excerpt": "Atelier Aurora; Città: Milano",
+            "page_excerpt": "Atelier Aurora; Città: Napoli",
         }]
         search.return_value = [{
             "title": "Atelier Aurora",
             "url": "https://aurora.example",
             "snippet": "",
         }]
-        fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Milano"
+        fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Napoli"
         rows = collect_task_sources(
-            "Ricerca clienti — Italia — lotto 001",
-            "Trova negozi di abbigliamento indipendenti in tutta Italia per siti web",
+            "Ricerca clienti — Campania — lotto 001",
+            "Trova negozi di abbigliamento indipendenti in Campania per siti web",
             max_results=24,
         )
         self.assertTrue(any(row.get("record_verified") for row in rows))
