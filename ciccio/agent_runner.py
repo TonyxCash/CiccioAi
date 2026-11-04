@@ -358,10 +358,11 @@ def task_search_queries(title, notes):
     combined = (str(title or "") + " " + str(notes or "")).casefold()
     clothing = any(token in combined for token in ("abbigliamento", "boutique", "negozi di abbigliamento", "negozi indipendenti"))
     website_clients = any(token in combined for token in ("siti web", "realizzazione siti", "potenziali clienti"))
+    website_service = any(token in combined for token in ("siti web", "realizzazione siti", "sito web"))
     local_business_task = any(token in combined for token in (
-        "ricerca clienti", "ristoranti", "pizzerie", "negozi", "attività commerciali",
+        "ristoranti", "pizzerie", "negozi", "attività commerciali",
     ))
-    if local_business_task and (clothing or website_clients or "ricerca clienti" in combined):
+    if (clothing or website_service) and ("ricerca clienti" in combined or local_business_task):
         return [
             'negozi abbigliamento indipendenti Napoli sito ufficiale telefono contatti',
             'boutique indipendenti Giugliano in Campania Pozzuoli sito web telefono',
