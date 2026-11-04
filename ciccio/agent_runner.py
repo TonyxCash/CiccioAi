@@ -584,6 +584,10 @@ def collect_osm_clothing_stores(title, *, limit=24, timeout=8):
                 with urllib.request.urlopen(request, timeout=timeout) as response:
                     payload = json.loads(response.read(8_000_000).decode("utf-8", "replace"))
                 city_rows = parse_osm_clothing_stores(payload, [city], limit=per_city_limit)
+                for row in city_rows:
+                    row["sector"] = sector_label
+                    row["snippet"] = ("Settore: " + sector_label + "; " + str(row.get("snippet", "")))[:500]
+                    row["page_excerpt"] = ("Settore: " + sector_label + "; " + str(row.get("page_excerpt", "")))[:1800]
                 if city_rows:
                     break
             except Exception as exc:
@@ -829,7 +833,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             else:
                 try:
                     candidates = search_web(
-                        '"' + name + '" "' + city + '" abbigliamento sito ufficiale',
+                        '"' + name + '" "' + city + '" ' + sector_label + ' sito ufficiale contatti',
                         max_results=3,
                         timeout=6,
                     )
