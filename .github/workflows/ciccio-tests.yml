@@ -15,6 +15,9 @@ on:
       - "ciccio/**"
       - ".github/workflows/ciccio-tests.yml"
       - ".github/workflows/ciccio-agent.yml"
+      - ".github/workflows/ciccio-self-repair.yml"
+      - ".github/workflows/ciccio-failure-diagnosis.yml"
+      - ".github/workflows/ciccio-offer-page.yml"
   workflow_dispatch:
 
 permissions:
