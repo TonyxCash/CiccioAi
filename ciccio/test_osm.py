@@ -1,8 +1,10 @@
+import os
 import unittest
 from unittest.mock import patch
 
 from agent_runner import (
     collect_task_sources,
+    collect_google_places,
     extract_public_contacts,
     normalize_public_url,
     parse_osm_clothing_stores,
@@ -95,6 +97,12 @@ class OpenStreetMapLeadTests(unittest.TestCase):
     def test_ignores_non_italian_phone_patterns(self):
         contacts = extract_public_contacts("Call 555-123-4567 or visit our store")
         self.assertEqual(contacts, {"phone": "", "email": ""})
+
+
+    def test_google_places_requires_explicit_zero_cost_opt_in(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test-key"}, clear=True):
+            self.assertEqual(collect_google_places("negozio abbigliamento Napoli"), [])
 
     def test_parses_google_places_business_data(self):
         rows = parse_google_places_response({
