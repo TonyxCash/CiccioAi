@@ -90,6 +90,12 @@ def groq_completion_with_retry(groq, *, attempts=3, **kwargs):
         raise last_error
 
 
+def require_completed_cycle(status):
+    """Make GitHub Actions reflect the business outcome, not only Python process health."""
+    if status != "completed":
+        raise SystemExit(2)
+
+
 def notify_email(subject, message):
     """Send Ciccio's cycle summary by email when SMTP secrets are configured."""
     import re
@@ -1641,7 +1647,7 @@ def main():
                           "result": row["result"]}, ensure_ascii=False, indent=2))
         if row["status"] != "completed":
             print("Ciclo registrato ma non completato: GitHub Actions deve segnalarlo come errore operativo.")
-            raise SystemExit(2)
+            require_completed_cycle(row["status"])
     except Exception as exc:
         print("Ciclo Ciccio fallito nella fase '" + stage + "': "
               + (type(exc).__name__ + ": " + str(exc))[:1200])
