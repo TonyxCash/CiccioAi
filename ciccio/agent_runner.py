@@ -651,10 +651,14 @@ def parse_google_places_response(payload, city, *, limit=12):
 
 
 def collect_google_places(title, *, limit=12, timeout=10):
-    """Query the official Google Places API when the user has configured an API key."""
+    """Use Google Places only after explicit opt-in; default operation stays zero-cost."""
+    enabled = os.getenv("ENABLE_GOOGLE_PLACES", "").strip().casefold() in {"1", "true", "yes"}
+    if not enabled:
+        print("Google Places disattivato: Ciccio resta in modalità a costo zero e usa fonti pubbliche.")
+        return []
     api_key = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
     if not api_key:
-        print("Google Places non configurato: manca GOOGLE_MAPS_API_KEY; uso fonti pubbliche alternative.")
+        print("Google Places abilitato ma manca GOOGLE_MAPS_API_KEY; continuo con fonti pubbliche gratuite.")
         return []
     match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
