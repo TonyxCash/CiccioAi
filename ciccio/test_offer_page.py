@@ -28,7 +28,7 @@ class OfferPageTests(unittest.TestCase):
             page = (Path(tmp) / "offer-page.html").read_text(encoding="utf-8")
         self.assertEqual(result["contact_email"], "ciccio.servizi@proton.me")
         self.assertIn("mailto:ciccio.servizi@proton.me", page)
-        self.assertEqual(page.count("ciccio.servizi@proton.me"), 3)
+        self.assertEqual(page.count("ciccio.servizi@proton.me"), 4)
 
     def test_uses_valid_custom_contact_email(self):
         with tempfile.TemporaryDirectory() as tmp:
