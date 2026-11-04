@@ -1,119 +1,102 @@
-"""Build a clean, public-facing Ciccio offer page (not the internal launch-kit notes)."""
+"""Build Ciccio's public website-design service page."""
 from html import escape
 from pathlib import Path
 import os
 import re
-from urllib.parse import urlparse
+
+
+DEFAULT_CONTACT_EMAIL = "ciccio.servizi@proton.me"
 
 
 def build_offer_page(output_dir="ciccio_output"):
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
 
-    # The public information page is safe to publish without a launch-kit draft.
-    # Draft files are internal work products and must not gate public-page deployment.
-    source = None
+    configured_email = os.getenv("CICCIO_CONTACT_EMAIL", "").strip()
+    contact_email = configured_email if re.fullmatch(
+        r"[^\s@]+@[^\s@]+\.[^\s@]+", configured_email
+    ) else DEFAULT_CONTACT_EMAIL
 
-    # Public contact address approved for the offer page; environment secret may override it.
-    contact_email = os.getenv("CICCIO_CONTACT_EMAIL", "ciccio.servizi@proton.me").strip()
-    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", contact_email):
-        contact_email = ""
-
-    payment_url = os.getenv("CICCIO_PAYMENT_URL", "https://www.paypal.com/ncp/payment/XEKWURGB47CZW").strip()
-    parsed = urlparse(payment_url)
-    if parsed.scheme != "https" or not parsed.netloc:
-        payment_url = ""
-
-    if contact_email:
-        contact = (
-            '<a class="button" href="mailto:' + escape(contact_email, quote=True)
-            + '?subject=Richiesta%20pacchetto%20cinque%20annunci">Richiedi informazioni sul servizio</a>'
-        )
-    else:
-        contact = (
-            '<p class="notice">Contatto non ancora configurato: questa pagina è online, '
-            'ma non può ancora ricevere richieste. Il titolare deve configurare un indirizzo email pubblico.</p>'
-        )
-
-    payment = (
-        '<p><a class="button secondary" href="' + escape(payment_url, quote=True)
-        + '" rel="nofollow noopener">Vai al pagamento</a></p>'
-        if payment_url else ""
-    )
-
-    # Public offer: five optimized listings for €15; keep copy aligned with tests.
+    email_href = escape(contact_email, quote=True)
     page = """<!doctype html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Cinque annunci di prodotti riscritti per presentare meglio i tuoi articoli e venderli online.">
-<title>5 annunci ottimizzati per la vendita online | Ciccio</title>
+<meta name="description" content="Siti web professionali, moderni e accessibili da smartphone per negozi, ristoranti e piccole attività.">
+<meta name="theme-color" content="#101827">
+<title>Siti web per piccole attività | Ciccio</title>
 <style>
-:root{color-scheme:light;--ink:#172033;--blue:#2857d5;--muted:#5d687d;--paper:#f4f7fc}
+:root{color-scheme:light;--ink:#172033;--muted:#647087;--blue:#315ee8;--paper:#f4f6fb;--line:#e7ebf3}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:900px;margin:auto;padding:24px 16px 56px}
-.hero{padding:clamp(28px,6vw,56px);border-radius:26px;background:linear-gradient(135deg,#172033,#263f78);color:#fff}
-.eyebrow{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;font-weight:750;color:#bcd0ff}
-h1{font-size:clamp(2rem,7vw,3.6rem);line-height:1.08;letter-spacing:-.03em;margin:14px 0}
-.hero p{max-width:650px;color:#e1e8fa;font-size:1.08rem}
-.pill{display:inline-block;border:1px solid #9db7ff;border-radius:999px;padding:5px 12px;font-size:.9rem;margin-top:12px}
-section{background:#fff;margin-top:18px;padding:clamp(22px,5vw,36px);border-radius:20px;box-shadow:0 8px 30px #1720330b}
-h2{line-height:1.2;margin:0 0 16px;font-size:1.5rem}
-ul{padding-left:22px}li{margin:8px 0}
+main{max-width:1040px;margin:auto;padding:26px 18px 64px}
+.hero{padding:clamp(30px,7vw,76px);border-radius:28px;background:linear-gradient(135deg,#101827,#243f79);color:#fff}
+.eyebrow{color:#b9cbff;text-transform:uppercase;letter-spacing:.13em;font-size:.78rem;font-weight:750}
+h1{font-size:clamp(2.3rem,7vw,4.5rem);line-height:1.05;letter-spacing:-.045em;max-width:780px;margin:18px 0}
+.hero p{max-width:700px;color:#e0e8fa;font-size:1.12rem}
+.button{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;font-weight:750;padding:14px 20px;border-radius:12px;margin-top:12px}
+section{background:#fff;margin-top:18px;padding:clamp(22px,5vw,38px);border:1px solid var(--line);border-radius:22px}
+h2{font-size:1.65rem;line-height:1.2;margin:0 0 12px}
+.intro{color:var(--muted);max-width:760px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:20px}
+.item{background:#f6f8fc;border:1px solid var(--line);padding:18px;border-radius:16px}
+.item h3{margin:0 0 6px;font-size:1.05rem}
+.item p{margin:0;color:var(--muted);font-size:.95rem}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
-.step{background:#f3f6fd;border-radius:14px;padding:16px}
-.button{display:inline-block;background:var(--blue);color:white;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:12px;margin-top:8px}
-.button.secondary{background:#e8eefc;color:#2449a9}
-.notice{background:#fff4d8;border:1px solid #efd48a;border-radius:12px;padding:14px}
-.small{font-size:.9rem;color:var(--muted)}
-footer{font-size:.85rem;color:var(--muted);padding:20px 4px}
+.step{padding:18px;border-left:3px solid #9eb5ff;background:#f7f8fc;border-radius:10px}
+.step p{margin:6px 0 0;color:var(--muted)}
+.note{font-size:.9rem;color:var(--muted)}
+footer{padding:24px 4px;color:var(--muted);font-size:.88rem}
 </style>
 </head>
 <body><main>
 <header class="hero">
-<div class="eyebrow">Ciccio · Supporto digitale per piccole attività</div>
-<h1>5 annunci più chiari, pronti per la vendita online</h1>
-<p>Invia le informazioni reali dei tuoi prodotti e ricevi cinque annunci con titoli più efficaci, descrizioni ordinate e parole chiave pertinenti. Pensato per chi vende abbigliamento e altri prodotti online.</p>
-<span class="pill">Pacchetto pilota · 5 annunci · 15 €</span>
+<div class="eyebrow">Ciccio · Soluzioni digitali per attività locali</div>
+<h1>Il tuo sito web, fatto per presentare meglio la tua attività.</h1>
+<p>Realizziamo siti web moderni e ottimizzati per smartphone per negozi indipendenti, boutique, ristoranti e pizzerie. Una presenza online chiara, con le informazioni che i tuoi clienti cercano.</p>
+<a class="button" href="mailto:__EMAIL__?subject=Richiesta%20informazioni%20sito%20web">Parliamo del tuo sito</a>
 </header>
 <section>
-<h2>Cosa ricevi per 15 €</h2>
-<ul>
-<li>5 titoli chiari e pertinenti per i tuoi prodotti.</li>
-<li>5 descrizioni riscritte usando solo le informazioni e le caratteristiche che ci fornisci.</li>
-<li>Parole chiave pertinenti per aiutare gli acquirenti a trovare gli annunci.</li>
-</ul>
-<p class="small">Non sono garantite vendite o risultati specifici. Non inventiamo materiali, taglie, condizioni o caratteristiche: il lavoro si basa sui dati e sulle foto forniti dal cliente.</p>
-</section>
-<section>
-<h2>Come funziona</h2>
-<div class="steps">
-<div class="step"><strong>1. Invia i dettagli</strong><p>Condividi foto e informazioni dei cinque prodotti.</p></div>
-<div class="step"><strong>2. Prepariamo gli annunci</strong><p>Organizziamo titoli, descrizioni e parole chiave senza aggiungere dettagli inventati.</p></div>
-<div class="step"><strong>3. Ricevi il testo pronto</strong><p>Ricevi i cinque annunci da copiare e pubblicare sulla piattaforma che preferisci.</p></div>
+<h2>Cosa possiamo realizzare</h2>
+<p class="intro">Partiamo dalle esigenze concrete della tua attività e definiamo insieme struttura, contenuti e funzionalità. Il progetto e il relativo preventivo vengono concordati prima di iniziare.</p>
+<div class="grid">
+<article class="item"><h3>Sito vetrina</h3><p>Presentazione dell'attività, servizi, orari, posizione e contatti.</p></article>
+<article class="item"><h3>Negozio e boutique</h3><p>Catalogo dei prodotti, categorie, immagini e collegamenti per chiedere informazioni.</p></article>
+<article class="item"><h3>Ristoranti e pizzerie</h3><p>Menu, galleria, orari, mappa e richieste di prenotazione o contatto.</p></article>
+<article class="item"><h3>Esperienza mobile</h3><p>Pagine leggibili e navigabili da smartphone, tablet e computer.</p></article>
 </div>
 </section>
 <section>
-<h2>Richiedi il pacchetto di 5 annunci</h2>
-<p>Prezzo del pacchetto: <strong>15 € per cinque annunci</strong>. Prima di iniziare, confermeremo via email i dettagli e le informazioni necessarie.</p>
-__CONTACT__
-__PAYMENT__
+<h2>Un percorso semplice</h2>
+<div class="steps">
+<div class="step"><strong>1. Ci racconti l'attività</strong><p>Capiremo cosa vendi, chi sono i tuoi clienti e cosa deve fare il sito.</p></div>
+<div class="step"><strong>2. Prepariamo una proposta</strong><p>Ricevi una struttura suggerita, le funzionalità e un preventivo chiaro.</p></div>
+<div class="step"><strong>3. Realizziamo il progetto</strong><p>Si parte solo dopo la tua approvazione di contenuti, tempi e costi.</p></div>
+</div>
 </section>
-<footer>Servizio di ottimizzazione testi per annunci di vendita online. Non sono garantite vendite o risultati specifici.</footer>
+<section>
+<h2>Richiedi una prima valutazione</h2>
+<p class="intro">Scrivici indicando il nome dell'attività, il comune e se hai già un sito. Ti risponderemo per capire se e come possiamo aiutarti. Nessun acquisto o pagamento viene avviato da questa pagina.</p>
+<a class="button" href="mailto:__EMAIL__?subject=Valutazione%20sito%20web">Richiedi informazioni</a>
+<p class="note">Il preventivo viene concordato caso per caso. Nessuna promessa di vendite, posizionamento o risultati garantiti.</p>
+</section>
+<footer>Ciccio · Servizi web per piccole attività. Contatti: <a href="mailto:__EMAIL__">__EMAIL__</a></footer>
 </main></body></html>"""
-    page = page.replace("__CONTACT__", contact).replace("__PAYMENT__", payment)
+    page = page.replace("__EMAIL__", email_href)
     target = root / "offer-page.html"
     target.write_text(page, encoding="utf-8")
-    if not target.is_file() or target.stat().st_size < 500:
+    if not target.is_file() or target.stat().st_size < 1000:
         raise OSError("La pagina offerta non è stata creata correttamente.")
-    return {"created": True, "path": str(target), "source": source.name if source else "pagina informativa predefinita", "bytes": target.stat().st_size}
+    return {
+        "created": True,
+        "path": str(target),
+        "source": "pagina servizi web Ciccio",
+        "bytes": target.stat().st_size,
+        "contact_email": contact_email,
+    }
 
 
 if __name__ == "__main__":
     result = build_offer_page()
-    if result["created"]:
-        print("Pagina offerta creata: " + result["path"] + " da " + result["source"])
-    else:
-        print("Pagina offerta non creata: " + result["reason"])
+    print("Pagina offerta creata: " + result["path"] + " da " + result["source"])
