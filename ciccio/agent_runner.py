@@ -526,6 +526,9 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
             "source_type": "openstreetmap_record",
             "business_name": name,
             "city": city,
+            "address": street + (", " + postcode if postcode else ""),
+            "phone": phone,
+            "email": email,
             "website_tag": website,
             "page_excerpt": " | ".join(details)[:1800],
         }
@@ -546,45 +549,56 @@ def parse_osm_clothing_stores(payload, city_group, *, limit=12):
     return selected
 
 
-def collect_osm_clothing_stores(title, *, limit=12, timeout=18):
-    """Find independent clothing shops across rotating Italian city groups using OSM."""
+def collect_osm_clothing_stores(title, *, limit=24, timeout=18):
+    """Query Overpass city-by-city so records without addr:city keep their known area."""
     match = re.search(r"lotto\s+(\d+)", str(title or ""), re.I)
     batch = max(1, int(match.group(1))) if match else 1
     city_group = OSM_CITY_GROUPS[(batch - 1) % len(OSM_CITY_GROUPS)]
-    city_pattern = "|".join(re.escape(city) for city in city_group)
-    query = (
-        '[out:json][timeout:35];'
-        'area["ISO3166-1"="IT"]["admin_level"="2"]->.italy;'
-        'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
-        '["name"~"^(' + city_pattern + ')$"](area.italy)->.cities;'
-        '(nwr["shop"~"^(clothes|boutique|fashion)$"](area.cities););'
-        'out center tags 200;'
-    )
     endpoints = (
         "https://overpass-api.de/api/interpreter",
         "https://overpass.kumi.systems/api/interpreter",
     )
-    for endpoint in endpoints:
-        request = urllib.request.Request(
-            endpoint,
-            data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
-            headers={
-                "User-Agent": "CiccioResearch/1.0",
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            method="POST",
+    per_city_limit = max(2, (limit + len(city_group) - 1) // len(city_group))
+    by_city = []
+    seen = set()
+    for city in city_group:
+        city_pattern = re.escape(city)
+        query = (
+            '[out:json][timeout:25];'
+            'area["ISO3166-1"="IT"]["admin_level"="2"]->.italy;'
+            'area["boundary"="administrative"]["admin_level"~"^(6|8)$"]'
+            '["name"~"^' + city_pattern + '$"](area.italy)->.city;'
+            '(nwr["shop"~"^(clothes|boutique|fashion)$"](area.city););'
+            'out center tags 200;'
         )
-        try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                payload = json.loads(response.read(8_000_000).decode("utf-8", "replace"))
-            stores = parse_osm_clothing_stores(payload, city_group, limit=limit)
-            if stores:
-                print("OpenStreetMap: " + str(len(stores)) + " negozi candidati trovati nelle città: " + ", ".join(city_group))
-                return stores
-        except Exception as exc:
-            print("OpenStreetMap non disponibile (" + type(exc).__name__ + "); provo un'altra fonte gratuita.")
-    return []
-
+        city_rows = []
+        for endpoint in endpoints:
+            request = urllib.request.Request(
+                endpoint,
+                data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
+                headers={
+                    "User-Agent": "CiccioResearch/1.1 (public business discovery)",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    payload = json.loads(response.read(8_000_000).decode("utf-8", "replace"))
+                city_rows = parse_osm_clothing_stores(payload, [city], limit=per_city_limit)
+                if city_rows:
+                    break
+            except Exception as exc:
+                print("OpenStreetMap non disponibile per " + city + " (" + type(exc).__name__ + "); provo un endpoint alternativo.")
+        for row in city_rows:
+            key = (row["business_name"].casefold(), row["city"].casefold())
+            if key not in seen:
+                seen.add(key)
+                by_city.append(row)
+        print("OpenStreetMap " + city + ": " + str(len(city_rows)) + " schede candidate.")
+        if len(by_city) >= limit:
+            break
+    return by_city[:limit]
 
 def parse_google_places_response(payload, city, *, limit=12):
     """Normalize Google Places Text Search results into source-backed business records."""
