@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from agent_runner import (
     collect_task_sources,
+    extract_public_contacts,
     normalize_public_url,
     parse_osm_clothing_stores,
     parse_google_places_response,
@@ -65,6 +66,18 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertIn("ristoranti", joined)
         self.assertIn("pizzerie", joined)
 
+
+    def test_extracts_only_public_email_and_italian_phone(self):
+        contacts = extract_public_contacts(
+            "Contatti: info@atelier.example - Tel. 081 1234567"
+        )
+        self.assertEqual(contacts["email"], "info@atelier.example")
+        self.assertEqual(contacts["phone"], "081 1234567")
+
+    def test_ignores_non_italian_phone_patterns(self):
+        contacts = extract_public_contacts("Call 555-123-4567 or visit our store")
+        self.assertEqual(contacts, {"phone": "", "email": ""})
+
     def test_parses_google_places_business_data(self):
         rows = parse_google_places_response({
             "places": [{
@@ -104,7 +117,7 @@ class OpenStreetMapLeadTests(unittest.TestCase):
             "business_name": "Atelier Aurora",
             "city": "Napoli",
             "website_tag": "",
-            "page_excerpt": "Atelier Aurora; Città: Milano",
+            "page_excerpt": "Atelier Aurora; Città: Napoli",
         }]
         search.return_value = [{
             "title": "Atelier Aurora",
@@ -113,7 +126,7 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         }]
         fetch_page.return_value = "Atelier Aurora — abbigliamento donna, Napoli"
         rows = collect_task_sources(
-            "Ricerca clienti — Italia — lotto 001",
+            "Ricerca clienti — Campania — lotto 001",
             "Trova negozi di abbigliamento indipendenti in Campania per siti web",
             max_results=24,
         )
