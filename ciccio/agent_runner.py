@@ -1290,15 +1290,25 @@ def execute_task(db, groq, open_tasks, user_id):
             for source in sources
             if (source.get("page_verified") or source.get("record_verified")) and source.get("url")
         ]
+        public_contacts = [
+            str(source.get(field, "")).strip()
+            for source in sources
+            for field in ("phone", "email")
+            if str(source.get(field, "")).strip()
+        ]
         verified_rows = []
         for line in deliverable.splitlines():
-            if re.search(r"\|\s*(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE|NON\s+VERIFICATO)\b", line, re.I):
-                if any(url in line for url in verified_urls):
-                    verified_rows.append(line)
+            if not re.search(r"\|\s*(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE|NON\s+VERIFICATO)\b", line, re.I):
+                continue
+            has_source = any(url in line for url in verified_urls)
+            has_public_contact = any(contact.casefold() in line.casefold() for contact in public_contacts)
+            if has_source and has_public_contact:
+                verified_rows.append(line)
+        verified_rows = list(dict.fromkeys(verified_rows))
         if len(verified_rows) < 10:
             diagnostic = (
                 "Ricerca non completata: " + str(len(verified_rows))
-                + " schede di attività verificabili nel lotto; ne servono almeno 10. "
+                + " schede con fonte e recapito pubblico verificati nel deliverable; ne servono almeno 10. "
                 "Le schede con stato del sito non dimostrato restano candidate da approfondire, non lead qualificati. "
                 "Nessun contatto viene inviato."
             )
