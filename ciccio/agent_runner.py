@@ -887,7 +887,6 @@ def collect_task_sources(title, notes, *, max_results=20):
             contacts = extract_public_contacts(title_text + " " + snippet + " " + page_text)
             evidence_text = title_text + " " + snippet + " " + url + " " + page_text
             parsed_host = urllib.parse.urlparse(url).netloc.casefold()
-            italian_domain = parsed_host.endswith(".it") or ".it:" in parsed_host
             if local_website_task and (
                 not business_pattern.search(evidence_text)
                 or not campania_pattern.search(evidence_text)
@@ -1293,11 +1292,6 @@ def execute_task(db, groq, open_tasks, user_id):
             cleaned_lines.append(line)
         deliverable = "\n".join(cleaned_lines)
         # A candidate is counted only when its shop record or official page was verified this cycle.
-        verified_urls = [
-            str(source.get("url", "")).strip()
-            for source in sources
-            if (source.get("page_verified") or source.get("record_verified")) and source.get("url")
-        ]
         verified_rows = []
         for line in deliverable.splitlines():
             if not re.search(r"\|\s*(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE|NON\s+VERIFICATO)\b", line, re.I):
@@ -1555,7 +1549,7 @@ def main():
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("id", task["id"]).eq("user_id", user_id).execute()
                 if not updated.data:
-                    raise RuntimeError("Migrazione dell'attività Campania a ricerca nazionale non confermata.")
+                    raise RuntimeError("Migrazione dell'attività di ricerca clienti alla zona Campania non confermata.")
                 task["title"] = new_title
                 task["notes"] = new_notes
 
