@@ -1,0 +1,59 @@
+name: Ciccio offer page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ciccio/offer_page.py"
+      - ".github/workflows/ciccio-offer-page.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ciccio-public-offer-page
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build public website service page
+        env:
+          CICCIO_CONTACT_EMAIL: ${{ secrets.CICCIO_CONTACT_EMAIL }}
+        run: |
+          python -m py_compile ciccio/offer_page.py
+          python ciccio/offer_page.py
+          cp ciccio_output/offer-page.html ciccio_output/index.html
+          test -s ciccio_output/index.html
+          grep -q "Siti web per piccole attività" ciccio_output/index.html
+          grep -q "mailto:" ciccio_output/index.html
+          if grep -q "5 annunci\|15 €\|proton.m" ciccio_output/index.html; then
+            echo "La pagina contiene contenuti commerciali obsoleti o un contatto non valido."
+            exit 1
+          fi
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ciccio_output
+      - name: Deploy public offer page
+        id: deployment
+        uses: actions/deploy-pages@v4
