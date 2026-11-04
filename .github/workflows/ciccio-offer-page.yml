@@ -44,7 +44,7 @@ jobs:
           test -s ciccio_output/index.html
           grep -q "Siti web per piccole attività" ciccio_output/index.html
           grep -q "mailto:" ciccio_output/index.html
-          if grep -q "5 annunci\|15 €\|proton.m" ciccio_output/index.html; then
+          if grep -qE "5 annunci|15 €" ciccio_output/index.html || grep -qE 'ciccio\\.servizi@proton\\.m(["<])' ciccio_output/index.html; then
             echo "La pagina contiene contenuti commerciali obsoleti o un contatto non valido."
             exit 1
           fi
