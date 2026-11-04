@@ -16,7 +16,9 @@ class OpenStreetMapLeadTests(unittest.TestCase):
             {"type": "node", "id": 101, "tags": {
                 "name": "Boutique Aurora", "shop": "clothes",
                 "addr:city": "Milano", "addr:street": "Via Roma",
-                "website": "https://aurora.example"
+                "website": "https://aurora.example",
+                "phone": "+39 02 1234567",
+                "email": "info@aurora.example"
             }},
             {"type": "node", "id": 102, "tags": {
                 "name": "Boutique Aurora", "shop": "clothes", "addr:city": "Milano"
@@ -37,6 +39,8 @@ class OpenStreetMapLeadTests(unittest.TestCase):
         self.assertTrue(all(row["record_verified"] for row in rows))
         aurora = next(row for row in rows if row["business_name"] == "Boutique Aurora")
         self.assertEqual(aurora["website_tag"], "https://aurora.example")
+        self.assertEqual(aurora["phone"], "+39 02 1234567")
+        self.assertEqual(aurora["email"], "info@aurora.example")
         self.assertIn("OpenStreetMap contributors", aurora["page_excerpt"])
 
     def test_uses_queried_municipality_when_osm_address_is_missing(self):
