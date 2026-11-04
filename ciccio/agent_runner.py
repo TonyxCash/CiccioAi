@@ -733,6 +733,22 @@ def fetch_public_page_text(url, *, timeout=6):
         return ""
 
 
+def extract_public_contacts(value):
+    """Extract only contact details visibly published in a fetched public page or snippet."""
+    text = str(value or "")
+    email_match = re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", text, re.I)
+    phone_match = re.search(
+        r"(?<!\d)(?:\+39[\s./-]?)?(?:0\d{1,3}|3\d{2})[\s./-]?\d{5,8}(?!\d)",
+        text,
+    )
+    email = email_match.group(0).strip(".,;:") if email_match else ""
+    phone = re.sub(r"\s+", " ", phone_match.group(0)).strip(" .,-") if phone_match else ""
+    digits = re.sub(r"\D", "", phone)
+    if digits and not 9 <= len(digits) <= 13:
+        phone = ""
+    return {"phone": phone, "email": email}
+
+
 def collect_task_sources(title, notes, *, max_results=20):
     """Collect real URLs and reject off-topic results before they reach the AI."""
     results, seen = [], set()
@@ -767,6 +783,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             if not site_url or site_url in seen:
                 continue
             page_text = fetch_public_page_text(site_url, timeout=5)
+            contacts = extract_public_contacts(page_text)
             name_tokens = [
                 token for token in re.findall(r"[a-z0-9]+", str(place.get("business_name", "")).casefold())
                 if len(token) >= 4 and token not in {"negozio", "ristorante", "pizzeria", "bar", "cafe"}
@@ -782,6 +799,8 @@ def collect_task_sources(title, notes, *, max_results=20):
                     "source_type": "official_website",
                     "business_name": place.get("business_name", ""),
                     "city": place.get("city", ""),
+                    "phone": place.get("phone") or contacts["phone"],
+                    "email": contacts["email"],
                     "page_excerpt": page_text[:1800],
                 })
                 seen.add(site_url)
@@ -824,6 +843,7 @@ def collect_task_sources(title, notes, *, max_results=20):
                 if any(domain in host for domain in blocked_domains):
                     continue
                 page_text = fetch_public_page_text(site_url, timeout=5)
+                contacts = extract_public_contacts(page_text)
                 if not page_text:
                     continue
                 folded_page = page_text.casefold()
@@ -839,6 +859,8 @@ def collect_task_sources(title, notes, *, max_results=20):
                     "source_type": "official_website",
                     "business_name": name,
                     "city": city,
+                    "phone": store.get("phone") or contacts["phone"],
+                    "email": store.get("email") or contacts["email"],
                     "page_excerpt": ("Negozio: " + name + ". Città: " + city + ". " + page_text)[:1800],
                 })
                 seen.add(site_url)
@@ -862,6 +884,7 @@ def collect_task_sources(title, notes, *, max_results=20):
             if not url.startswith(("https://", "http://")) or not title_text or url in seen:
                 continue
             page_text = fetch_public_page_text(url) if local_website_task else ""
+            contacts = extract_public_contacts(title_text + " " + snippet + " " + page_text)
             evidence_text = title_text + " " + snippet + " " + url + " " + page_text
             parsed_host = urllib.parse.urlparse(url).netloc.casefold()
             italian_domain = parsed_host.endswith(".it") or ".it:" in parsed_host
@@ -878,6 +901,8 @@ def collect_task_sources(title, notes, *, max_results=20):
                 "query": query[:220],
                 "snippet": snippet[:500],
                 "page_verified": bool(page_text),
+                "phone": contacts["phone"],
+                "email": contacts["email"],
                 "page_excerpt": page_text[:1800],
             })
             if len(results) >= max_results:
@@ -1273,20 +1298,25 @@ def execute_task(db, groq, open_tasks, user_id):
             for source in sources
             if (source.get("page_verified") or source.get("record_verified")) and source.get("url")
         ]
-        public_contacts = [
-            str(source.get(field, "")).strip()
-            for source in sources
-            for field in ("phone", "email")
-            if str(source.get(field, "")).strip()
-        ]
         verified_rows = []
         for line in deliverable.splitlines():
             if not re.search(r"\|\s*(?:ASSENTE|ESISTENTE|DA\s+MIGLIORARE|NON\s+VERIFICATO)\b", line, re.I):
                 continue
-            has_source = any(url in line for url in verified_urls)
-            has_public_contact = any(contact.casefold() in line.casefold() for contact in public_contacts)
-            if has_source and has_public_contact:
-                verified_rows.append(line)
+            # A row qualifies only when its own source URL and its own published contact match.
+            for source in sources:
+                source_url = str(source.get("url", "")).strip()
+                if not source_url or source_url not in line:
+                    continue
+                if not (source.get("page_verified") or source.get("record_verified")):
+                    continue
+                source_contacts = [
+                    str(source.get(field, "")).strip()
+                    for field in ("phone", "email")
+                    if str(source.get(field, "")).strip()
+                ]
+                if any(contact.casefold() in line.casefold() for contact in source_contacts):
+                    verified_rows.append(line)
+                    break
         verified_rows = list(dict.fromkeys(verified_rows))
         if len(verified_rows) < 10:
             diagnostic = (
