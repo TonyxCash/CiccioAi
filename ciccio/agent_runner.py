@@ -31,19 +31,12 @@ def is_transient_error(exc):
 
 
 def execute_read_with_retry(query, *, attempts=3):
-    """Retry safe, read-only Supabase queries on transient transport/service errors."""
-    for attempt in range(attempts):
+    """Retry safe, read-only Supabase queries; never mix database and AI-provider fallbacks."""
+    for attempt in range(max(1, attempts)):
         try:
             return query.execute()
         except Exception as exc:
-            if not is_transient_error(exc) or attempt >= attempts - 1:
-                status = getattr(exc, "status_code", None)
-                if status == 429 or (isinstance(status, int) and status >= 500):
-                    try:
-                        print("Groq ha raggiunto un limite; provo il modello gratuito di riserva.")
-                        return openrouter_completion_fallback(**kwargs)
-                    except Exception as fallback_exc:
-                        print("Provider di riserva non disponibile (" + type(fallback_exc).__name__ + ").")
+            if not is_transient_error(exc) or attempt >= max(1, attempts) - 1:
                 raise
             delay = min(2 ** attempt, 4)
             print(f"Errore temporaneo nella lettura Supabase ({type(exc).__name__}); nuovo tentativo tra {delay}s.")
@@ -76,16 +69,25 @@ def openrouter_completion_fallback(**kwargs):
 
 
 def groq_completion_with_retry(groq, *, attempts=3, **kwargs):
-    """Retry only transient Groq/API transport failures; never repeat database actions."""
-    for attempt in range(attempts):
+    """Retry Groq transient errors, then try the configured OpenRouter proxy once."""
+    last_error = None
+    for attempt in range(max(1, attempts)):
         try:
             return groq.chat.completions.create(**kwargs)
         except Exception as exc:
-            if not is_transient_error(exc) or attempt >= attempts - 1:
+            last_error = exc
+            if not is_transient_error(exc):
                 raise
-            delay = min(2 ** attempt, 4)
-            print(f"Errore temporaneo Groq ({type(exc).__name__}); nuovo tentativo tra {delay}s ({attempt + 2}/{attempts}).")
-            time.sleep(delay)
+            if attempt < max(1, attempts) - 1:
+                delay = min(2 ** attempt, 4)
+                print(f"Errore temporaneo Groq ({type(exc).__name__}); nuovo tentativo tra {delay}s ({attempt + 2}/{attempts}).")
+                time.sleep(delay)
+    try:
+        print("Groq non disponibile dopo i tentativi; provo il provider AI di riserva configurato.")
+        return openrouter_completion_fallback(**kwargs)
+    except Exception as fallback_exc:
+        print("Provider AI di riserva non disponibile (" + type(fallback_exc).__name__ + ").")
+        raise last_error
 
 
 def notify_email(subject, message):
@@ -1637,6 +1639,9 @@ def main():
         print(json.dumps({"saved": True, "cycle_id": saved.data[0].get("id"),
                           "status": row["status"], "action": row["action"],
                           "result": row["result"]}, ensure_ascii=False, indent=2))
+        if row["status"] != "completed":
+            print("Ciclo registrato ma non completato: GitHub Actions deve segnalarlo come errore operativo.")
+            raise SystemExit(2)
     except Exception as exc:
         print("Ciclo Ciccio fallito nella fase '" + stage + "': "
               + (type(exc).__name__ + ": " + str(exc))[:1200])
